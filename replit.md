@@ -15,6 +15,10 @@ MVP complete with all core features:
 - Adjustable slide count (3-20 slides)
 
 ## Recent Changes
+- January 23, 2026: Added reference image upload for presentations
+  - Teachers can upload a photo of existing lesson material
+  - AI analyzes the image and creates a matching presentation
+  - Uses GPT-4o vision to understand lesson content and style
 - January 23, 2026: Added presentation customization options
   - Content style: Text + Images, Images Only, or Text Only
   - Layout options: Single image per slide or Image Grid (4 images)

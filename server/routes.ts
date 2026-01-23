@@ -55,7 +55,20 @@ export async function registerRoutes(
   app.post("/api/generate", async (req, res) => {
     try {
       const validatedData = generateContentSchema.parse(req.body);
-      const { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions } = validatedData;
+      let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, referenceImage } = validatedData;
+      
+      // Validate referenceImage if provided
+      if (referenceImage) {
+        // Check that it's a valid data URL with image MIME type
+        const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp);base64,/;
+        if (!dataUrlPattern.test(referenceImage)) {
+          return res.status(400).json({ error: "Invalid image format. Please upload a PNG, JPEG, GIF, or WebP image." });
+        }
+        // Limit size to ~10MB base64 (roughly 13.3MB encoded)
+        if (referenceImage.length > 15 * 1024 * 1024) {
+          return res.status(400).json({ error: "Image too large. Please use an image under 10MB." });
+        }
+      }
 
       let generatedContent: string;
       let title: string;
@@ -68,7 +81,7 @@ export async function registerRoutes(
           break;
 
         case "presentation":
-          const presentationResult = await generatePresentation(prompt, gradeLevel, subject, slideCount, presentationOptions);
+          const presentationResult = await generatePresentation(prompt, gradeLevel, subject, slideCount, presentationOptions, referenceImage);
           generatedContent = JSON.stringify(presentationResult);
           title = presentationResult.title;
           break;
@@ -139,7 +152,7 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
 }
 
 // Presentation generation
-async function generatePresentation(prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, options?: PresentationOptions) {
+async function generatePresentation(prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, options?: PresentationOptions, referenceImage?: string) {
   const context = buildContext(gradeLevel, subject);
   const numSlides = slideCount || 6;
   const style = options?.style || "textAndImages";
@@ -172,12 +185,31 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
         "imagePrompts": ["Detailed description of image"${layout === "grid" ? ', "Image 2", "Image 3", "Image 4"' : ''}]
       }`;
   
+  // Build user message - include reference image if provided
+  let userMessage: any = `Create an engaging educational presentation about: ${prompt}. Create exactly ${numSlides} slides.`;
+  
+  if (referenceImage) {
+    userMessage = [
+      {
+        type: "text",
+        text: `Analyze this image of a lesson or educational material and create an engaging presentation based on its content and visual style. The user's additional instructions: ${prompt}. Create exactly ${numSlides} slides that match the topic and teaching approach shown in the image.`
+      },
+      {
+        type: "image_url",
+        image_url: {
+          url: referenceImage,
+          detail: "high"
+        }
+      }
+    ];
+  }
+  
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
         role: "system",
-        content: `You are an expert educational content creator specializing in engaging presentations for teachers. Create presentations that are age-appropriate, visually describable, and include interactive elements. ${context}
+        content: `You are an expert educational content creator specializing in engaging presentations for teachers. ${referenceImage ? "Analyze the provided reference image to understand the lesson content, visual style, and teaching approach. Create a presentation that matches and expands on what you see." : "Create presentations that are age-appropriate, visually describable, and include interactive elements."} ${context}
         
         Return a JSON object with this exact structure:
         {
@@ -194,7 +226,7 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
       },
       {
         role: "user",
-        content: `Create an engaging educational presentation about: ${prompt}. Create exactly ${numSlides} slides.`
+        content: userMessage
       }
     ],
     response_format: { type: "json_object" },

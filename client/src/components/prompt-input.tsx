@@ -1,18 +1,19 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Upload, X, Image as ImageIcon } from "lucide-react";
 import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }, referenceImage?: string) => void;
   isGenerating: boolean;
 }
 
@@ -96,6 +97,23 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptInputProps) {
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const prevSelectedType = useRef(selectedType);
+
+  // Clear image when switching away from presentation
+  if (prevSelectedType.current !== selectedType) {
+    prevSelectedType.current = selectedType;
+    if (selectedType !== "presentation" && (referenceImage || imagePreview)) {
+      setReferenceImage(null);
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -110,6 +128,31 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       presentationLayout: "single",
     },
   });
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert("Image too large. Please use an image under 10MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setReferenceImage(base64);
+        setImagePreview(base64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearImage = () => {
+    setReferenceImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const onSubmit = (values: FormValues) => {
     const slideCount = values.slideCount ? parseInt(values.slideCount) : undefined;
@@ -129,7 +172,8 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       values.subject || undefined,
       slideCount,
       videoOptions,
-      presentationOptions
+      presentationOptions,
+      selectedType === "presentation" ? referenceImage || undefined : undefined
     );
   };
 
@@ -262,6 +306,60 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                   </FormItem>
                 )}
               />
+            </div>
+          )}
+
+          {/* Reference image upload for presentations */}
+          {selectedType === "presentation" && (
+            <div className="pt-2">
+              <p className="text-sm text-muted-foreground mb-2">
+                <ImageIcon className="h-4 w-4 inline mr-1" />
+                Optional: Upload a photo of your lesson to use as reference
+              </p>
+              <div className="flex items-start gap-3">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  data-testid="input-reference-image"
+                />
+                {imagePreview ? (
+                  <div className="relative inline-block">
+                    <img 
+                      src={imagePreview} 
+                      alt="Reference" 
+                      className="w-24 h-24 object-cover rounded-lg border"
+                      data-testid="img-reference-preview"
+                    />
+                    <button
+                      type="button"
+                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1"
+                      onClick={clearImage}
+                      data-testid="button-clear-image"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => fileInputRef.current?.click()}
+                    data-testid="button-upload-reference"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Photo
+                  </Button>
+                )}
+                {imagePreview && (
+                  <p className="text-xs text-muted-foreground">
+                    The AI will analyze this image and create a presentation based on its content and style.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

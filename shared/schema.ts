@@ -66,6 +66,7 @@ export const generateContentSchema = z.object({
   slideCount: z.number().min(3).max(20).optional(),
   videoOptions: videoOptionsSchema.optional(),
   presentationOptions: presentationOptionsSchema.optional(),
+  referenceImage: z.string().optional(), // Base64 image for reference
 });
 
 export type GenerateContentRequest = z.infer<typeof generateContentSchema>;
