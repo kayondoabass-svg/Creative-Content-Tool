@@ -468,25 +468,26 @@ export async function registerRoutes(
     }
   });
 
-  // Generate content
+  // Generate content (requires authentication)
   app.post("/api/generate", async (req, res) => {
     try {
       const validatedData = generateContentSchema.parse(req.body);
       let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage } = validatedData;
       
-      // Get user info
+      // Get user info - require authentication
       const user = (req as any).user;
       const userId = user?.claims?.sub;
       
-      // Check subscription status
-      let isPremium = false;
-      if (userId) {
-        const subscriptionStatus = await stripeService.getSubscriptionStatus(userId);
-        isPremium = subscriptionStatus.isPremium;
+      if (!userId) {
+        return res.status(401).json({ error: "Please sign in to generate content" });
       }
       
-      // Check free tier usage limits
-      if (!isPremium && userId) {
+      // Check subscription status
+      const subscriptionStatus = await stripeService.getSubscriptionStatus(userId);
+      const isPremium = subscriptionStatus.isPremium;
+      
+      // Check free tier usage limits for non-premium users
+      if (!isPremium) {
         const usage = await stripeService.getUserUsage(userId);
         
         if (type === 'image' && usage.imageCount >= FREE_LIMITS.image) {
@@ -609,7 +610,7 @@ export async function registerRoutes(
       });
 
       // Increment usage counters for free users
-      if (!isPremium && userId) {
+      if (!isPremium) {
         if (type === 'image') {
           await stripeService.incrementUsage(userId, 'image');
         } else if (type === 'presentation') {
