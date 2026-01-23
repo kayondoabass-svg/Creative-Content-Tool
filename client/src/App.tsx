@@ -18,6 +18,9 @@ import Home from "@/pages/home";
 import LandingPage from "@/pages/landing";
 import PricingPage from "@/pages/pricing";
 import CEODashboard from "@/pages/ceo-dashboard";
+import Terms from "@/pages/terms";
+import Privacy from "@/pages/privacy";
+import Refund from "@/pages/refund";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
@@ -31,16 +34,24 @@ function Router() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <LandingPage />;
-  }
-
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      {/* Public pages - accessible without auth */}
+      <Route path="/terms" component={Terms} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/refund" component={Refund} />
       <Route path="/pricing" component={PricingPage} />
-      <Route path="/ceo" component={CEODashboard} />
-      <Route component={NotFound} />
+      
+      {/* Protected pages - require auth */}
+      {!isAuthenticated ? (
+        <Route component={LandingPage} />
+      ) : (
+        <>
+          <Route path="/" component={Home} />
+          <Route path="/ceo" component={CEODashboard} />
+          <Route component={NotFound} />
+        </>
+      )}
     </Switch>
   );
 }
