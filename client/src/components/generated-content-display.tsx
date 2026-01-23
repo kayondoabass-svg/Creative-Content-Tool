@@ -93,35 +93,101 @@ export function GeneratedContentDisplay({
       const pptx = new pptxgen();
       pptx.title = data.title || "Presentation";
       pptx.author = "BrightBoard";
+      pptx.layout = "LAYOUT_16x9";
 
-      slides.forEach((slide) => {
+      const layout = data.layout || "single";
+      const slideData = slides as (Slide & { images?: string[] })[];
+
+      slideData.forEach((slide) => {
         const pptSlide = pptx.addSlide();
+        const hasImage = slide.image || (slide.images && slide.images.length > 0);
+        const hasContent = slide.content && slide.content.length > 0;
         
+        // Title
         pptSlide.addText(slide.title || "Slide", {
           x: 0.5,
           y: 0.3,
           w: 9,
-          h: 0.8,
-          fontSize: 28,
+          h: 0.7,
+          fontSize: 32,
           bold: true,
           color: "363636",
         });
 
-        const bulletPoints = (slide.content || []).map(point => ({
-          text: point,
-          options: { bullet: true, fontSize: 18, color: "555555" }
-        }));
-
-        if (bulletPoints.length > 0) {
+        // Layout with image on left, content on right (or just content if no image)
+        if (hasImage && layout === "single" && slide.image) {
+          // Single image on left
+          pptSlide.addImage({
+            data: slide.image,
+            x: 0.5,
+            y: 1.2,
+            w: 3.5,
+            h: 3.5,
+          });
+          
+          // Content on right
+          if (hasContent) {
+            const bulletPoints = slide.content.map(point => ({
+              text: point,
+              options: { bullet: true, fontSize: 18, color: "555555", breakLine: true }
+            }));
+            pptSlide.addText(bulletPoints, {
+              x: 4.3,
+              y: 1.2,
+              w: 5.2,
+              h: 3.5,
+              valign: "top",
+            });
+          }
+        } else if (hasImage && layout === "grid" && slide.images && slide.images.length > 0) {
+          // Grid of images (2x2)
+          const gridPositions = [
+            { x: 0.5, y: 1.2 },
+            { x: 2.8, y: 1.2 },
+            { x: 0.5, y: 3.0 },
+            { x: 2.8, y: 3.0 },
+          ];
+          
+          slide.images.slice(0, 4).forEach((img, idx) => {
+            pptSlide.addImage({
+              data: img,
+              x: gridPositions[idx].x,
+              y: gridPositions[idx].y,
+              w: 2.0,
+              h: 2.0,
+            });
+          });
+          
+          // Content on right of grid
+          if (hasContent) {
+            const bulletPoints = slide.content.map(point => ({
+              text: point,
+              options: { bullet: true, fontSize: 16, color: "555555", breakLine: true }
+            }));
+            pptSlide.addText(bulletPoints, {
+              x: 5.2,
+              y: 1.2,
+              w: 4.3,
+              h: 3.5,
+              valign: "top",
+            });
+          }
+        } else if (hasContent) {
+          // No image, just content
+          const bulletPoints = slide.content.map(point => ({
+            text: point,
+            options: { bullet: true, fontSize: 20, color: "555555", breakLine: true }
+          }));
           pptSlide.addText(bulletPoints, {
             x: 0.5,
-            y: 1.3,
+            y: 1.2,
             w: 9,
             h: 4,
             valign: "top",
           });
         }
 
+        // Speaker notes
         if (slide.notes) {
           pptSlide.addNotes(slide.notes);
         }
