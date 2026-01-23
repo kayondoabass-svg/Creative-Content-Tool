@@ -51,7 +51,7 @@ export default function Home() {
   const [selectedType, setSelectedType] = useState<ContentType>("image");
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<GeneratedContent | null>(null);
-  const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string } } | null>(null);
+  const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string } } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -60,7 +60,7 @@ export default function Home() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (data: { type: ContentType; prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string } }) => {
+    mutationFn: async (data: { type: ContentType; prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string } }) => {
       const res = await apiRequest("POST", "/api/generate", data);
       return res.json();
     },
@@ -95,9 +95,9 @@ export default function Home() {
     },
   });
 
-  const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }) => {
-    setLastPrompt({ prompt, gradeLevel, subject, slideCount, videoOptions });
-    generateMutation.mutate({ type: selectedType, prompt, gradeLevel, subject, slideCount, videoOptions });
+  const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }) => {
+    setLastPrompt({ prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions });
+    generateMutation.mutate({ type: selectedType, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions });
   };
 
   const handleRegenerate = () => {

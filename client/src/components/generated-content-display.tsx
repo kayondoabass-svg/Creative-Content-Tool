@@ -269,34 +269,69 @@ function ImageContent({ content }: { content: string }) {
 function PresentationContent({ content }: { content: string }) {
   try {
     const data = JSON.parse(content);
-    const slides: Slide[] = data.slides || [];
+    const slides: (Slide & { images?: string[] })[] = data.slides || [];
+    const layout = data.layout || "single";
+    const style = data.style || "textAndImages";
 
     if (slides.length > 0) {
       return (
         <div className="space-y-4">
-          <h3 className="font-bold text-xl">{data.title || "Presentation"}</h3>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="font-bold text-xl">{data.title || "Presentation"}</h3>
+            <div className="flex gap-2">
+              {style && (
+                <Badge variant="outline" data-testid="badge-presentation-style">
+                  {style === "textAndImages" ? "Text + Images" : style === "imagesOnly" ? "Images Only" : "Text Only"}
+                </Badge>
+              )}
+              {layout && style !== "textOnly" && (
+                <Badge variant="outline" data-testid="badge-presentation-layout">
+                  {layout === "grid" ? "Grid Layout" : "Single Image"}
+                </Badge>
+              )}
+            </div>
+          </div>
           <div className="grid gap-4">
             {slides.map((slide, index) => (
               <Card key={index} className="p-4 bg-muted/30">
-                <div className="flex flex-col sm:flex-row items-start gap-4">
-                  {slide.image && (
-                    <div className="flex-shrink-0 w-full sm:w-40">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                      {index + 1}
+                    </div>
+                    <h4 className="font-semibold text-base">{slide.title}</h4>
+                  </div>
+                  
+                  {/* Grid layout - multiple images */}
+                  {layout === "grid" && slide.images && slide.images.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 ml-11">
+                      {slide.images.map((img, imgIndex) => (
+                        <img 
+                          key={imgIndex}
+                          src={img} 
+                          alt={`${slide.title} - Image ${imgIndex + 1}`}
+                          className="w-full h-auto rounded-lg border shadow-sm aspect-square object-cover"
+                          data-testid={`img-slide-${index}-${imgIndex}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Single layout - one image */}
+                  {layout !== "grid" && slide.image && (
+                    <div className="ml-11">
                       <img 
                         src={slide.image} 
                         alt={slide.title}
-                        className="w-full h-auto rounded-lg border shadow-sm"
+                        className="w-full max-w-md h-auto rounded-lg border shadow-sm"
                         data-testid={`img-slide-${index}`}
                       />
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                        {index + 1}
-                      </div>
-                      <h4 className="font-semibold text-base">{slide.title}</h4>
-                    </div>
-                    <ul className="mt-2 space-y-1.5 ml-11">
+                  
+                  {/* Text content (if not images-only or if has content) */}
+                  {slide.content && slide.content.length > 0 && (
+                    <ul className="space-y-1.5 ml-11">
                       {slide.content.map((point, i) => (
                         <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                           <span className="text-primary mt-1">•</span>
@@ -304,12 +339,13 @@ function PresentationContent({ content }: { content: string }) {
                         </li>
                       ))}
                     </ul>
-                    {slide.notes && (
-                      <p className="mt-3 text-xs text-muted-foreground italic border-t pt-2 ml-11">
-                        Speaker notes: {slide.notes}
-                      </p>
-                    )}
-                  </div>
+                  )}
+                  
+                  {slide.notes && (
+                    <p className="text-xs text-muted-foreground italic border-t pt-2 ml-11">
+                      Speaker notes: {slide.notes}
+                    </p>
+                  )}
                 </div>
               </Card>
             ))}

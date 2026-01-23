@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateContentSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions } from "@shared/schema";
+import { generateContentSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions } from "@shared/schema";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -55,7 +55,7 @@ export async function registerRoutes(
   app.post("/api/generate", async (req, res) => {
     try {
       const validatedData = generateContentSchema.parse(req.body);
-      const { type, prompt, gradeLevel, subject, slideCount, videoOptions } = validatedData;
+      const { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions } = validatedData;
 
       let generatedContent: string;
       let title: string;
@@ -68,7 +68,7 @@ export async function registerRoutes(
           break;
 
         case "presentation":
-          const presentationResult = await generatePresentation(prompt, gradeLevel, subject, slideCount);
+          const presentationResult = await generatePresentation(prompt, gradeLevel, subject, slideCount, presentationOptions);
           generatedContent = JSON.stringify(presentationResult);
           title = presentationResult.title;
           break;
@@ -139,9 +139,38 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
 }
 
 // Presentation generation
-async function generatePresentation(prompt: string, gradeLevel?: string, subject?: string, slideCount?: number) {
+async function generatePresentation(prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, options?: PresentationOptions) {
   const context = buildContext(gradeLevel, subject);
   const numSlides = slideCount || 6;
+  const style = options?.style || "textAndImages";
+  const layout = options?.layout || "single";
+  
+  // Determine number of images per slide based on layout
+  const imagesPerSlide = layout === "grid" ? 4 : 1;
+  
+  // Build content instructions based on style
+  let contentInstructions = "";
+  if (style === "textOnly") {
+    contentInstructions = "Each slide should have a title, 3-5 bullet points, and speaker notes. No images needed.";
+  } else if (style === "imagesOnly") {
+    contentInstructions = `Each slide should have only a title and ${imagesPerSlide} detailed image description(s). No bullet points - the images tell the story. Include speaker notes for the teacher.`;
+  } else {
+    contentInstructions = `Each slide should have a title, 2-3 brief bullet points, and ${imagesPerSlide} image description(s). Keep text minimal - let visuals do the work.`;
+  }
+  
+  const slideStructure = style === "imagesOnly" 
+    ? `{
+        "title": "Slide Title",
+        "content": [],
+        "notes": "Speaker notes for the teacher",
+        "imagePrompts": ["Detailed description of image 1"${layout === "grid" ? ', "Image 2", "Image 3", "Image 4"' : ''}]
+      }`
+    : `{
+        "title": "Slide Title",
+        "content": ["Bullet point 1", "Bullet point 2"],
+        "notes": "Speaker notes for the teacher",
+        "imagePrompts": ["Detailed description of image"${layout === "grid" ? ', "Image 2", "Image 3", "Image 4"' : ''}]
+      }`;
   
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -153,21 +182,19 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
         Return a JSON object with this exact structure:
         {
           "title": "Presentation Title",
+          "style": "${style}",
+          "layout": "${layout}",
           "slides": [
-            {
-              "title": "Slide Title",
-              "content": ["Bullet point 1", "Bullet point 2", "Bullet point 3"],
-              "notes": "Speaker notes for the teacher",
-              "imagePrompt": "Description of suggested visual for this slide"
-            }
+            ${slideStructure}
           ]
         }
         
-        IMPORTANT: Create exactly ${numSlides} slides. Each slide should have 3-5 bullet points.`
+        ${contentInstructions}
+        IMPORTANT: Create exactly ${numSlides} slides.`
       },
       {
         role: "user",
-        content: `Create an engaging educational presentation about: ${prompt}. Create exactly ${numSlides} slides with clear, age-appropriate content.`
+        content: `Create an engaging educational presentation about: ${prompt}. Create exactly ${numSlides} slides.`
       }
     ],
     response_format: { type: "json_object" },
@@ -177,24 +204,49 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   const content = response.choices[0]?.message?.content || "{}";
   const presentationData = JSON.parse(content);
   
+  // Store options in the result
+  presentationData.style = style;
+  presentationData.layout = layout;
+  
+  // Skip image generation for text-only style
+  if (style === "textOnly") {
+    return presentationData;
+  }
+  
   // Generate images for each slide
   const slidesWithImages = await Promise.all(
-    presentationData.slides.map(async (slide: Slide) => {
-      if (slide.imagePrompt) {
-        try {
-          const imageResponse = await openai.images.generate({
-            model: "gpt-image-1",
-            prompt: `Educational illustration for children: ${slide.imagePrompt}. Colorful, child-friendly, educational style, suitable for classroom presentation.`,
-            n: 1,
-            size: "1024x1024",
-          });
-          
-          const imageData = imageResponse.data?.[0]?.b64_json;
-          if (imageData) {
-            slide.image = `data:image/png;base64,${imageData}`;
+    presentationData.slides.map(async (slide: Slide & { imagePrompts?: string[], images?: string[] }) => {
+      const prompts = slide.imagePrompts || (slide.imagePrompt ? [slide.imagePrompt] : []);
+      
+      if (prompts.length > 0) {
+        const images: string[] = [];
+        
+        // Generate images (limit based on layout)
+        const promptsToGenerate = prompts.slice(0, imagesPerSlide);
+        
+        for (const imgPrompt of promptsToGenerate) {
+          try {
+            const imageResponse = await openai.images.generate({
+              model: "gpt-image-1",
+              prompt: `Educational illustration for children: ${imgPrompt}. Colorful, child-friendly, educational style, suitable for classroom presentation.`,
+              n: 1,
+              size: "1024x1024",
+            });
+            
+            const imageData = imageResponse.data?.[0]?.b64_json;
+            if (imageData) {
+              images.push(`data:image/png;base64,${imageData}`);
+            }
+          } catch (error) {
+            console.error("Failed to generate image for slide:", error);
           }
-        } catch (error) {
-          console.error("Failed to generate image for slide:", error);
+        }
+        
+        // Store images array for grid layout, or single image for single layout
+        if (layout === "grid") {
+          slide.images = images;
+        } else if (images.length > 0) {
+          slide.image = images[0];
         }
       }
       return slide;

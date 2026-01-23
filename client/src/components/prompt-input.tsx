@@ -12,7 +12,7 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }) => void;
   isGenerating: boolean;
 }
 
@@ -33,6 +33,17 @@ const videoQualities = [
   { value: "3d", label: "3D" },
   { value: "hd", label: "HD" },
   { value: "4k", label: "4K" },
+];
+
+const presentationStyles = [
+  { value: "textAndImages", label: "Text + Images" },
+  { value: "imagesOnly", label: "Images Only" },
+  { value: "textOnly", label: "Text Only" },
+];
+
+const presentationLayouts = [
+  { value: "single", label: "Single Image" },
+  { value: "grid", label: "Image Grid" },
 ];
 
 const gradeLevels = [
@@ -78,6 +89,8 @@ const formSchema = z.object({
   videoLength: z.string().optional(),
   videoStyle: z.string().optional(),
   videoQuality: z.string().optional(),
+  presentationStyle: z.string().optional(),
+  presentationLayout: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -93,6 +106,8 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       videoLength: "5min",
       videoStyle: "animation",
       videoQuality: "hd",
+      presentationStyle: "textAndImages",
+      presentationLayout: "single",
     },
   });
 
@@ -103,13 +118,18 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       style: values.videoStyle,
       quality: values.videoQuality,
     } : undefined;
+    const presentationOptions = selectedType === "presentation" ? {
+      style: values.presentationStyle,
+      layout: values.presentationLayout,
+    } : undefined;
     
     onGenerate(
       values.prompt.trim(),
       values.gradeLevel || undefined,
       values.subject || undefined,
       slideCount,
-      videoOptions
+      videoOptions,
+      presentationOptions
     );
   };
 
@@ -192,6 +212,58 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
               />
             )}
           </div>
+
+          {selectedType === "presentation" && (
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <FormField
+                control={form.control}
+                name="presentationStyle"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Content:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[130px]" data-testid="select-presentation-style">
+                          <SelectValue placeholder="Style" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {presentationStyles.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="presentationLayout"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Layout:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[120px]" data-testid="select-presentation-layout">
+                          <SelectValue placeholder="Layout" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {presentationLayouts.map((l) => (
+                          <SelectItem key={l.value} value={l.value}>
+                            {l.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
 
           {selectedType === "storyboard" && (
             <div className="flex flex-wrap items-center gap-3 pt-1">

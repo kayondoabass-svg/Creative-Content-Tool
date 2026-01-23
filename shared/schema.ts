@@ -49,6 +49,14 @@ export const videoOptionsSchema = z.object({
 
 export type VideoOptions = z.infer<typeof videoOptionsSchema>;
 
+// Presentation options schema
+export const presentationOptionsSchema = z.object({
+  style: z.enum(["textAndImages", "imagesOnly", "textOnly"]).optional(),
+  layout: z.enum(["single", "grid"]).optional(),
+});
+
+export type PresentationOptions = z.infer<typeof presentationOptionsSchema>;
+
 // Content generation request schema
 export const generateContentSchema = z.object({
   type: z.enum(contentTypes),
@@ -57,6 +65,7 @@ export const generateContentSchema = z.object({
   subject: z.string().optional(),
   slideCount: z.number().min(3).max(20).optional(),
   videoOptions: videoOptionsSchema.optional(),
+  presentationOptions: presentationOptionsSchema.optional(),
 });
 
 export type GenerateContentRequest = z.infer<typeof generateContentSchema>;
@@ -67,7 +76,9 @@ export const slideSchema = z.object({
   content: z.array(z.string()),
   notes: z.string().optional(),
   imagePrompt: z.string().optional(),
+  imagePrompts: z.array(z.string()).optional(),
   image: z.string().optional(),
+  images: z.array(z.string()).optional(),
 });
 
 export type Slide = z.infer<typeof slideSchema>;
