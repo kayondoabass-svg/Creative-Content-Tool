@@ -46,6 +46,7 @@ export const generateContentSchema = z.object({
   prompt: z.string().min(1).max(2000),
   gradeLevel: z.string().optional(),
   subject: z.string().optional(),
+  slideCount: z.number().min(3).max(20).optional(),
 });
 
 export type GenerateContentRequest = z.infer<typeof generateContentSchema>;
