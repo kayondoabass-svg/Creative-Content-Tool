@@ -7,12 +7,32 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoSettings } from "@/components/logo-settings";
 import { FileConverter } from "@/components/file-converter";
-import { Sparkles, GraduationCap } from "lucide-react";
+import { Sparkles, GraduationCap, LogOut, Crown, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import LandingPage from "@/pages/landing";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
+  const { user, isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LandingPage />;
+  }
+
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -21,10 +41,86 @@ function Router() {
   );
 }
 
+function UserMenu() {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const { data: subscriptionStatus } = useQuery({
+    queryKey: ["/api/subscription/status"],
+    enabled: isAuthenticated,
+  });
+
+  if (isLoading) {
+    return <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />;
+  }
+
+  if (!isAuthenticated || !user) {
+    return (
+      <Button asChild size="sm" data-testid="button-login-header">
+        <a href="/api/login">Sign In</a>
+      </Button>
+    );
+  }
+
+  const isPremium = (subscriptionStatus as any)?.isPremium;
+  const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-9 w-9 rounded-full" data-testid="button-user-menu">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} />
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          {isPremium && (
+            <span className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full p-0.5">
+              <Crown className="w-3 h-3 text-white" />
+            </span>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <div className="flex items-center justify-start gap-2 p-2">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} />
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col space-y-0.5">
+            <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
+            <p className="text-xs text-muted-foreground">{user.email}</p>
+          </div>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-pointer" asChild>
+          <a href="/pricing" className="flex items-center gap-2">
+            <Crown className="w-4 h-4" />
+            <span>{isPremium ? "Manage Subscription" : "Upgrade to Premium"}</span>
+            {!isPremium && (
+              <Badge variant="secondary" className="ml-auto text-xs">PRO</Badge>
+            )}
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-pointer" asChild>
+          <a href="/api/logout" className="flex items-center gap-2 text-destructive">
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </a>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function HeaderWithLogo() {
+  const { isAuthenticated, isLoading } = useAuth();
   const { data: settings } = useQuery<OrganizationSettings>({
     queryKey: ["/api/settings"],
+    enabled: isAuthenticated,
   });
+
+  if (isLoading || !isAuthenticated) {
+    return null;
+  }
 
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
@@ -52,6 +148,7 @@ function HeaderWithLogo() {
         <FileConverter />
         <LogoSettings />
         <ThemeToggle />
+        <UserMenu />
       </div>
     </header>
   );
@@ -65,7 +162,6 @@ function App() {
           <div className="flex flex-col h-screen w-full bg-background">
             <HeaderWithLogo />
             
-            {/* Main Content */}
             <main className="flex-1 overflow-hidden">
               <Router />
             </main>
