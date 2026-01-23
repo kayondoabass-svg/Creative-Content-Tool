@@ -430,6 +430,49 @@ export async function registerRoutes(
       const validatedData = generateContentSchema.parse(req.body);
       let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage } = validatedData;
       
+      // Check if user is trying to use premium features
+      const premiumQualities = ['hd', '4k'];
+      const hasPremiumVideoQuality = videoOptions?.quality && premiumQualities.includes(videoOptions.quality);
+      const hasPremiumPresentationQuality = presentationOptions?.imageQuality && premiumQualities.includes(presentationOptions.imageQuality);
+      const hasPremiumTransitions = presentationOptions?.transition && presentationOptions.transition !== 'none';
+      const hasPremiumDelay = presentationOptions?.transitionDelay && presentationOptions.transitionDelay > 0;
+      const hasPremiumTapToReveal = presentationOptions?.tapToReveal;
+      
+      const usesPremiumFeatures = hasPremiumVideoQuality || hasPremiumPresentationQuality || 
+        hasPremiumTransitions || hasPremiumDelay || hasPremiumTapToReveal;
+      
+      if (usesPremiumFeatures) {
+        // Get user from session
+        const user = (req as any).user;
+        if (user) {
+          // Check subscription status
+          const subscriptionStatus = await stripeService.getSubscriptionStatus(user.id);
+          if (!subscriptionStatus.isPremium) {
+            // Downgrade to free tier options
+            if (videoOptions) {
+              videoOptions.quality = '2d';
+            }
+            if (presentationOptions) {
+              presentationOptions.imageQuality = '2d';
+              presentationOptions.transition = 'none';
+              presentationOptions.transitionDelay = 0;
+              presentationOptions.tapToReveal = false;
+            }
+          }
+        } else {
+          // Anonymous user - enforce free tier
+          if (videoOptions) {
+            videoOptions.quality = '2d';
+          }
+          if (presentationOptions) {
+            presentationOptions.imageQuality = '2d';
+            presentationOptions.transition = 'none';
+            presentationOptions.transitionDelay = 0;
+            presentationOptions.tapToReveal = false;
+          }
+        }
+      }
+      
       // Validate referenceImage if provided
       if (referenceImage) {
         // Check that it's a valid data URL with image MIME type

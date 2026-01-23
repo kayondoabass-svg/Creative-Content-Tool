@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
-import { Sparkles, Loader2, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Sparkles, Loader2, Upload, X, Image as ImageIcon, Lock, Crown } from "lucide-react";
+import { useSubscription } from "@/hooks/use-subscription";
 import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
@@ -35,10 +36,10 @@ const videoStyles = [
 ];
 
 const videoQualities = [
-  { value: "2d", label: "2D" },
-  { value: "3d", label: "3D" },
-  { value: "hd", label: "HD" },
-  { value: "4k", label: "4K" },
+  { value: "2d", label: "2D", premium: false },
+  { value: "3d", label: "3D", premium: false },
+  { value: "hd", label: "HD", premium: true },
+  { value: "4k", label: "4K", premium: true },
 ];
 
 const presentationStyles = [
@@ -58,10 +59,10 @@ const presentationImageStyles = [
 ];
 
 const presentationImageQualities = [
-  { value: "2d", label: "2D" },
-  { value: "3d", label: "3D" },
-  { value: "hd", label: "HD" },
-  { value: "4k", label: "4K" },
+  { value: "2d", label: "2D", premium: false },
+  { value: "3d", label: "3D", premium: false },
+  { value: "hd", label: "HD", premium: true },
+  { value: "4k", label: "4K", premium: true },
 ];
 
 // Premium animation options
@@ -131,6 +132,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptInputProps) {
+  const { isPremium } = useSubscription();
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -157,11 +159,11 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       slideCount: "6",
       videoLength: "5min",
       videoStyle: "animation",
-      videoQuality: "hd",
+      videoQuality: isPremium ? "hd" : "2d",
       presentationStyle: "textAndImages",
       presentationLayout: "single",
       presentationImageStyle: "animation",
-      presentationImageQuality: "hd",
+      presentationImageQuality: isPremium ? "hd" : "2d",
       presentationTransition: "none",
       presentationTransitionDelay: "0",
       presentationTapToReveal: false,
@@ -386,16 +388,27 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 render={({ field }) => (
                   <FormItem className="flex items-center gap-2">
                     <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Quality:</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select 
+                      onValueChange={(val) => {
+                        const option = presentationImageQualities.find(q => q.value === val);
+                        if (!isPremium && option?.premium) return;
+                        field.onChange(val);
+                      }} 
+                      value={!isPremium && presentationImageQualities.find(q => q.value === field.value)?.premium ? "2d" : field.value}
+                    >
                       <FormControl>
-                        <SelectTrigger className="w-[80px]" data-testid="select-presentation-image-quality">
+                        <SelectTrigger className="w-[100px]" data-testid="select-presentation-image-quality">
                           <SelectValue placeholder="Quality" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {presentationImageQualities.map((q) => (
-                          <SelectItem key={q.value} value={q.value}>
-                            {q.label}
+                          <SelectItem 
+                            key={q.value} 
+                            value={q.value}
+                            disabled={q.premium && !isPremium}
+                          >
+                            {q.label} {q.premium && !isPremium && <Lock className="w-3 h-3 inline ml-1" />}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -408,10 +421,17 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
 
           {/* Premium animation options for presentations */}
           {selectedType === "presentation" && (
-            <div className="flex flex-wrap items-center gap-3 p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-lg">
+            <div className={`flex flex-wrap items-center gap-3 p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-lg ${!isPremium ? 'opacity-60' : ''}`}>
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <span className="text-xs font-semibold bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full">PREMIUM</span>
+                <span className="text-xs font-semibold bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
+                  {!isPremium && <Lock className="w-3 h-3" />}
+                  <Crown className="w-3 h-3" />
+                  PREMIUM
+                </span>
                 <span className="text-sm text-muted-foreground">Animation Options</span>
+                {!isPremium && (
+                  <a href="/pricing" className="text-xs text-primary hover:underline ml-2">Upgrade</a>
+                )}
               </div>
               
               <FormField
@@ -420,7 +440,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 render={({ field }) => (
                   <FormItem className="flex items-center gap-2">
                     <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Transition:</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={isPremium ? field.value : "none"} disabled={!isPremium}>
                       <FormControl>
                         <SelectTrigger className="w-[100px]" data-testid="select-presentation-transition">
                           <SelectValue placeholder="Transition" />
@@ -444,7 +464,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 render={({ field }) => (
                   <FormItem className="flex items-center gap-2">
                     <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Delay:</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={isPremium ? field.value : "0"} disabled={!isPremium}>
                       <FormControl>
                         <SelectTrigger className="w-[70px]" data-testid="select-presentation-delay">
                           <SelectValue placeholder="Delay" />
@@ -468,11 +488,12 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 render={({ field }) => (
                   <FormItem className="flex items-center gap-2">
                     <FormControl>
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className={`flex items-center gap-2 ${isPremium ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
                         <input
                           type="checkbox"
-                          checked={field.value || false}
+                          checked={isPremium ? (field.value || false) : false}
                           onChange={field.onChange}
+                          disabled={!isPremium}
                           className="w-4 h-4 rounded border-muted-foreground"
                           data-testid="checkbox-tap-to-reveal"
                         />
@@ -595,16 +616,27 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 render={({ field }) => (
                   <FormItem className="flex items-center gap-2">
                     <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Quality:</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select 
+                      onValueChange={(val) => {
+                        const option = videoQualities.find(q => q.value === val);
+                        if (!isPremium && option?.premium) return;
+                        field.onChange(val);
+                      }} 
+                      value={!isPremium && videoQualities.find(q => q.value === field.value)?.premium ? "2d" : field.value}
+                    >
                       <FormControl>
-                        <SelectTrigger className="w-[80px]" data-testid="select-video-quality">
+                        <SelectTrigger className="w-[100px]" data-testid="select-video-quality">
                           <SelectValue placeholder="Quality" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {videoQualities.map((qual) => (
-                          <SelectItem key={qual.value} value={qual.value}>
-                            {qual.label}
+                          <SelectItem 
+                            key={qual.value} 
+                            value={qual.value}
+                            disabled={qual.premium && !isPremium}
+                          >
+                            {qual.label} {qual.premium && !isPremium && <Lock className="w-3 h-3 inline ml-1" />}
                           </SelectItem>
                         ))}
                       </SelectContent>
