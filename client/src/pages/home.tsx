@@ -58,7 +58,7 @@ export default function Home() {
   const [selectedType, setSelectedType] = useState<ContentType>("image");
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<GeneratedContent | null>(null);
-  const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string }; worksheetOptions?: { colorMode?: string }; referenceImage?: string } | null>(null);
+  const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }; worksheetOptions?: { colorMode?: string }; referenceImage?: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -67,7 +67,7 @@ export default function Home() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (data: { type: ContentType; prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string }; worksheetOptions?: { colorMode?: string }; referenceImage?: string }) => {
+    mutationFn: async (data: { type: ContentType; prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }; worksheetOptions?: { colorMode?: string }; referenceImage?: string }) => {
       const res = await apiRequest("POST", "/api/generate", data);
       return res.json();
     },
@@ -102,7 +102,7 @@ export default function Home() {
     },
   });
 
-  const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }, referenceImage?: string, worksheetOptions?: { colorMode?: string }) => {
+  const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }) => {
     setLastPrompt({ prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage });
     generateMutation.mutate({ type: selectedType, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage });
   };

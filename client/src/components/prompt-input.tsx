@@ -13,7 +13,7 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }, referenceImage?: string, worksheetOptions?: { colorMode?: string }) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }) => void;
   isGenerating: boolean;
 }
 
@@ -50,6 +50,27 @@ const presentationStyles = [
 const presentationLayouts = [
   { value: "single", label: "Single Image" },
   { value: "grid", label: "Image Grid" },
+];
+
+const presentationImageStyles = [
+  { value: "animation", label: "Animation" },
+  { value: "reallife", label: "Real Life" },
+];
+
+const presentationImageQualities = [
+  { value: "2d", label: "2D" },
+  { value: "3d", label: "3D" },
+  { value: "hd", label: "HD" },
+  { value: "4k", label: "4K" },
+];
+
+// Premium animation options
+const presentationTransitions = [
+  { value: "none", label: "None" },
+  { value: "fade", label: "Fade" },
+  { value: "slide", label: "Slide" },
+  { value: "zoom", label: "Zoom" },
+  { value: "flip", label: "Flip" },
 ];
 
 const gradeLevels = [
@@ -98,6 +119,12 @@ const formSchema = z.object({
   videoQuality: z.string().optional(),
   presentationStyle: z.string().optional(),
   presentationLayout: z.string().optional(),
+  presentationImageStyle: z.string().optional(),
+  presentationImageQuality: z.string().optional(),
+  // Premium features
+  presentationTransition: z.string().optional(),
+  presentationTransitionDelay: z.string().optional(),
+  presentationTapToReveal: z.boolean().optional(),
   worksheetColorMode: z.string().optional(),
 });
 
@@ -133,6 +160,11 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       videoQuality: "hd",
       presentationStyle: "textAndImages",
       presentationLayout: "single",
+      presentationImageStyle: "animation",
+      presentationImageQuality: "hd",
+      presentationTransition: "none",
+      presentationTransitionDelay: "0",
+      presentationTapToReveal: false,
       worksheetColorMode: "colored",
     },
   });
@@ -172,6 +204,11 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
     const presentationOptions = selectedType === "presentation" ? {
       style: values.presentationStyle,
       layout: values.presentationLayout,
+      imageStyle: values.presentationImageStyle,
+      imageQuality: values.presentationImageQuality,
+      transition: values.presentationTransition,
+      transitionDelay: values.presentationTransitionDelay ? parseFloat(values.presentationTransitionDelay) : undefined,
+      tapToReveal: values.presentationTapToReveal,
     } : undefined;
     const worksheetOptions = selectedType === "worksheet" ? {
       colorMode: values.worksheetColorMode,
@@ -315,6 +352,133 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                         ))}
                       </SelectContent>
                     </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="presentationImageStyle"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Photos:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[110px]" data-testid="select-presentation-image-style">
+                          <SelectValue placeholder="Style" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {presentationImageStyles.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="presentationImageQuality"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Quality:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[80px]" data-testid="select-presentation-image-quality">
+                          <SelectValue placeholder="Quality" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {presentationImageQualities.map((q) => (
+                          <SelectItem key={q.value} value={q.value}>
+                            {q.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+
+          {/* Premium animation options for presentations */}
+          {selectedType === "presentation" && (
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-lg">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-xs font-semibold bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full">PREMIUM</span>
+                <span className="text-sm text-muted-foreground">Animation Options</span>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="presentationTransition"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Transition:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[100px]" data-testid="select-presentation-transition">
+                          <SelectValue placeholder="Transition" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {presentationTransitions.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="presentationTransitionDelay"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Delay:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[70px]" data-testid="select-presentation-delay">
+                          <SelectValue placeholder="Delay" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="0">0s</SelectItem>
+                        <SelectItem value="0.5">0.5s</SelectItem>
+                        <SelectItem value="1">1s</SelectItem>
+                        <SelectItem value="2">2s</SelectItem>
+                        <SelectItem value="3">3s</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="presentationTapToReveal"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormControl>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={field.value || false}
+                          onChange={field.onChange}
+                          className="w-4 h-4 rounded border-muted-foreground"
+                          data-testid="checkbox-tap-to-reveal"
+                        />
+                        <span className="text-sm text-muted-foreground">Tap to Reveal</span>
+                      </label>
+                    </FormControl>
                   </FormItem>
                 )}
               />

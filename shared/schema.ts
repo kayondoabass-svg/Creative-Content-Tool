@@ -53,6 +53,14 @@ export type VideoOptions = z.infer<typeof videoOptionsSchema>;
 export const presentationOptionsSchema = z.object({
   style: z.enum(["textAndImages", "imagesOnly", "textOnly"]).optional(),
   layout: z.enum(["single", "grid"]).optional(),
+  imageStyle: z.enum(["animation", "reallife"]).optional(),
+  imageQuality: z.enum(["2d", "3d", "hd", "4k"]).optional(),
+  // Premium animation features
+  transition: z.enum(["none", "fade", "slide", "zoom", "flip"]).optional(),
+  transitionDelay: z.number().min(0).max(5).optional(),
+  tapToReveal: z.boolean().optional(),
+  autoPlay: z.boolean().optional(),
+  autoPlayInterval: z.number().min(1).max(30).optional(),
 });
 
 export type PresentationOptions = z.infer<typeof presentationOptionsSchema>;

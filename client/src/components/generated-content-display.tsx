@@ -340,13 +340,17 @@ function PresentationContent({ content }: { content: string }) {
     const slides: (Slide & { images?: string[] })[] = data.slides || [];
     const layout = data.layout || "single";
     const style = data.style || "textAndImages";
+    const imageStyle = data.imageStyle || "animation";
+    const imageQuality = data.imageQuality || "hd";
+    const transition = data.transition;
+    const tapToReveal = data.tapToReveal;
 
     if (slides.length > 0) {
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="font-bold text-xl">{data.title || "Presentation"}</h3>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {style && (
                 <Badge variant="outline" data-testid="badge-presentation-style">
                   {style === "textAndImages" ? "Text + Images" : style === "imagesOnly" ? "Images Only" : "Text Only"}
@@ -355,6 +359,31 @@ function PresentationContent({ content }: { content: string }) {
               {layout && style !== "textOnly" && (
                 <Badge variant="outline" data-testid="badge-presentation-layout">
                   {layout === "grid" ? "Grid Layout" : "Single Image"}
+                </Badge>
+              )}
+              {style !== "textOnly" && (
+                <Badge variant="secondary" data-testid="badge-presentation-image-style">
+                  {imageStyle === "reallife" ? "Real Life" : "Animation"}
+                </Badge>
+              )}
+              {style !== "textOnly" && (
+                <Badge variant="secondary" data-testid="badge-presentation-image-quality">
+                  {imageQuality.toUpperCase()}
+                </Badge>
+              )}
+              {transition && transition !== "none" && (
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid="badge-presentation-transition">
+                  {transition.charAt(0).toUpperCase() + transition.slice(1)} Transition
+                </Badge>
+              )}
+              {transition && transition !== "none" && data.transitionDelay > 0 && (
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid="badge-transition-delay">
+                  {data.transitionDelay}s Delay
+                </Badge>
+              )}
+              {tapToReveal && (
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid="badge-tap-to-reveal">
+                  Tap to Reveal
                 </Badge>
               )}
             </div>

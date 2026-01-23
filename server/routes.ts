@@ -533,6 +533,12 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   const numSlides = slideCount || 6;
   const style = options?.style || "textAndImages";
   const layout = options?.layout || "single";
+  const imageStyle = options?.imageStyle || "animation";
+  const imageQuality = options?.imageQuality || "hd";
+  // Premium features
+  const transition = options?.transition || "none";
+  const transitionDelay = options?.transitionDelay || 0;
+  const tapToReveal = options?.tapToReveal || false;
   
   // Determine number of images per slide based on layout
   const imagesPerSlide = layout === "grid" ? 4 : 1;
@@ -615,6 +621,11 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   // Store options in the result
   presentationData.style = style;
   presentationData.layout = layout;
+  presentationData.imageStyle = imageStyle;
+  presentationData.imageQuality = imageQuality;
+  presentationData.transition = transition;
+  presentationData.transitionDelay = transitionDelay;
+  presentationData.tapToReveal = tapToReveal;
   
   // Skip image generation for text-only style
   if (style === "textOnly") {
@@ -634,9 +645,19 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
         
         for (const imgPrompt of promptsToGenerate) {
           try {
+            // Build style prompt based on imageStyle and imageQuality
+            const stylePrompt = imageStyle === "reallife" 
+              ? "Photorealistic, educational photography style, high quality stock photo look"
+              : "Colorful animated style, cartoon-like, Pixar/Disney quality, child-friendly";
+            
+            const qualityPrompt = imageQuality === "4k" ? "Ultra high definition, 4K quality, extremely detailed" :
+              imageQuality === "3d" ? "3D rendered, CGI quality, depth and lighting effects" :
+              imageQuality === "2d" ? "Flat 2D illustration, clean simple shapes, minimal shadows" :
+              "High definition, crisp and clear, professional quality";
+            
             const imageResponse = await openai.images.generate({
               model: "gpt-image-1",
-              prompt: `Educational illustration for children: ${imgPrompt}. Colorful, child-friendly, educational style, suitable for classroom presentation.`,
+              prompt: `${stylePrompt}. ${qualityPrompt}. Educational illustration for children: ${imgPrompt}. Suitable for classroom presentation.`,
               n: 1,
               size: "1024x1024",
             });

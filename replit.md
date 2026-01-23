@@ -16,6 +16,14 @@ MVP complete with all core features:
 - Worksheet generator with color mode options and multiple download formats
 
 ## Recent Changes
+- January 23, 2026: Added enhanced presentation options with premium features
+  - Photo style options: Animation or Real Life
+  - Photo quality options: 2D, 3D, HD, 4K
+  - Premium animation features (marked with PREMIUM badge):
+    - Slide transitions: None, Fade, Slide, Zoom, Flip
+    - Transition delays: 0-3 seconds
+    - Tap to Reveal option
+  - All options shown as badges in generated output
 - January 23, 2026: Added worksheet generator
   - Generate printable worksheets with various section types
   - Color mode selection: Colored (for screen) or Black & White (for printing)
