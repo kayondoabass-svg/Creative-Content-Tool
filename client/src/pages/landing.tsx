@@ -26,8 +26,9 @@ export default function LandingPage() {
       <main className="pt-24 pb-16">
         <section className="container mx-auto px-4 py-16">
           <div className="text-center max-w-3xl mx-auto">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-500 to-teal-500 bg-clip-text text-transparent">
-              AI-Powered Content for Busy Teachers
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-primary via-purple-500 to-teal-500 bg-clip-text text-transparent">Voice to Reality</span>
+              <span className="block text-2xl md:text-4xl mt-2 text-foreground/80">Content for Busy Teachers</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
               Create stunning educational images, presentations, activities, worksheets, and video storyboards in seconds. Let AI do the heavy lifting so you can focus on what matters most - your students.
