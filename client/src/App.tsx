@@ -32,7 +32,7 @@ function App() {
                 </div>
                 <div>
                   <h1 className="font-bold text-lg tracking-tight flex items-center gap-2">
-                    TeachCreate
+                    BrightBoard
                     <GraduationCap className="h-4 w-4 text-muted-foreground" />
                   </h1>
                   <p className="text-xs text-muted-foreground -mt-0.5">AI Content for Teachers</p>

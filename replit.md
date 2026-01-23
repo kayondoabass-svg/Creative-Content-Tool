@@ -1,7 +1,7 @@
-# TeachCreate - AI Content for Teachers
+# BrightBoard - AI Content for Teachers
 
 ## Overview
-TeachCreate is an AI-powered content creation platform designed for busy teachers. It allows teachers to instantly generate educational content including images, presentations, activities/games, text content, and animated video storyboards - similar to content from Cocomelon, Super Simple Songs, or Smile and Learn.
+BrightBoard is an AI-powered content creation platform designed for busy teachers. It allows teachers to instantly generate educational content including images, presentations, activities/games, text content, and animated video storyboards - similar to content from Cocomelon, Super Simple Songs, or Smile and Learn.
 
 ## Current State
 MVP complete with all core features:
