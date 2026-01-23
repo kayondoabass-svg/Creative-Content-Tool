@@ -15,6 +15,14 @@ MVP complete with all core features:
 - Adjustable slide count (3-20 slides)
 
 ## Recent Changes
+- January 23, 2026: Added organization logo feature
+  - Upload custom logo or generate one using AI
+  - Logo displays in top-right corner of header
+  - Settings stored in memory storage
+- January 23, 2026: Added file converter tool
+  - Convert between PDF, JPEG, PNG formats
+  - Supports images and text files up to 20MB
+  - Automatic download after conversion
 - January 23, 2026: Added reference image upload for presentations
   - Teachers can upload a photo of existing lesson material
   - AI analyzes the image and creates a matching presentation

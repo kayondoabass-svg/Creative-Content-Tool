@@ -109,3 +109,21 @@ export const storyboardFrameSchema = z.object({
 });
 
 export type StoryboardFrame = z.infer<typeof storyboardFrameSchema>;
+
+// Organization/School settings schema
+export const organizationSettingsSchema = z.object({
+  logo: z.string().optional(), // Base64 logo image
+  name: z.string().optional(),
+});
+
+export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;
+
+// File conversion request schema
+export const fileConversionSchema = z.object({
+  file: z.string(), // Base64 file data
+  fileName: z.string(),
+  fromFormat: z.string(),
+  toFormat: z.enum(["pdf", "jpeg", "png"]),
+});
+
+export type FileConversionRequest = z.infer<typeof fileConversionSchema>;

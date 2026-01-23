@@ -1,4 +1,4 @@
-import type { GeneratedContent, InsertGeneratedContent } from "@shared/schema";
+import type { GeneratedContent, InsertGeneratedContent, OrganizationSettings } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -6,15 +6,19 @@ export interface IStorage {
   getContent(id: number): Promise<GeneratedContent | undefined>;
   createContent(content: InsertGeneratedContent): Promise<GeneratedContent>;
   deleteContent(id: number): Promise<void>;
+  getOrganizationSettings(): Promise<OrganizationSettings>;
+  updateOrganizationSettings(settings: Partial<OrganizationSettings>): Promise<OrganizationSettings>;
 }
 
 export class MemStorage implements IStorage {
   private content: Map<number, GeneratedContent>;
   private nextId: number;
+  private organizationSettings: OrganizationSettings;
 
   constructor() {
     this.content = new Map();
     this.nextId = 1;
+    this.organizationSettings = {};
   }
 
   async getAllContent(): Promise<GeneratedContent[]> {
@@ -40,6 +44,15 @@ export class MemStorage implements IStorage {
 
   async deleteContent(id: number): Promise<void> {
     this.content.delete(id);
+  }
+
+  async getOrganizationSettings(): Promise<OrganizationSettings> {
+    return this.organizationSettings;
+  }
+
+  async updateOrganizationSettings(settings: Partial<OrganizationSettings>): Promise<OrganizationSettings> {
+    this.organizationSettings = { ...this.organizationSettings, ...settings };
+    return this.organizationSettings;
   }
 }
 

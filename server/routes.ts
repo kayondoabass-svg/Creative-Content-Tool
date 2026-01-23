@@ -1,8 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateContentSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions } from "@shared/schema";
+import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions } from "@shared/schema";
 import OpenAI from "openai";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import sharp from "sharp";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -48,6 +50,185 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting content:", error);
       res.status(500).json({ error: "Failed to delete content" });
+    }
+  });
+
+  // Get organization settings
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getOrganizationSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  // Update organization settings (logo, name)
+  app.post("/api/settings", async (req, res) => {
+    try {
+      const validatedData = organizationSettingsSchema.partial().parse(req.body);
+      
+      // Validate logo if provided
+      if (validatedData.logo) {
+        const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/;
+        if (!dataUrlPattern.test(validatedData.logo)) {
+          return res.status(400).json({ error: "Invalid logo format. Please upload a PNG, JPEG, GIF, WebP, or SVG image." });
+        }
+        // Base64 is ~4/3 the size of the original, so 10MB base64 = ~7.5MB file
+        if (validatedData.logo.length > 10 * 1024 * 1024) {
+          return res.status(400).json({ error: "Logo too large. Please use an image under 7MB." });
+        }
+      }
+      
+      const settings = await storage.updateOrganizationSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // Generate logo using AI
+  app.post("/api/generate-logo", async (req, res) => {
+    try {
+      const { name, style } = req.body;
+      
+      if (!name || typeof name !== "string") {
+        return res.status(400).json({ error: "Please provide an organization name" });
+      }
+      
+      const stylePrompt = style || "modern, professional";
+      
+      const response = await openai.images.generate({
+        model: "gpt-image-1",
+        prompt: `Create a simple, clean logo for "${name}". Style: ${stylePrompt}. The logo should be suitable for an educational institution or school. Use a clean white or transparent background. Make it minimalist and memorable.`,
+        n: 1,
+        size: "1024x1024",
+      });
+      
+      const imageData = response.data?.[0]?.b64_json;
+      if (!imageData) {
+        return res.status(500).json({ error: "Failed to generate logo" });
+      }
+      
+      res.json({ logo: `data:image/png;base64,${imageData}` });
+    } catch (error) {
+      console.error("Error generating logo:", error);
+      res.status(500).json({ error: "Failed to generate logo" });
+    }
+  });
+
+  // File conversion endpoint
+  app.post("/api/convert", async (req, res) => {
+    try {
+      const validatedData = fileConversionSchema.parse(req.body);
+      const { file, fileName, fromFormat, toFormat } = validatedData;
+      
+      // Size limit for file conversion (20MB)
+      if (file.length > 30 * 1024 * 1024) {
+        return res.status(400).json({ error: "File too large. Please use a file under 20MB." });
+      }
+      
+      // Extract base64 data
+      const base64Match = file.match(/^data:([^;]+);base64,(.+)$/);
+      if (!base64Match) {
+        return res.status(400).json({ error: "Invalid file format" });
+      }
+      
+      const mimeType = base64Match[1];
+      const base64Data = base64Match[2];
+      const buffer = Buffer.from(base64Data, "base64");
+      
+      let convertedData: string;
+      let outputMimeType: string;
+      
+      // Handle conversions
+      if (toFormat === "pdf") {
+        // Convert to PDF
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage([595, 842]); // A4 size
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        
+        if (mimeType.startsWith("image/")) {
+          // Embed image in PDF
+          let image;
+          if (mimeType === "image/png") {
+            image = await pdfDoc.embedPng(buffer);
+          } else if (mimeType === "image/jpeg" || mimeType === "image/jpg") {
+            image = await pdfDoc.embedJpg(buffer);
+          } else {
+            // Convert to PNG first using sharp
+            const pngBuffer = await sharp(buffer).png().toBuffer();
+            image = await pdfDoc.embedPng(pngBuffer);
+          }
+          
+          const { width, height } = image.scale(1);
+          const scale = Math.min(page.getWidth() / width, page.getHeight() / height) * 0.9;
+          const scaledWidth = width * scale;
+          const scaledHeight = height * scale;
+          
+          page.drawImage(image, {
+            x: (page.getWidth() - scaledWidth) / 2,
+            y: (page.getHeight() - scaledHeight) / 2,
+            width: scaledWidth,
+            height: scaledHeight,
+          });
+        } else if (mimeType === "text/plain" || mimeType.includes("text")) {
+          // Text to PDF
+          const text = buffer.toString("utf-8");
+          const lines = text.split("\n");
+          let y = page.getHeight() - 50;
+          
+          for (const line of lines) {
+            if (y < 50) {
+              const newPage = pdfDoc.addPage([595, 842]);
+              y = newPage.getHeight() - 50;
+            }
+            page.drawText(line.substring(0, 80), {
+              x: 50,
+              y,
+              size: 12,
+              font,
+              color: rgb(0, 0, 0),
+            });
+            y -= 16;
+          }
+        }
+        
+        const pdfBytes = await pdfDoc.save();
+        convertedData = `data:application/pdf;base64,${Buffer.from(pdfBytes).toString("base64")}`;
+        outputMimeType = "application/pdf";
+      } else if (toFormat === "jpeg" || toFormat === "png") {
+        // Image conversion using sharp
+        if (!mimeType.startsWith("image/")) {
+          return res.status(400).json({ error: "Can only convert images to JPEG/PNG format" });
+        }
+        
+        let outputBuffer;
+        if (toFormat === "jpeg") {
+          outputBuffer = await sharp(buffer).jpeg({ quality: 90 }).toBuffer();
+          outputMimeType = "image/jpeg";
+        } else {
+          outputBuffer = await sharp(buffer).png().toBuffer();
+          outputMimeType = "image/png";
+        }
+        
+        convertedData = `data:${outputMimeType};base64,${outputBuffer.toString("base64")}`;
+      } else {
+        return res.status(400).json({ error: `Conversion to ${toFormat} is not yet supported` });
+      }
+      
+      const outputFileName = fileName.replace(/\.[^.]+$/, `.${toFormat}`);
+      
+      res.json({
+        file: convertedData,
+        fileName: outputFileName,
+        mimeType: outputMimeType,
+      });
+    } catch (error) {
+      console.error("Error converting file:", error);
+      res.status(500).json({ error: "Failed to convert file" });
     }
   });
 
