@@ -14,8 +14,30 @@ MVP complete with all core features:
 - Slideshow presentation mode with keyboard navigation
 - Adjustable slide count (3-20 slides)
 - Worksheet generator with color mode options and multiple download formats
+- User authentication via Replit Auth (Google, GitHub, Apple, email/password)
+- Subscription-based premium features via Stripe
+
+## Subscription Tiers
+- **Free**: 5 generations/day, basic 2D/3D quality
+- **Weekly** ($4.99/week): Unlimited generations, HD/4K quality, premium animations
+- **Monthly** ($14.99/month): Same as weekly, 25% savings
+- **Yearly** ($99.99/year): Same as weekly, 60% savings (best value)
+
+## Premium Features (requires subscription)
+- HD and 4K image quality for presentations and storyboards
+- Slide transitions (Fade, Slide, Zoom, Flip)
+- Transition delays (0.5s - 3s)
+- Tap-to-reveal animations
+- Unlimited content generations
 
 ## Recent Changes
+- January 23, 2026: Added user authentication and subscription payments
+  - Integrated Replit Auth for sign up/sign in (supports OAuth providers)
+  - Set up Stripe for subscription management with stripe-replit-sync
+  - Created landing page for logged-out users with features and pricing
+  - Added pricing page for managing subscriptions
+  - Implemented user profile dropdown with subscription status
+  - Premium features gated behind subscription (client and server-side validation)
 - January 23, 2026: Added enhanced presentation options with premium features
   - Photo style options: Animation or Real Life
   - Photo quality options: 2D, 3D, HD, 4K
