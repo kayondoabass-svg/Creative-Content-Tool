@@ -259,10 +259,17 @@ export function GeneratedContentDisplay({
               </Button>
             </>
           )}
-          <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
-            <Download className="h-4 w-4 mr-1.5" />
-            Download
-          </Button>
+          {type === "storyboard" ? (
+            <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
+              <Download className="h-4 w-4 mr-1.5" />
+              Save Script
+            </Button>
+          ) : type !== "presentation" && (
+            <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
+              <Download className="h-4 w-4 mr-1.5" />
+              Download
+            </Button>
+          )}
         </div>
       </div>
       <div className="overflow-auto max-h-[600px]">
@@ -498,7 +505,14 @@ function StoryboardContent({ content }: { content: string }) {
 
     return (
       <div className="space-y-4">
-        <h3 className="font-bold text-xl">{data.title || "Storyboard"}</h3>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-bold text-xl">{data.title || "Video Plan"}</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              This is a planning document for creating your video. Use it as a script and guide for video production.
+            </p>
+          </div>
+        </div>
         {data.description && (
           <p className="text-muted-foreground">{data.description}</p>
         )}

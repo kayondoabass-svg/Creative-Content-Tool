@@ -41,8 +41,8 @@ const contentTypes = [
   {
     type: "storyboard" as ContentType,
     icon: Film,
-    title: "Video Storyboards",
-    description: "Plan animated educational videos like Cocomelon or Super Simple Songs",
+    title: "Video Planning",
+    description: "Plan and script animated videos with scenes, dialogue, and visual frames",
     color: "bg-primary",
   },
 ];
