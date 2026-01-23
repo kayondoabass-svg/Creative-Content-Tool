@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogoSettings } from "@/components/logo-settings";
 import { FileConverter } from "@/components/file-converter";
-import { Sparkles, GraduationCap, LogOut, Crown, User } from "lucide-react";
+import { Sparkles, GraduationCap, LogOut, Crown, User, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -17,6 +17,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import LandingPage from "@/pages/landing";
 import PricingPage from "@/pages/pricing";
+import CEODashboard from "@/pages/ceo-dashboard";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
@@ -38,6 +39,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/ceo" component={CEODashboard} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -47,6 +49,10 @@ function UserMenu() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { data: subscriptionStatus } = useQuery({
     queryKey: ["/api/subscription/status"],
+    enabled: isAuthenticated,
+  });
+  const { data: ceoCheck } = useQuery<{ isCEO: boolean }>({
+    queryKey: ["/api/ceo/check"],
     enabled: isAuthenticated,
   });
 
@@ -63,6 +69,7 @@ function UserMenu() {
   }
 
   const isPremium = (subscriptionStatus as any)?.isPremium;
+  const isCEO = ceoCheck?.isCEO;
   const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U";
 
   return (
@@ -101,6 +108,17 @@ function UserMenu() {
             )}
           </a>
         </DropdownMenuItem>
+        {isCEO && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" asChild>
+              <a href="/ceo" className="flex items-center gap-2">
+                <LayoutDashboard className="w-4 h-4" />
+                <span>CEO Dashboard</span>
+              </a>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-pointer" asChild>
           <a href="/api/logout" className="flex items-center gap-2 text-destructive">
