@@ -4,14 +4,15 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Sparkles, Loader2 } from "lucide-react";
 import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number) => void;
   isGenerating: boolean;
 }
 
@@ -43,17 +44,18 @@ const subjects = [
 ];
 
 const placeholders: Record<ContentType, string> = {
-  image: "Describe the educational image you want to create... e.g., 'A colorful illustration showing the water cycle with friendly cartoon clouds and raindrops for kindergarteners'",
-  presentation: "Describe your presentation topic... e.g., 'An engaging 5-slide presentation about dinosaurs for 2nd graders, including fun facts and interactive questions'",
+  image: "Describe the educational image you want to create... e.g., 'A colorful illustration showing the water cycle with friendly cartoon clouds and raindrops'",
+  presentation: "Describe your presentation topic... e.g., 'An engaging presentation about dinosaurs for 2nd graders, including fun facts and interactive questions'",
   text: "Describe the educational content you need... e.g., 'A short story about sharing and friendship for pre-K students with simple vocabulary'",
   activity: "Describe the learning activity or game... e.g., 'A matching game to help 1st graders learn sight words with pictures'",
-  storyboard: "Describe your animated video concept... e.g., 'A fun 30-second animated video teaching the ABC song with dancing letters like Cocomelon style'",
+  storyboard: "Describe your animated video concept... e.g., 'A fun animated video teaching the ABC song with dancing letters like Cocomelon style'",
 };
 
 const formSchema = z.object({
   prompt: z.string().min(1, "Please describe what you want to create").max(2000),
   gradeLevel: z.string().optional(),
   subject: z.string().optional(),
+  slideCount: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -65,14 +67,17 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       prompt: "",
       gradeLevel: "",
       subject: "",
+      slideCount: "6",
     },
   });
 
   const onSubmit = (values: FormValues) => {
+    const slideCount = values.slideCount ? parseInt(values.slideCount) : undefined;
     onGenerate(
       values.prompt.trim(),
       values.gradeLevel || undefined,
-      values.subject || undefined
+      values.subject || undefined,
+      slideCount
     );
   };
 
@@ -83,7 +88,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
   };
 
   return (
-    <Card className="p-5">
+    <Card className="p-4 sm:p-5">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -94,7 +99,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 <FormItem>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger className="w-[140px]" data-testid="select-grade-level">
+                      <SelectTrigger className="w-[130px]" data-testid="select-grade-level">
                         <SelectValue placeholder="Grade Level" />
                       </SelectTrigger>
                     </FormControl>
@@ -117,7 +122,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 <FormItem>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger className="w-[140px]" data-testid="select-subject">
+                      <SelectTrigger className="w-[130px]" data-testid="select-subject">
                         <SelectValue placeholder="Subject" />
                       </SelectTrigger>
                     </FormControl>
@@ -132,6 +137,28 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 </FormItem>
               )}
             />
+
+            {selectedType === "presentation" && (
+              <FormField
+                control={form.control}
+                name="slideCount"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Slides:</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={3}
+                        max={20}
+                        className="w-[70px]"
+                        data-testid="input-slide-count"
+                        {...field}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            )}
           </div>
 
           <FormField
@@ -142,7 +169,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 <FormControl>
                   <Textarea
                     placeholder={placeholders[selectedType]}
-                    className="min-h-[120px] text-base resize-none"
+                    className="min-h-[100px] text-base resize-none"
                     onKeyDown={handleKeyDown}
                     data-testid="input-prompt"
                     {...field}
@@ -153,13 +180,13 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
           />
 
           <div className="flex items-center justify-between gap-4">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground hidden sm:block">
               Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Enter</kbd> to generate
             </p>
             <Button
               type="submit"
               disabled={isGenerating || !form.watch("prompt").trim()}
-              className="gap-2"
+              className="gap-2 ml-auto"
               data-testid="button-generate"
             >
               {isGenerating ? (

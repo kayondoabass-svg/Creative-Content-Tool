@@ -55,7 +55,7 @@ export async function registerRoutes(
   app.post("/api/generate", async (req, res) => {
     try {
       const validatedData = generateContentSchema.parse(req.body);
-      const { type, prompt, gradeLevel, subject } = validatedData;
+      const { type, prompt, gradeLevel, subject, slideCount } = validatedData;
 
       let generatedContent: string;
       let title: string;
@@ -68,7 +68,7 @@ export async function registerRoutes(
           break;
 
         case "presentation":
-          const presentationResult = await generatePresentation(prompt, gradeLevel, subject);
+          const presentationResult = await generatePresentation(prompt, gradeLevel, subject, slideCount);
           generatedContent = JSON.stringify(presentationResult);
           title = presentationResult.title;
           break;
@@ -139,8 +139,9 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
 }
 
 // Presentation generation
-async function generatePresentation(prompt: string, gradeLevel?: string, subject?: string) {
+async function generatePresentation(prompt: string, gradeLevel?: string, subject?: string, slideCount?: number) {
   const context = buildContext(gradeLevel, subject);
+  const numSlides = slideCount || 6;
   
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -160,15 +161,17 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
               "imagePrompt": "Description of suggested visual for this slide"
             }
           ]
-        }`
+        }
+        
+        IMPORTANT: Create exactly ${numSlides} slides. Each slide should have 3-5 bullet points.`
       },
       {
         role: "user",
-        content: `Create an engaging educational presentation about: ${prompt}. Include 5-7 slides with clear, age-appropriate content.`
+        content: `Create an engaging educational presentation about: ${prompt}. Create exactly ${numSlides} slides with clear, age-appropriate content.`
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 2048,
+    max_completion_tokens: 4000,
   });
 
   const content = response.choices[0]?.message?.content || "{}";

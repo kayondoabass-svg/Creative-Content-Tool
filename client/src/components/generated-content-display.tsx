@@ -1,9 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Copy, ExternalLink, Check, RefreshCw, Loader2 } from "lucide-react";
+import { Download, Copy, Check, RefreshCw, Loader2, FileDown } from "lucide-react";
 import { useState } from "react";
 import type { ContentType, Slide, Activity, StoryboardFrame } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import pptxgen from "pptxgenjs";
 
 interface GeneratedContentDisplayProps {
   type: ContentType;
@@ -19,6 +21,7 @@ export function GeneratedContentDisplay({
   onRegenerate,
 }: GeneratedContentDisplayProps) {
   const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   if (isLoading) {
     return (
@@ -56,9 +59,75 @@ export function GeneratedContentDisplay({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `teachcreate-${type}-${Date.now()}.txt`;
+    a.download = `brightboard-${type}-${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPPT = async () => {
+    try {
+      const data = JSON.parse(content);
+      const slides: Slide[] = data.slides || [];
+      
+      if (slides.length === 0) {
+        toast({
+          title: "No slides found",
+          description: "This presentation doesn't have any slides to download.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const pptx = new pptxgen();
+      pptx.title = data.title || "Presentation";
+      pptx.author = "BrightBoard";
+
+      slides.forEach((slide) => {
+        const pptSlide = pptx.addSlide();
+        
+        pptSlide.addText(slide.title || "Slide", {
+          x: 0.5,
+          y: 0.3,
+          w: 9,
+          h: 0.8,
+          fontSize: 28,
+          bold: true,
+          color: "363636",
+        });
+
+        const bulletPoints = (slide.content || []).map(point => ({
+          text: point,
+          options: { bullet: true, fontSize: 18, color: "555555" }
+        }));
+
+        if (bulletPoints.length > 0) {
+          pptSlide.addText(bulletPoints, {
+            x: 0.5,
+            y: 1.3,
+            w: 9,
+            h: 4,
+            valign: "top",
+          });
+        }
+
+        if (slide.notes) {
+          pptSlide.addNotes(slide.notes);
+        }
+      });
+
+      await pptx.writeFile({ fileName: `${data.title || "presentation"}.pptx` });
+      toast({
+        title: "Download started",
+        description: "Your PowerPoint file is being downloaded.",
+      });
+    } catch (error) {
+      console.error("Error generating PPT:", error);
+      toast({
+        title: "Download failed",
+        description: "Could not create the PowerPoint file. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const renderContent = () => {
@@ -84,7 +153,7 @@ export function GeneratedContentDisplay({
         <Badge variant="secondary" className="capitalize">
           {type}
         </Badge>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {onRegenerate && (
             <Button variant="outline" size="sm" onClick={onRegenerate} data-testid="button-regenerate">
               <RefreshCw className="h-4 w-4 mr-1.5" />
@@ -95,6 +164,12 @@ export function GeneratedContentDisplay({
             {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
             {copied ? "Copied!" : "Copy"}
           </Button>
+          {type === "presentation" && (
+            <Button variant="outline" size="sm" onClick={handleDownloadPPT} data-testid="button-download-ppt">
+              <FileDown className="h-4 w-4 mr-1.5" />
+              Download PPT
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
             <Download className="h-4 w-4 mr-1.5" />
             Download

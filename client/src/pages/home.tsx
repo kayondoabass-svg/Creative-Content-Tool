@@ -51,7 +51,7 @@ export default function Home() {
   const [selectedType, setSelectedType] = useState<ContentType>("image");
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<GeneratedContent | null>(null);
-  const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string } | null>(null);
+  const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -60,7 +60,7 @@ export default function Home() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (data: { type: ContentType; prompt: string; gradeLevel?: string; subject?: string }) => {
+    mutationFn: async (data: { type: ContentType; prompt: string; gradeLevel?: string; subject?: string; slideCount?: number }) => {
       const res = await apiRequest("POST", "/api/generate", data);
       return res.json();
     },
@@ -95,9 +95,9 @@ export default function Home() {
     },
   });
 
-  const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string) => {
-    setLastPrompt({ prompt, gradeLevel, subject });
-    generateMutation.mutate({ type: selectedType, prompt, gradeLevel, subject });
+  const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number) => {
+    setLastPrompt({ prompt, gradeLevel, subject, slideCount });
+    generateMutation.mutate({ type: selectedType, prompt, gradeLevel, subject, slideCount });
   };
 
   const handleRegenerate = () => {
@@ -129,23 +129,25 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Content Type Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {contentTypes.map((ct) => (
-              <ContentTypeCard
-                key={ct.type}
-                icon={ct.icon}
-                title={ct.title}
-                description={ct.description}
-                color={ct.color}
-                isSelected={selectedType === ct.type}
-                onClick={() => {
-                  setSelectedType(ct.type);
-                  setSelectedHistoryItem(null);
-                }}
-                testId={`card-type-${ct.type}`}
-              />
-            ))}
+          {/* Content Type Selection - Horizontal scroll on mobile */}
+          <div className="overflow-x-auto -mx-6 px-6 pb-2">
+            <div className="flex gap-3 min-w-max sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:min-w-0">
+              {contentTypes.map((ct) => (
+                <ContentTypeCard
+                  key={ct.type}
+                  icon={ct.icon}
+                  title={ct.title}
+                  description={ct.description}
+                  color={ct.color}
+                  isSelected={selectedType === ct.type}
+                  onClick={() => {
+                    setSelectedType(ct.type);
+                    setSelectedHistoryItem(null);
+                  }}
+                  testId={`card-type-${ct.type}`}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Prompt Input */}
