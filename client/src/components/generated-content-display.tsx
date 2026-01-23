@@ -309,15 +309,24 @@ function ImageContent({ content }: { content: string }) {
     const data = JSON.parse(content);
     if (data.imageUrl || data.b64_json) {
       const imgSrc = data.imageUrl || `data:image/png;base64,${data.b64_json}`;
+      const hasWatermark = !!data.watermark;
       return (
         <div className="space-y-4">
-          <div className="rounded-lg overflow-hidden border">
+          <div className="rounded-lg overflow-hidden border relative">
             <img
               src={imgSrc}
               alt="Generated educational image"
               className="w-full h-auto"
               data-testid="img-generated"
             />
+            {hasWatermark && (
+              <div 
+                className="absolute bottom-2 right-2 bg-black/40 text-white text-xs px-2 py-1 rounded backdrop-blur-sm"
+                data-testid="watermark"
+              >
+                {data.watermark}
+              </div>
+            )}
           </div>
           {data.title && (
             <h3 className="font-semibold text-lg">{data.title}</h3>
@@ -344,6 +353,7 @@ function PresentationContent({ content }: { content: string }) {
     const imageQuality = data.imageQuality || "hd";
     const transition = data.transition;
     const tapToReveal = data.tapToReveal;
+    const hasWatermark = !!data.watermark;
 
     if (slides.length > 0) {
       return (
@@ -403,26 +413,37 @@ function PresentationContent({ content }: { content: string }) {
                   {layout === "grid" && slide.images && slide.images.length > 0 && (
                     <div className="grid grid-cols-2 gap-2 ml-11">
                       {slide.images.map((img, imgIndex) => (
-                        <img 
-                          key={imgIndex}
-                          src={img} 
-                          alt={`${slide.title} - Image ${imgIndex + 1}`}
-                          className="w-full h-auto rounded-lg border shadow-sm aspect-square object-cover"
-                          data-testid={`img-slide-${index}-${imgIndex}`}
-                        />
+                        <div key={imgIndex} className="relative">
+                          <img 
+                            src={img} 
+                            alt={`${slide.title} - Image ${imgIndex + 1}`}
+                            className="w-full h-auto rounded-lg border shadow-sm aspect-square object-cover"
+                            data-testid={`img-slide-${index}-${imgIndex}`}
+                          />
+                          {hasWatermark && (
+                            <div className="absolute bottom-1 right-1 bg-black/40 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm">
+                              {data.watermark}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
                   
                   {/* Single layout - one image */}
                   {layout !== "grid" && slide.image && (
-                    <div className="ml-11">
+                    <div className="ml-11 relative inline-block">
                       <img 
                         src={slide.image} 
                         alt={slide.title}
                         className="w-full max-w-md h-auto rounded-lg border shadow-sm"
                         data-testid={`img-slide-${index}`}
                       />
+                      {hasWatermark && (
+                        <div className="absolute bottom-2 right-2 bg-black/40 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                          {data.watermark}
+                        </div>
+                      )}
                     </div>
                   )}
                   
@@ -526,6 +547,7 @@ function StoryboardContent({ content }: { content: string }) {
   try {
     const data = JSON.parse(content);
     const frames: StoryboardFrame[] = data.frames || [];
+    const hasWatermark = !!data.watermark;
 
     return (
       <div className="space-y-4">
@@ -560,14 +582,21 @@ function StoryboardContent({ content }: { content: string }) {
           {frames.map((frame, index) => (
             <Card key={index} className="p-4 bg-gradient-to-r from-muted/50 to-muted/20">
               <div className="flex flex-col sm:flex-row items-start gap-4">
-                <div className="flex-shrink-0 w-full sm:w-32">
+                <div className="flex-shrink-0 w-full sm:w-32 relative">
                   {frame.image ? (
-                    <img 
-                      src={frame.image} 
-                      alt={`Frame ${frame.frameNumber}`}
-                      className="w-full h-auto rounded-lg border shadow-sm"
-                      data-testid={`img-frame-${index}`}
-                    />
+                    <>
+                      <img 
+                        src={frame.image} 
+                        alt={`Frame ${frame.frameNumber}`}
+                        className="w-full h-auto rounded-lg border shadow-sm"
+                        data-testid={`img-frame-${index}`}
+                      />
+                      {hasWatermark && (
+                        <div className="absolute bottom-1 right-1 bg-black/40 text-white text-[8px] px-1 py-0.5 rounded backdrop-blur-sm">
+                          {data.watermark}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="w-full aspect-video sm:w-32 sm:h-24 rounded-lg bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
                       <span className="text-xs text-muted-foreground text-center px-2">
