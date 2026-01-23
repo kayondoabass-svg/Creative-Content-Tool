@@ -19,7 +19,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
 // Content generation types
-export const contentTypes = ["image", "presentation", "text", "activity", "storyboard"] as const;
+export const contentTypes = ["image", "presentation", "text", "activity", "storyboard", "worksheet"] as const;
 export type ContentType = typeof contentTypes[number];
 
 // Generated content table
@@ -57,6 +57,13 @@ export const presentationOptionsSchema = z.object({
 
 export type PresentationOptions = z.infer<typeof presentationOptionsSchema>;
 
+// Worksheet options schema
+export const worksheetOptionsSchema = z.object({
+  colorMode: z.enum(["colored", "blackWhite"]).optional(),
+});
+
+export type WorksheetOptions = z.infer<typeof worksheetOptionsSchema>;
+
 // Content generation request schema
 export const generateContentSchema = z.object({
   type: z.enum(contentTypes),
@@ -66,6 +73,7 @@ export const generateContentSchema = z.object({
   slideCount: z.number().min(3).max(20).optional(),
   videoOptions: videoOptionsSchema.optional(),
   presentationOptions: presentationOptionsSchema.optional(),
+  worksheetOptions: worksheetOptionsSchema.optional(),
   referenceImage: z.string().optional(), // Base64 image for reference
 });
 
@@ -109,6 +117,21 @@ export const storyboardFrameSchema = z.object({
 });
 
 export type StoryboardFrame = z.infer<typeof storyboardFrameSchema>;
+
+// Worksheet schema
+export const worksheetSchema = z.object({
+  title: z.string(),
+  instructions: z.string(),
+  colorMode: z.enum(["colored", "blackWhite"]),
+  sections: z.array(z.object({
+    type: z.enum(["header", "questions", "fillBlank", "matching", "multipleChoice", "writingPrompt", "drawing"]),
+    title: z.string().optional(),
+    content: z.array(z.string()),
+    answers: z.array(z.string()).optional(),
+  })),
+});
+
+export type Worksheet = z.infer<typeof worksheetSchema>;
 
 // Organization/School settings schema
 export const organizationSettingsSchema = z.object({

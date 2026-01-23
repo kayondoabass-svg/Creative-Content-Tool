@@ -1,12 +1,13 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play } from "lucide-react";
+import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon } from "lucide-react";
 import { useState } from "react";
-import type { ContentType, Slide, Activity, StoryboardFrame } from "@shared/schema";
+import type { ContentType, Slide, Activity, StoryboardFrame, Worksheet } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { SlideshowModal } from "./slideshow-modal";
 import pptxgen from "pptxgenjs";
+import { apiRequest } from "@/lib/queryClient";
 
 interface GeneratedContentDisplayProps {
   type: ContentType;
@@ -231,6 +232,8 @@ export function GeneratedContentDisplay({
         return <ActivityContent content={content} />;
       case "storyboard":
         return <StoryboardContent content={content} />;
+      case "worksheet":
+        return <WorksheetContent content={content} />;
       default:
         return <TextContent content={content} />;
     }
@@ -275,6 +278,8 @@ export function GeneratedContentDisplay({
               <Download className="h-4 w-4 mr-1.5" />
               Save Script
             </Button>
+          ) : type === "worksheet" ? (
+            <WorksheetDownloadButtons content={content} toast={toast} />
           ) : type !== "presentation" && (
             <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
               <Download className="h-4 w-4 mr-1.5" />
@@ -296,27 +301,6 @@ export function GeneratedContentDisplay({
         />
       )}
     </Card>
-  );
-}
-
-function Sparkles({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-      <path d="M5 3v4" />
-      <path d="M19 17v4" />
-      <path d="M3 5h4" />
-      <path d="M17 19h4" />
-    </svg>
   );
 }
 
@@ -580,6 +564,181 @@ function StoryboardContent({ content }: { content: string }) {
                   )}
                 </div>
               </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  } catch {
+    return <TextContent content={content} />;
+  }
+}
+
+// Worksheet download buttons component
+function WorksheetDownloadButtons({ content, toast }: { content: string; toast: any }) {
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  const downloadAsPDF = async () => {
+    setDownloading("pdf");
+    try {
+      const res = await apiRequest("POST", "/api/worksheet-to-pdf", { content });
+      const data = await res.json();
+      
+      const link = document.createElement("a");
+      link.href = data.file;
+      link.download = data.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({ title: "Downloaded", description: "PDF file downloaded successfully." });
+    } catch (error) {
+      toast({ title: "Download failed", description: "Could not create PDF.", variant: "destructive" });
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const downloadAsImage = async () => {
+    setDownloading("jpeg");
+    try {
+      const res = await apiRequest("POST", "/api/worksheet-to-image", { content });
+      const data = await res.json();
+      
+      const link = document.createElement("a");
+      link.href = data.file;
+      link.download = data.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({ title: "Downloaded", description: "Image file downloaded successfully." });
+    } catch (error) {
+      toast({ title: "Download failed", description: "Could not create image.", variant: "destructive" });
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const downloadAsText = () => {
+    try {
+      const data = JSON.parse(content);
+      let text = `${data.title}\n${"=".repeat(data.title.length)}\n\n`;
+      text += `Instructions: ${data.instructions}\n\n`;
+      
+      data.sections?.forEach((section: any, idx: number) => {
+        if (section.title) text += `${section.title}\n${"-".repeat(section.title.length)}\n`;
+        section.content?.forEach((item: string, i: number) => {
+          text += `${i + 1}. ${item}\n`;
+        });
+        text += "\n";
+      });
+      
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${data.title || "worksheet"}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast({ title: "Downloaded", description: "Text file downloaded successfully." });
+    } catch (error) {
+      toast({ title: "Download failed", description: "Could not create text file.", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="flex gap-2 flex-wrap">
+      <Button variant="outline" size="sm" onClick={downloadAsPDF} disabled={!!downloading} data-testid="button-download-pdf">
+        {downloading === "pdf" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+        PDF
+      </Button>
+      <Button variant="outline" size="sm" onClick={downloadAsImage} disabled={!!downloading} data-testid="button-download-jpeg">
+        {downloading === "jpeg" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <ImageIcon className="h-4 w-4 mr-1.5" />}
+        JPEG
+      </Button>
+      <Button variant="outline" size="sm" onClick={downloadAsText} disabled={!!downloading} data-testid="button-download-txt">
+        <Download className="h-4 w-4 mr-1.5" />
+        Text
+      </Button>
+    </div>
+  );
+}
+
+// Worksheet content display
+function WorksheetContent({ content }: { content: string }) {
+  try {
+    const data = JSON.parse(content);
+    const sections = data.sections || [];
+    const isBlackWhite = data.colorMode === "blackWhite";
+    
+    return (
+      <div className="space-y-4" data-testid="worksheet-content">
+        <div className="text-center border-b pb-4">
+          <h2 className="text-2xl font-bold">{data.title}</h2>
+          <p className="text-muted-foreground mt-1">{data.instructions}</p>
+          <div className="flex gap-2 justify-center mt-2">
+            <Badge variant={isBlackWhite ? "outline" : "default"} data-testid="badge-color-mode">
+              {isBlackWhite ? "Black & White" : "Colored"}
+            </Badge>
+          </div>
+        </div>
+        
+        <div className="space-y-6">
+          {sections.map((section: any, idx: number) => (
+            <Card 
+              key={idx} 
+              className={`p-4 ${isBlackWhite ? "bg-white border-2 border-black" : "bg-gradient-to-r from-muted/50 to-muted/20"}`}
+              data-testid={`worksheet-section-${idx}`}
+            >
+              {section.title && (
+                <h3 className={`font-semibold mb-3 ${isBlackWhite ? "text-black" : ""}`}>
+                  {section.title}
+                </h3>
+              )}
+              
+              <div className="space-y-2">
+                {section.content?.map((item: string, i: number) => (
+                  <div 
+                    key={i} 
+                    className={`p-2 rounded ${isBlackWhite ? "border border-black" : "bg-background/50"}`}
+                  >
+                    {section.type === "fillBlank" ? (
+                      <p className="font-medium">
+                        {i + 1}. {item.replace(/_+/g, (match: string) => `_${"_".repeat(Math.max(10, match.length))}_`)}
+                      </p>
+                    ) : section.type === "multipleChoice" ? (
+                      <div>
+                        <p className="font-medium">{i + 1}. {item}</p>
+                      </div>
+                    ) : section.type === "writingPrompt" ? (
+                      <div>
+                        <p className="font-medium">{item}</p>
+                        <div className={`mt-2 h-24 rounded ${isBlackWhite ? "border-2 border-dashed border-black" : "border-2 border-dashed border-muted-foreground/30"}`} />
+                      </div>
+                    ) : section.type === "drawing" ? (
+                      <div>
+                        <p className="font-medium text-sm mb-2">{item}</p>
+                        <div className={`h-32 rounded ${isBlackWhite ? "border-2 border-black" : "border-2 border-dashed border-muted-foreground/30 bg-muted/20"}`} />
+                      </div>
+                    ) : (
+                      <p>{i + 1}. {item}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {section.answers && section.answers.length > 0 && (
+                <details className="mt-3">
+                  <summary className="text-sm text-muted-foreground cursor-pointer">Answer Key</summary>
+                  <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
+                    {section.answers.map((answer: string, i: number) => (
+                      <p key={i}>{i + 1}. {answer}</p>
+                    ))}
+                  </div>
+                </details>
+              )}
             </Card>
           ))}
         </div>

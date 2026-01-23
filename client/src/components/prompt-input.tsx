@@ -13,9 +13,14 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }, referenceImage?: string) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }, referenceImage?: string, worksheetOptions?: { colorMode?: string }) => void;
   isGenerating: boolean;
 }
+
+const worksheetColorModes = [
+  { value: "colored", label: "Colored" },
+  { value: "blackWhite", label: "Black & White" },
+];
 
 const videoLengths = [
   { value: "1min", label: "1 min" },
@@ -80,6 +85,7 @@ const placeholders: Record<ContentType, string> = {
   text: "Describe the educational content you need... e.g., 'A short story about sharing and friendship for pre-K students with simple vocabulary'",
   activity: "Describe the learning activity or game... e.g., 'A matching game to help 1st graders learn sight words with pictures'",
   storyboard: "Describe your animated video concept... e.g., 'A fun animated video teaching the ABC song with dancing letters like Cocomelon style'",
+  worksheet: "Describe the worksheet you want to create... e.g., 'A math worksheet with addition problems for 2nd graders' or 'A vocabulary worksheet about animals'",
 };
 
 const formSchema = z.object({
@@ -92,6 +98,7 @@ const formSchema = z.object({
   videoQuality: z.string().optional(),
   presentationStyle: z.string().optional(),
   presentationLayout: z.string().optional(),
+  worksheetColorMode: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -126,6 +133,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       videoQuality: "hd",
       presentationStyle: "textAndImages",
       presentationLayout: "single",
+      worksheetColorMode: "colored",
     },
   });
 
@@ -165,6 +173,9 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       style: values.presentationStyle,
       layout: values.presentationLayout,
     } : undefined;
+    const worksheetOptions = selectedType === "worksheet" ? {
+      colorMode: values.worksheetColorMode,
+    } : undefined;
     
     onGenerate(
       values.prompt.trim(),
@@ -173,7 +184,8 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       slideCount,
       videoOptions,
       presentationOptions,
-      selectedType === "presentation" ? referenceImage || undefined : undefined
+      selectedType === "presentation" ? referenceImage || undefined : undefined,
+      worksheetOptions
     );
   };
 
@@ -436,6 +448,37 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                   </FormItem>
                 )}
               />
+            </div>
+          )}
+
+          {selectedType === "worksheet" && (
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <FormField
+                control={form.control}
+                name="worksheetColorMode"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Color Mode:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[140px]" data-testid="select-worksheet-color">
+                          <SelectValue placeholder="Color Mode" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {worksheetColorModes.map((mode) => (
+                          <SelectItem key={mode.value} value={mode.value}>
+                            {mode.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Choose colored for screen viewing or black & white for printing
+              </p>
             </div>
           )}
 

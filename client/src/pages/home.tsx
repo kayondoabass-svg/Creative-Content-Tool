@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Image, Presentation, FileText, Gamepad2, Film } from "lucide-react";
+import { Image, Presentation, FileText, Gamepad2, Film, ClipboardList } from "lucide-react";
 import { ContentTypeCard } from "@/components/content-type-card";
 import { PromptInput } from "@/components/prompt-input";
 import { GeneratedContentDisplay } from "@/components/generated-content-display";
@@ -45,13 +45,20 @@ const contentTypes = [
     description: "Plan and script animated videos with scenes, dialogue, and visual frames",
     color: "bg-primary",
   },
+  {
+    type: "worksheet" as ContentType,
+    icon: ClipboardList,
+    title: "Worksheets",
+    description: "Generate printable worksheets with questions, fill-in-the-blanks, and activities",
+    color: "bg-chart-1",
+  },
 ];
 
 export default function Home() {
   const [selectedType, setSelectedType] = useState<ContentType>("image");
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<GeneratedContent | null>(null);
-  const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string }; referenceImage?: string } | null>(null);
+  const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string }; worksheetOptions?: { colorMode?: string }; referenceImage?: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -60,7 +67,7 @@ export default function Home() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (data: { type: ContentType; prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string }; referenceImage?: string }) => {
+    mutationFn: async (data: { type: ContentType; prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string }; worksheetOptions?: { colorMode?: string }; referenceImage?: string }) => {
       const res = await apiRequest("POST", "/api/generate", data);
       return res.json();
     },
@@ -95,9 +102,9 @@ export default function Home() {
     },
   });
 
-  const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }, referenceImage?: string) => {
-    setLastPrompt({ prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, referenceImage });
-    generateMutation.mutate({ type: selectedType, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, referenceImage });
+  const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string }, referenceImage?: string, worksheetOptions?: { colorMode?: string }) => {
+    setLastPrompt({ prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage });
+    generateMutation.mutate({ type: selectedType, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage });
   };
 
   const handleRegenerate = () => {

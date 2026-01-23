@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions } from "@shared/schema";
+import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions } from "@shared/schema";
 import OpenAI from "openai";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import sharp from "sharp";
@@ -232,11 +232,200 @@ export async function registerRoutes(
     }
   });
 
+  // Worksheet to PDF
+  app.post("/api/worksheet-to-pdf", async (req, res) => {
+    try {
+      const { content } = req.body;
+      const data = JSON.parse(content);
+      
+      const pdfDoc = await PDFDocument.create();
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      
+      let page = pdfDoc.addPage([612, 792]); // US Letter size
+      const { width, height } = page.getSize();
+      const margin = 50;
+      let yPosition = height - margin;
+      const lineHeight = 16;
+      
+      // Title
+      page.drawText(data.title || "Worksheet", {
+        x: margin,
+        y: yPosition,
+        size: 20,
+        font: boldFont,
+        color: rgb(0.2, 0.2, 0.4),
+      });
+      yPosition -= 30;
+      
+      // Instructions
+      if (data.instructions) {
+        const instructionLines = wrapText(data.instructions, font, 11, width - margin * 2);
+        for (const line of instructionLines) {
+          if (yPosition < margin + 50) {
+            page = pdfDoc.addPage([612, 792]);
+            yPosition = height - margin;
+          }
+          page.drawText(line, {
+            x: margin,
+            y: yPosition,
+            size: 11,
+            font,
+            color: rgb(0.3, 0.3, 0.3),
+          });
+          yPosition -= lineHeight;
+        }
+        yPosition -= 10;
+      }
+      
+      // Sections
+      for (const section of data.sections || []) {
+        if (yPosition < margin + 100) {
+          page = pdfDoc.addPage([612, 792]);
+          yPosition = height - margin;
+        }
+        
+        // Section title
+        if (section.title) {
+          page.drawText(section.title, {
+            x: margin,
+            y: yPosition,
+            size: 14,
+            font: boldFont,
+            color: rgb(0.3, 0.2, 0.5),
+          });
+          yPosition -= 22;
+        }
+        
+        // Content items
+        for (let i = 0; i < (section.content || []).length; i++) {
+          if (yPosition < margin + 30) {
+            page = pdfDoc.addPage([612, 792]);
+            yPosition = height - margin;
+          }
+          
+          const item = section.content[i];
+          const numberedItem = `${i + 1}. ${item}`;
+          const itemLines = wrapText(numberedItem, font, 11, width - margin * 2 - 10);
+          
+          for (const line of itemLines) {
+            page.drawText(line, {
+              x: margin + 10,
+              y: yPosition,
+              size: 11,
+              font,
+            });
+            yPosition -= lineHeight;
+          }
+          
+          // Add writing lines for writing prompts
+          if (section.type === "writingPrompt" || section.type === "drawing") {
+            for (let j = 0; j < 3; j++) {
+              yPosition -= 5;
+              page.drawLine({
+                start: { x: margin + 10, y: yPosition },
+                end: { x: width - margin, y: yPosition },
+                thickness: 0.5,
+                color: rgb(0.7, 0.7, 0.7),
+              });
+              yPosition -= lineHeight;
+            }
+          }
+          
+          yPosition -= 4;
+        }
+        
+        yPosition -= 10;
+      }
+      
+      const pdfBytes = await pdfDoc.save();
+      const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
+      
+      res.json({
+        file: `data:application/pdf;base64,${pdfBase64}`,
+        fileName: `${data.title || "worksheet"}.pdf`,
+      });
+    } catch (error) {
+      console.error("Error creating worksheet PDF:", error);
+      res.status(500).json({ error: "Failed to create PDF" });
+    }
+  });
+
+  // Worksheet to Image
+  app.post("/api/worksheet-to-image", async (req, res) => {
+    try {
+      const { content } = req.body;
+      const data = JSON.parse(content);
+      
+      // Create an SVG representation of the worksheet
+      const svgWidth = 800;
+      const svgHeight = 1200;
+      const margin = 40;
+      const lineHeight = 22;
+      let yPos = margin + 30;
+      
+      let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">`;
+      svgContent += `<rect width="100%" height="100%" fill="white"/>`;
+      
+      // Title
+      svgContent += `<text x="${margin}" y="${yPos}" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#333366">${escapeXml(data.title || "Worksheet")}</text>`;
+      yPos += 35;
+      
+      // Instructions
+      if (data.instructions) {
+        svgContent += `<text x="${margin}" y="${yPos}" font-family="Arial, sans-serif" font-size="12" fill="#666666">${escapeXml(data.instructions)}</text>`;
+        yPos += 25;
+      }
+      
+      // Sections
+      for (const section of data.sections || []) {
+        if (section.title) {
+          yPos += 10;
+          svgContent += `<text x="${margin}" y="${yPos}" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#663399">${escapeXml(section.title)}</text>`;
+          yPos += lineHeight;
+        }
+        
+        for (let i = 0; i < (section.content || []).length; i++) {
+          const item = section.content[i];
+          svgContent += `<text x="${margin + 10}" y="${yPos}" font-family="Arial, sans-serif" font-size="12" fill="#333333">${i + 1}. ${escapeXml(item)}</text>`;
+          yPos += lineHeight;
+          
+          if (section.type === "writingPrompt" || section.type === "drawing") {
+            for (let j = 0; j < 2; j++) {
+              svgContent += `<line x1="${margin + 10}" y1="${yPos}" x2="${svgWidth - margin}" y2="${yPos}" stroke="#cccccc" stroke-width="1"/>`;
+              yPos += lineHeight - 2;
+            }
+          }
+        }
+        yPos += 10;
+      }
+      
+      svgContent += `</svg>`;
+      
+      // Convert SVG to PNG then to JPEG
+      const svgBuffer = Buffer.from(svgContent);
+      const jpegBuffer = await sharp(svgBuffer)
+        .resize(svgWidth, svgHeight, { fit: "contain", background: { r: 255, g: 255, b: 255 } })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+      
+      const jpegBase64 = jpegBuffer.toString("base64");
+      
+      res.json({
+        file: `data:image/jpeg;base64,${jpegBase64}`,
+        fileName: `${data.title || "worksheet"}.jpg`,
+      });
+    } catch (error) {
+      console.error("Error creating worksheet image:", error);
+      res.status(500).json({ error: "Failed to create image" });
+    }
+  });
+
   // Generate content
   app.post("/api/generate", async (req, res) => {
     try {
       const validatedData = generateContentSchema.parse(req.body);
-      let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, referenceImage } = validatedData;
+      let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage } = validatedData;
       
       // Validate referenceImage if provided
       if (referenceImage) {
@@ -283,6 +472,12 @@ export async function registerRoutes(
           const storyboardResult = await generateStoryboard(prompt, gradeLevel, subject, videoOptions);
           generatedContent = JSON.stringify(storyboardResult);
           title = storyboardResult.title;
+          break;
+
+        case "worksheet":
+          const worksheetResult = await generateWorksheet(prompt, gradeLevel, subject, worksheetOptions);
+          generatedContent = JSON.stringify(worksheetResult);
+          title = worksheetResult.title;
           break;
 
         default:
@@ -660,6 +855,59 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
   return storyboardData;
 }
 
+// Worksheet generation
+async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: string, options?: WorksheetOptions) {
+  const context = buildContext(gradeLevel, subject);
+  const colorMode = options?.colorMode || "colored";
+  
+  const colorInstructions = colorMode === "blackWhite" 
+    ? "Design for black and white printing. Use clear borders, no background colors, high contrast elements."
+    : "Use colorful, engaging design with colored backgrounds, borders, and visual elements.";
+  
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `You are an expert educational worksheet creator. Create engaging, printable worksheets for teachers. ${context}
+        
+        ${colorInstructions}
+        
+        Return a JSON object with this exact structure:
+        {
+          "title": "Worksheet Title",
+          "instructions": "Clear instructions for students",
+          "colorMode": "${colorMode}",
+          "sections": [
+            {
+              "type": "header|questions|fillBlank|matching|multipleChoice|writingPrompt|drawing",
+              "title": "Section Title (optional)",
+              "content": ["Question or prompt 1", "Question or prompt 2", ...],
+              "answers": ["Answer 1", "Answer 2", ...] (optional, for teacher's key)
+            }
+          ]
+        }
+        
+        Include a variety of section types for an engaging worksheet. Create 4-8 sections with 3-6 items each.
+        For multipleChoice, format each content item as: "Question? A) option B) option C) option D) option"
+        For matching, use "Left item -> Right item" format in answers.
+        For fillBlank, use underscores like "The ___ is blue" in content.`
+      },
+      {
+        role: "user",
+        content: `Create an educational worksheet about: ${prompt}. Make it appropriate, engaging, and classroom-ready.`
+      }
+    ],
+    response_format: { type: "json_object" },
+    max_completion_tokens: 4000,
+  });
+
+  const jsonContent = response.choices[0]?.message?.content || "{}";
+  const worksheetData = JSON.parse(jsonContent);
+  
+  return worksheetData;
+}
+
 function buildContext(gradeLevel?: string, subject?: string): string {
   const parts = [];
   if (gradeLevel) parts.push(`Target grade level: ${gradeLevel}`);
@@ -671,4 +919,36 @@ function extractTitle(prompt: string): string {
   // Extract a reasonable title from the prompt
   const words = prompt.split(" ").slice(0, 6);
   return words.join(" ") + (prompt.split(" ").length > 6 ? "..." : "");
+}
+
+// Helper function to wrap text for PDF
+function wrapText(text: string, font: any, fontSize: number, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const width = font.widthOfTextAtSize(testLine, fontSize);
+    
+    if (width <= maxWidth) {
+      currentLine = testLine;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+// Helper function to escape XML special characters
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }

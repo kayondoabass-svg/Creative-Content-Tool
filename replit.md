@@ -5,7 +5,7 @@ BrightBoard is an AI-powered content creation platform designed for busy teacher
 
 ## Current State
 MVP complete with all core features:
-- 5 content generation types (images, presentations, text, activities, storyboards)
+- 6 content generation types (images, presentations, text, activities, storyboards, worksheets)
 - Beautiful, playful UI with purple/teal educational theme
 - Dark mode support
 - Content history sidebar
@@ -13,8 +13,15 @@ MVP complete with all core features:
 - PowerPoint (.pptx) download for presentations
 - Slideshow presentation mode with keyboard navigation
 - Adjustable slide count (3-20 slides)
+- Worksheet generator with color mode options and multiple download formats
 
 ## Recent Changes
+- January 23, 2026: Added worksheet generator
+  - Generate printable worksheets with various section types
+  - Color mode selection: Colored (for screen) or Black & White (for printing)
+  - Section types: questions, fill-in-blank, matching, multiple choice, writing prompts, drawing areas
+  - Download formats: PDF, JPEG, and Text
+  - Answer key included with each section
 - January 23, 2026: Added organization logo feature
   - Upload custom logo or generate one using AI
   - Logo displays in top-right corner of header
@@ -88,9 +95,10 @@ MVP complete with all core features:
 ### Content Types
 1. **Image** - Educational illustrations using gpt-image-1
 2. **Presentation** - Slide decks with speaker notes
-3. **Text** - Stories, worksheets, explanations
+3. **Text** - Stories, explanations, learning materials
 4. **Activity** - Quizzes, matching games, interactive learning
 5. **Storyboard** - Animated video planning with frames
+6. **Worksheet** - Printable worksheets with questions, fill-in-blanks, matching, and more
 
 ## Running the Project
 The app runs on port 5000 via `npm run dev`. The Express server serves both the API and the Vite-built frontend.
