@@ -1,15 +1,16 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
-import { Sparkles, Loader2, Upload, X, Image as ImageIcon, Lock, Crown } from "lucide-react";
+import { Sparkles, Loader2, Upload, X, Image as ImageIcon, Lock, Crown, Mic, MicOff, Square } from "lucide-react";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
@@ -137,6 +138,17 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevSelectedType = useRef(selectedType);
+  
+  const {
+    isListening,
+    transcript,
+    interimTranscript,
+    error: speechError,
+    isSupported: speechSupported,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useSpeechRecognition();
 
   // Clear image when switching away from presentation
   if (prevSelectedType.current !== selectedType) {
@@ -170,6 +182,16 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       worksheetColorMode: "colored",
     },
   });
+
+  // Update form prompt when voice transcript changes
+  useEffect(() => {
+    if (transcript) {
+      const currentPrompt = form.getValues("prompt");
+      const newPrompt = currentPrompt ? `${currentPrompt} ${transcript}` : transcript;
+      form.setValue("prompt", newPrompt.trim());
+      resetTranscript();
+    }
+  }, [transcript, form, resetTranscript]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -683,20 +705,49 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
             name="prompt"
             render={({ field }) => (
               <FormItem>
-                <FormControl>
-                  <Textarea
-                    placeholder={placeholders[selectedType]}
-                    className="min-h-[100px] text-base resize-none"
-                    onKeyDown={handleKeyDown}
-                    data-testid="input-prompt"
-                    {...field}
-                  />
-                </FormControl>
+                <div className="relative">
+                  <FormControl>
+                    <Textarea
+                      placeholder={isListening ? "Listening... speak now" : placeholders[selectedType]}
+                      className="min-h-[100px] text-base resize-none pr-12"
+                      onKeyDown={handleKeyDown}
+                      data-testid="input-prompt"
+                      {...field}
+                      value={isListening && interimTranscript ? `${field.value} ${interimTranscript}` : field.value}
+                    />
+                  </FormControl>
+                  {speechSupported && (
+                    <Button
+                      type="button"
+                      variant={isListening ? "destructive" : "outline"}
+                      size="icon"
+                      className="absolute right-2 top-2"
+                      onClick={isListening ? stopListening : startListening}
+                      disabled={isGenerating}
+                      data-testid="button-voice-record"
+                    >
+                      {isListening ? (
+                        <Square className="h-4 w-4" />
+                      ) : (
+                        <Mic className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+                {isListening && (
+                  <p className="text-sm text-primary animate-pulse flex items-center gap-2 mt-2">
+                    <span className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                    Recording... Click the stop button or speak to add to your prompt
+                  </p>
+                )}
+                {speechError && (
+                  <p className="text-sm text-destructive mt-2">{speechError}</p>
+                )}
               </FormItem>
             )}
           />
 
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-xs text-muted-foreground hidden sm:block">
               Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">⌘</kbd> + <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Enter</kbd> to generate
             </p>

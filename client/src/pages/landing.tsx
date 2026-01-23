@@ -79,7 +79,7 @@ export default function LandingPage() {
         <section className="container mx-auto px-4 py-12">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-primary via-purple-500 to-teal-500 bg-clip-text text-transparent">Voice to Reality</span>
+              <span className="bg-gradient-to-r from-primary via-purple-500 to-teal-500 bg-clip-text text-transparent">Voice or Text to Reality</span>
               <span className="block text-2xl md:text-4xl mt-2 text-foreground/80">Content for Busy Teachers</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
