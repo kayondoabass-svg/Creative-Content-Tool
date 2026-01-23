@@ -10,8 +10,17 @@ MVP complete with all core features:
 - Dark mode support
 - Content history sidebar
 - Download and copy functionality
+- PowerPoint (.pptx) download for presentations
+- Slideshow presentation mode with keyboard navigation
+- Adjustable slide count (3-20 slides)
 
 ## Recent Changes
+- January 23, 2026: Added presentation features
+  - Slideshow "Present" mode with fullscreen view
+  - Keyboard navigation (arrow keys, space, escape)
+  - PowerPoint download using pptxgenjs
+  - Slide count selector for presentations
+  - Mobile-optimized content type cards
 - January 23, 2026: Initial MVP implementation
   - Set up OpenAI integration via Replit AI Integrations
   - Created content type selection cards

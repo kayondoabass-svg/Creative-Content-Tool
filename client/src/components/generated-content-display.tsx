@@ -1,10 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Copy, Check, RefreshCw, Loader2, FileDown } from "lucide-react";
+import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play } from "lucide-react";
 import { useState } from "react";
 import type { ContentType, Slide, Activity, StoryboardFrame } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { SlideshowModal } from "./slideshow-modal";
 import pptxgen from "pptxgenjs";
 
 interface GeneratedContentDisplayProps {
@@ -21,7 +22,18 @@ export function GeneratedContentDisplay({
   onRegenerate,
 }: GeneratedContentDisplayProps) {
   const [copied, setCopied] = useState(false);
+  const [showSlideshow, setShowSlideshow] = useState(false);
   const { toast } = useToast();
+
+  const getPresentationData = () => {
+    if (type !== "presentation") return { slides: [], title: "" };
+    try {
+      const data = JSON.parse(content);
+      return { slides: data.slides || [], title: data.title || "Presentation" };
+    } catch {
+      return { slides: [], title: "" };
+    }
+  };
 
   if (isLoading) {
     return (
@@ -165,10 +177,21 @@ export function GeneratedContentDisplay({
             {copied ? "Copied!" : "Copy"}
           </Button>
           {type === "presentation" && (
-            <Button variant="outline" size="sm" onClick={handleDownloadPPT} data-testid="button-download-ppt">
-              <FileDown className="h-4 w-4 mr-1.5" />
-              Download PPT
-            </Button>
+            <>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => setShowSlideshow(true)} 
+                data-testid="button-present"
+              >
+                <Play className="h-4 w-4 mr-1.5" />
+                Present
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownloadPPT} data-testid="button-download-ppt">
+                <FileDown className="h-4 w-4 mr-1.5" />
+                Download PPT
+              </Button>
+            </>
           )}
           <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
             <Download className="h-4 w-4 mr-1.5" />
@@ -179,6 +202,15 @@ export function GeneratedContentDisplay({
       <div className="overflow-auto max-h-[600px]">
         {renderContent()}
       </div>
+      
+      {type === "presentation" && (
+        <SlideshowModal
+          slides={getPresentationData().slides}
+          title={getPresentationData().title}
+          isOpen={showSlideshow}
+          onClose={() => setShowSlideshow(false)}
+        />
+      )}
     </Card>
   );
 }
