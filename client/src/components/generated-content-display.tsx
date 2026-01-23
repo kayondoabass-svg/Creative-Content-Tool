@@ -278,13 +278,25 @@ function PresentationContent({ content }: { content: string }) {
           <div className="grid gap-4">
             {slides.map((slide, index) => (
               <Card key={index} className="p-4 bg-muted/30">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                    {index + 1}
-                  </div>
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  {slide.image && (
+                    <div className="flex-shrink-0 w-full sm:w-40">
+                      <img 
+                        src={slide.image} 
+                        alt={slide.title}
+                        className="w-full h-auto rounded-lg border shadow-sm"
+                        data-testid={`img-slide-${index}`}
+                      />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-base">{slide.title}</h4>
-                    <ul className="mt-2 space-y-1.5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                        {index + 1}
+                      </div>
+                      <h4 className="font-semibold text-base">{slide.title}</h4>
+                    </div>
+                    <ul className="mt-2 space-y-1.5 ml-11">
                       {slide.content.map((point, i) => (
                         <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                           <span className="text-primary mt-1">•</span>
@@ -293,7 +305,7 @@ function PresentationContent({ content }: { content: string }) {
                       ))}
                     </ul>
                     {slide.notes && (
-                      <p className="mt-3 text-xs text-muted-foreground italic border-t pt-2">
+                      <p className="mt-3 text-xs text-muted-foreground italic border-t pt-2 ml-11">
                         Speaker notes: {slide.notes}
                       </p>
                     )}
@@ -407,13 +419,22 @@ function StoryboardContent({ content }: { content: string }) {
         <div className="grid gap-4">
           {frames.map((frame, index) => (
             <Card key={index} className="p-4 bg-gradient-to-r from-muted/50 to-muted/20">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <div className="w-24 h-16 rounded-lg bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
-                    <span className="text-xs text-muted-foreground text-center px-2">
-                      Frame {frame.frameNumber}
-                    </span>
-                  </div>
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <div className="flex-shrink-0 w-full sm:w-32">
+                  {frame.image ? (
+                    <img 
+                      src={frame.image} 
+                      alt={`Frame ${frame.frameNumber}`}
+                      className="w-full h-auto rounded-lg border shadow-sm"
+                      data-testid={`img-frame-${index}`}
+                    />
+                  ) : (
+                    <div className="w-full aspect-video sm:w-32 sm:h-24 rounded-lg bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                      <span className="text-xs text-muted-foreground text-center px-2">
+                        Frame {frame.frameNumber}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 space-y-2">
                   <p className="font-medium text-sm">{frame.description}</p>
@@ -425,9 +446,11 @@ function StoryboardContent({ content }: { content: string }) {
                       "{frame.dialogue}"
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground/70">
-                    <strong>Visual:</strong> {frame.imagePrompt}
-                  </p>
+                  {!frame.image && (
+                    <p className="text-xs text-muted-foreground/70">
+                      <strong>Visual:</strong> {frame.imagePrompt}
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>

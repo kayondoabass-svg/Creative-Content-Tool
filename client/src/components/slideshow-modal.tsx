@@ -84,24 +84,38 @@ export function SlideshowModal({ slides, title, isOpen, onClose }: SlideshowModa
 
       <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
         <div className="max-w-4xl w-full bg-white dark:bg-card rounded-xl shadow-2xl p-8 md:p-12">
-          <h3 className="text-2xl md:text-4xl font-bold text-foreground mb-8">
-            {slide.title}
-          </h3>
-          <ul className="space-y-4">
-            {slide.content.map((point, i) => (
-              <li key={i} className="flex items-start gap-4 text-lg md:text-xl text-muted-foreground">
-                <span className="text-primary text-2xl leading-none">•</span>
-                <span>{point}</span>
-              </li>
-            ))}
-          </ul>
-          {slide.notes && (
-            <div className="mt-8 pt-6 border-t">
-              <p className="text-sm text-muted-foreground italic">
-                Speaker notes: {slide.notes}
-              </p>
+          <div className="flex flex-col md:flex-row gap-8">
+            {slide.image && (
+              <div className="flex-shrink-0 md:w-1/3">
+                <img 
+                  src={slide.image} 
+                  alt={slide.title}
+                  className="w-full h-auto rounded-xl shadow-lg"
+                  data-testid={`slideshow-img-${currentSlide}`}
+                />
+              </div>
+            )}
+            <div className="flex-1">
+              <h3 className="text-2xl md:text-4xl font-bold text-foreground mb-8">
+                {slide.title}
+              </h3>
+              <ul className="space-y-4">
+                {slide.content.map((point, i) => (
+                  <li key={i} className="flex items-start gap-4 text-lg md:text-xl text-muted-foreground">
+                    <span className="text-primary text-2xl leading-none">•</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+              {slide.notes && (
+                <div className="mt-8 pt-6 border-t">
+                  <p className="text-sm text-muted-foreground italic">
+                    Speaker notes: {slide.notes}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 

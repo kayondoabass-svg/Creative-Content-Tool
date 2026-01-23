@@ -15,6 +15,10 @@ MVP complete with all core features:
 - Adjustable slide count (3-20 slides)
 
 ## Recent Changes
+- January 23, 2026: Added image generation for presentations and storyboards
+  - Presentations now include AI-generated illustrations for each slide
+  - Storyboard frames include generated images (first 6 frames)
+  - Images styled based on video options (Animation vs Real Life)
 - January 23, 2026: Added video storyboard options
   - Video length selector (1min, 5min, 10min, 30min)
   - Video style selector (Animation or Real Life)

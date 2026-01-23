@@ -67,6 +67,7 @@ export const slideSchema = z.object({
   content: z.array(z.string()),
   notes: z.string().optional(),
   imagePrompt: z.string().optional(),
+  image: z.string().optional(),
 });
 
 export type Slide = z.infer<typeof slideSchema>;
@@ -92,6 +93,7 @@ export const storyboardFrameSchema = z.object({
   dialogue: z.string().optional(),
   action: z.string(),
   imagePrompt: z.string(),
+  image: z.string().optional(),
 });
 
 export type StoryboardFrame = z.infer<typeof storyboardFrameSchema>;

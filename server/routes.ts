@@ -175,7 +175,34 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  const presentationData = JSON.parse(content);
+  
+  // Generate images for each slide
+  const slidesWithImages = await Promise.all(
+    presentationData.slides.map(async (slide: Slide) => {
+      if (slide.imagePrompt) {
+        try {
+          const imageResponse = await openai.images.generate({
+            model: "gpt-image-1",
+            prompt: `Educational illustration for children: ${slide.imagePrompt}. Colorful, child-friendly, educational style, suitable for classroom presentation.`,
+            n: 1,
+            size: "1024x1024",
+          });
+          
+          const imageData = imageResponse.data?.[0]?.b64_json;
+          if (imageData) {
+            slide.image = `data:image/png;base64,${imageData}`;
+          }
+        } catch (error) {
+          console.error("Failed to generate image for slide:", error);
+        }
+      }
+      return slide;
+    })
+  );
+  
+  presentationData.slides = slidesWithImages;
+  return presentationData;
 }
 
 // Text content generation
@@ -327,8 +354,45 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
     max_completion_tokens: 6000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  const jsonContent = response.choices[0]?.message?.content || "{}";
+  const storyboardData = JSON.parse(jsonContent);
+  
+  // Generate images for each frame (limit to first 6 for performance)
+  const framesToGenerate = storyboardData.frames?.slice(0, 6) || [];
+  const framesWithImages = await Promise.all(
+    framesToGenerate.map(async (frame: StoryboardFrame & { image?: string }) => {
+      if (frame.imagePrompt) {
+        try {
+          const stylePrompt = style === "reallife" 
+            ? "Photorealistic, educational photography style"
+            : "Colorful animated style like Pixar or Cocomelon";
+          
+          const imageResponse = await openai.images.generate({
+            model: "gpt-image-1",
+            prompt: `${stylePrompt}: ${frame.imagePrompt}. Child-friendly, educational, vibrant colors.`,
+            n: 1,
+            size: "1024x1024",
+          });
+          
+          const imageData = imageResponse.data?.[0]?.b64_json;
+          if (imageData) {
+            frame.image = `data:image/png;base64,${imageData}`;
+          }
+        } catch (error) {
+          console.error("Failed to generate image for frame:", error);
+        }
+      }
+      return frame;
+    })
+  );
+  
+  // Merge the frames with images back into the full frames list
+  storyboardData.frames = [
+    ...framesWithImages,
+    ...(storyboardData.frames?.slice(6) || [])
+  ];
+  
+  return storyboardData;
 }
 
 function buildContext(gradeLevel?: string, subject?: string): string {
