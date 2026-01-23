@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, Image, FileText, Presentation, Gamepad2, Video, FileSpreadsheet, Check } from "lucide-react";
+import { Sparkles, Image, FileText, Presentation, Gamepad2, Video, FileSpreadsheet } from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -15,7 +15,6 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-4">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
-            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
             <Button asChild data-testid="button-login">
               <a href="/api/login">Sign In</a>
             </Button>
@@ -78,67 +77,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="pricing" className="container mx-auto px-4 py-16">
-          <h2 className="text-3xl font-bold text-center mb-4">Simple, Fair Pricing</h2>
-          <p className="text-center text-muted-foreground mb-12">Start free, upgrade when you need more</p>
-          <div className="grid md:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            <PricingCard 
-              name="Free"
-              price="$0"
-              period="forever"
-              features={[
-                "5 content generations/day",
-                "Basic image quality (2D)",
-                "Standard presentations",
-                "Community support"
-              ]}
-              buttonText="Get Started"
-              buttonVariant="outline"
-            />
-            <PricingCard 
-              name="Weekly"
-              price="$4.99"
-              period="per week"
-              features={[
-                "Unlimited generations",
-                "HD/4K image quality",
-                "Premium animations",
-                "Priority support"
-              ]}
-              buttonText="Start Free Trial"
-              buttonVariant="default"
-            />
-            <PricingCard 
-              name="Monthly"
-              price="$14.99"
-              period="per month"
-              features={[
-                "Unlimited generations",
-                "HD/4K image quality",
-                "Premium animations",
-                "Priority support"
-              ]}
-              buttonText="Start Free Trial"
-              buttonVariant="default"
-              badge="Save 25%"
-            />
-            <PricingCard 
-              name="Yearly"
-              price="$99.99"
-              period="per year"
-              features={[
-                "Unlimited generations",
-                "HD/4K image quality",
-                "Premium animations",
-                "Priority support"
-              ]}
-              buttonText="Start Free Trial"
-              buttonVariant="default"
-              badge="Best Value"
-              highlight
-            />
-          </div>
-        </section>
       </main>
 
       <footer className="border-t py-8">
@@ -164,52 +102,3 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
   );
 }
 
-function PricingCard({ 
-  name, 
-  price, 
-  period, 
-  features, 
-  buttonText, 
-  buttonVariant,
-  badge,
-  highlight 
-}: { 
-  name: string; 
-  price: string; 
-  period: string; 
-  features: string[];
-  buttonText: string;
-  buttonVariant: "default" | "outline";
-  badge?: string;
-  highlight?: boolean;
-}) {
-  return (
-    <Card className={`relative ${highlight ? 'border-primary shadow-lg' : ''}`}>
-      {badge && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-            {badge}
-          </span>
-        </div>
-      )}
-      <CardContent className="p-6 pt-8">
-        <h3 className="font-semibold text-lg mb-2">{name}</h3>
-        <div className="mb-4">
-          <span className="text-3xl font-bold">{price}</span>
-          <span className="text-muted-foreground text-sm">/{period}</span>
-        </div>
-        <ul className="space-y-2 mb-6">
-          {features.map((feature, i) => (
-            <li key={i} className="flex items-center gap-2 text-sm">
-              <Check className="w-4 h-4 text-primary flex-shrink-0" />
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
-        <Button variant={buttonVariant} className="w-full" asChild data-testid={`button-pricing-${name.toLowerCase()}`}>
-          <a href="/api/login">{buttonText}</a>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}

@@ -424,11 +424,93 @@ export async function registerRoutes(
     }
   });
 
+  // Free tier limits
+  const FREE_LIMITS = {
+    image: 10,
+    presentation: 5,
+    storyboard: 1, // video/storyboard
+  };
+
+  // Get user usage status
+  app.get("/api/usage", async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.claims?.sub) {
+        return res.json({ 
+          imageCount: 0, presentationCount: 0, videoCount: 0,
+          imageLimit: FREE_LIMITS.image,
+          presentationLimit: FREE_LIMITS.presentation,
+          videoLimit: FREE_LIMITS.storyboard,
+          isPremium: false
+        });
+      }
+      
+      const subscriptionStatus = await stripeService.getSubscriptionStatus(user.claims.sub);
+      if (subscriptionStatus.isPremium) {
+        return res.json({
+          imageCount: 0, presentationCount: 0, videoCount: 0,
+          imageLimit: -1, presentationLimit: -1, videoLimit: -1,
+          isPremium: true
+        });
+      }
+      
+      const usage = await stripeService.getUserUsage(user.claims.sub);
+      res.json({
+        ...usage,
+        imageLimit: FREE_LIMITS.image,
+        presentationLimit: FREE_LIMITS.presentation,
+        videoLimit: FREE_LIMITS.storyboard,
+        isPremium: false
+      });
+    } catch (error) {
+      console.error("Error fetching usage:", error);
+      res.status(500).json({ error: "Failed to fetch usage" });
+    }
+  });
+
   // Generate content
   app.post("/api/generate", async (req, res) => {
     try {
       const validatedData = generateContentSchema.parse(req.body);
       let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage } = validatedData;
+      
+      // Get user info
+      const user = (req as any).user;
+      const userId = user?.claims?.sub;
+      
+      // Check subscription status
+      let isPremium = false;
+      if (userId) {
+        const subscriptionStatus = await stripeService.getSubscriptionStatus(userId);
+        isPremium = subscriptionStatus.isPremium;
+      }
+      
+      // Check free tier usage limits
+      if (!isPremium && userId) {
+        const usage = await stripeService.getUserUsage(userId);
+        
+        if (type === 'image' && usage.imageCount >= FREE_LIMITS.image) {
+          return res.status(403).json({ 
+            error: `You've reached your daily limit of ${FREE_LIMITS.image} images. Upgrade to premium for unlimited generations!`,
+            limitReached: true,
+            type: 'image'
+          });
+        }
+        if (type === 'presentation' && usage.presentationCount >= FREE_LIMITS.presentation) {
+          return res.status(403).json({ 
+            error: `You've reached your daily limit of ${FREE_LIMITS.presentation} presentations. Upgrade to premium for unlimited generations!`,
+            limitReached: true,
+            type: 'presentation'
+          });
+        }
+        if (type === 'storyboard' && usage.videoCount >= FREE_LIMITS.storyboard) {
+          return res.status(403).json({ 
+            error: `You've reached your daily limit of ${FREE_LIMITS.storyboard} video storyboard. Upgrade to premium for unlimited generations!`,
+            limitReached: true,
+            type: 'storyboard'
+          });
+        }
+      }
       
       // Check if user is trying to use premium features
       const premiumQualities = ['hd', '4k'];
@@ -441,35 +523,16 @@ export async function registerRoutes(
       const usesPremiumFeatures = hasPremiumVideoQuality || hasPremiumPresentationQuality || 
         hasPremiumTransitions || hasPremiumDelay || hasPremiumTapToReveal;
       
-      if (usesPremiumFeatures) {
-        // Get user from session
-        const user = (req as any).user;
-        if (user) {
-          // Check subscription status
-          const subscriptionStatus = await stripeService.getSubscriptionStatus(user.id);
-          if (!subscriptionStatus.isPremium) {
-            // Downgrade to free tier options
-            if (videoOptions) {
-              videoOptions.quality = '2d';
-            }
-            if (presentationOptions) {
-              presentationOptions.imageQuality = '2d';
-              presentationOptions.transition = 'none';
-              presentationOptions.transitionDelay = 0;
-              presentationOptions.tapToReveal = false;
-            }
-          }
-        } else {
-          // Anonymous user - enforce free tier
-          if (videoOptions) {
-            videoOptions.quality = '2d';
-          }
-          if (presentationOptions) {
-            presentationOptions.imageQuality = '2d';
-            presentationOptions.transition = 'none';
-            presentationOptions.transitionDelay = 0;
-            presentationOptions.tapToReveal = false;
-          }
+      if (usesPremiumFeatures && !isPremium) {
+        // Downgrade to free tier options
+        if (videoOptions) {
+          videoOptions.quality = '2d';
+        }
+        if (presentationOptions) {
+          presentationOptions.imageQuality = '2d';
+          presentationOptions.transition = 'none';
+          presentationOptions.transitionDelay = 0;
+          presentationOptions.tapToReveal = false;
         }
       }
       
@@ -530,6 +593,13 @@ export async function registerRoutes(
           return res.status(400).json({ error: "Invalid content type" });
       }
 
+      // Add watermark flag for free users
+      if (!isPremium && (type === 'image' || type === 'presentation' || type === 'storyboard')) {
+        const parsed = JSON.parse(generatedContent);
+        parsed.watermark = "by BrightBoard";
+        generatedContent = JSON.stringify(parsed);
+      }
+
       // Save to storage
       const saved = await storage.createContent({
         type,
@@ -537,6 +607,17 @@ export async function registerRoutes(
         title,
         content: generatedContent,
       });
+
+      // Increment usage counters for free users
+      if (!isPremium && userId) {
+        if (type === 'image') {
+          await stripeService.incrementUsage(userId, 'image');
+        } else if (type === 'presentation') {
+          await stripeService.incrementUsage(userId, 'presentation');
+        } else if (type === 'storyboard') {
+          await stripeService.incrementUsage(userId, 'video');
+        }
+      }
 
       res.json(saved);
     } catch (error: any) {
