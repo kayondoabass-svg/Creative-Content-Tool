@@ -1,7 +1,7 @@
 import { getUncachableStripeClient } from './stripeClient';
 import { db } from './db';
-import { users } from '@shared/schema';
-import { eq, sql } from 'drizzle-orm';
+import { users, featureUsage, jobPostings, type JobPosting, type InsertJobPosting } from '@shared/schema';
+import { eq, sql, desc, count } from 'drizzle-orm';
 
 export class StripeService {
   async createCustomer(email: string, userId: string) {
@@ -153,6 +153,106 @@ export class StripeService {
   }) {
     const [user] = await db.update(users).set(stripeInfo).where(eq(users.id, userId)).returning();
     return user;
+  }
+
+  // CEO Dashboard Analytics
+  async getAllUsers() {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async getUserStats() {
+    const allUsers = await db.select().from(users);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const totalUsers = allUsers.length;
+    const newToday = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= today).length;
+    const newThisWeek = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= weekAgo).length;
+    const newThisMonth = allUsers.filter(u => u.createdAt && new Date(u.createdAt) >= monthAgo).length;
+
+    const freeUsers = allUsers.filter(u => !u.subscriptionTier || u.subscriptionTier === 'free').length;
+    const premiumUsers = allUsers.filter(u => u.subscriptionTier && u.subscriptionTier !== 'free' && u.subscriptionStatus === 'active').length;
+    const weeklySubscribers = allUsers.filter(u => u.subscriptionTier === 'weekly' && u.subscriptionStatus === 'active').length;
+    const monthlySubscribers = allUsers.filter(u => u.subscriptionTier === 'monthly' && u.subscriptionStatus === 'active').length;
+    const yearlySubscribers = allUsers.filter(u => u.subscriptionTier === 'yearly' && u.subscriptionStatus === 'active').length;
+
+    return {
+      totalUsers,
+      newToday,
+      newThisWeek,
+      newThisMonth,
+      freeUsers,
+      premiumUsers,
+      weeklySubscribers,
+      monthlySubscribers,
+      yearlySubscribers
+    };
+  }
+
+  async getCountryStats() {
+    const allUsers = await db.select().from(users);
+    const countryMap: Record<string, number> = {};
+    
+    for (const user of allUsers) {
+      const country = user.country || 'Unknown';
+      countryMap[country] = (countryMap[country] || 0) + 1;
+    }
+
+    return Object.entries(countryMap)
+      .map(([country, userCount]) => ({ country, userCount }))
+      .sort((a, b) => b.userCount - a.userCount);
+  }
+
+  async getFeatureUsageStats() {
+    const result = await db.select({
+      featureType: featureUsage.featureType,
+      usageCount: count()
+    })
+    .from(featureUsage)
+    .groupBy(featureUsage.featureType);
+    
+    return result.map(r => ({
+      featureType: r.featureType,
+      usageCount: Number(r.usageCount)
+    }));
+  }
+
+  async trackFeatureUsage(userId: string, featureType: string) {
+    await db.insert(featureUsage).values({
+      userId,
+      featureType
+    });
+  }
+
+  async updateUserCountry(userId: string, country: string) {
+    await db.update(users).set({ country, lastActiveAt: new Date() }).where(eq(users.id, userId));
+  }
+
+  // Job Postings CRUD
+  async getJobPostings(activeOnly = true) {
+    if (activeOnly) {
+      return await db.select().from(jobPostings).where(eq(jobPostings.isActive, true)).orderBy(desc(jobPostings.createdAt));
+    }
+    return await db.select().from(jobPostings).orderBy(desc(jobPostings.createdAt));
+  }
+
+  async createJobPosting(job: Omit<InsertJobPosting, 'id' | 'createdAt' | 'updatedAt'>) {
+    const [created] = await db.insert(jobPostings).values(job).returning();
+    return created;
+  }
+
+  async updateJobPosting(id: string, job: Partial<InsertJobPosting>) {
+    const [updated] = await db.update(jobPostings)
+      .set({ ...job, updatedAt: new Date() })
+      .where(eq(jobPostings.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteJobPosting(id: string) {
+    await db.delete(jobPostings).where(eq(jobPostings.id, id));
   }
 }
 

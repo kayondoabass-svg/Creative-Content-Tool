@@ -620,11 +620,136 @@ export async function registerRoutes(
         }
       }
 
+      // Track feature usage for analytics
+      await stripeService.trackFeatureUsage(userId, type);
+
       res.json(saved);
     } catch (error: any) {
       console.error("Error generating content:", error);
       res.status(500).json({ error: error.message || "Failed to generate content" });
     }
+  });
+
+  // CEO Dashboard API routes (restricted to founder email)
+  const CEO_EMAIL = "kayondoabass@gmail.com";
+
+  const isCEO = (req: any) => {
+    const user = req.user;
+    return user?.claims?.email === CEO_EMAIL;
+  };
+
+  // Get dashboard stats
+  app.get("/api/ceo/stats", async (req, res) => {
+    if (!isCEO(req)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    try {
+      const stats = await stripeService.getUserStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  // Get country distribution
+  app.get("/api/ceo/countries", async (req, res) => {
+    if (!isCEO(req)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    try {
+      const countries = await stripeService.getCountryStats();
+      res.json(countries);
+    } catch (error) {
+      console.error("Error fetching country stats:", error);
+      res.status(500).json({ error: "Failed to fetch country stats" });
+    }
+  });
+
+  // Get feature usage analytics
+  app.get("/api/ceo/features", async (req, res) => {
+    if (!isCEO(req)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    try {
+      const features = await stripeService.getFeatureUsageStats();
+      res.json(features);
+    } catch (error) {
+      console.error("Error fetching feature stats:", error);
+      res.status(500).json({ error: "Failed to fetch feature stats" });
+    }
+  });
+
+  // Get all users
+  app.get("/api/ceo/users", async (req, res) => {
+    if (!isCEO(req)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    try {
+      const users = await stripeService.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // Job postings CRUD
+  app.get("/api/ceo/jobs", async (req, res) => {
+    if (!isCEO(req)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    try {
+      const jobs = await stripeService.getJobPostings(false);
+      res.json(jobs);
+    } catch (error) {
+      console.error("Error fetching jobs:", error);
+      res.status(500).json({ error: "Failed to fetch jobs" });
+    }
+  });
+
+  app.post("/api/ceo/jobs", async (req, res) => {
+    if (!isCEO(req)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    try {
+      const job = await stripeService.createJobPosting(req.body);
+      res.json(job);
+    } catch (error) {
+      console.error("Error creating job:", error);
+      res.status(500).json({ error: "Failed to create job" });
+    }
+  });
+
+  app.patch("/api/ceo/jobs/:id", async (req, res) => {
+    if (!isCEO(req)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    try {
+      const job = await stripeService.updateJobPosting(req.params.id, req.body);
+      res.json(job);
+    } catch (error) {
+      console.error("Error updating job:", error);
+      res.status(500).json({ error: "Failed to update job" });
+    }
+  });
+
+  app.delete("/api/ceo/jobs/:id", async (req, res) => {
+    if (!isCEO(req)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    try {
+      await stripeService.deleteJobPosting(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting job:", error);
+      res.status(500).json({ error: "Failed to delete job" });
+    }
+  });
+
+  // Check if user is CEO
+  app.get("/api/ceo/check", async (req, res) => {
+    res.json({ isCEO: isCEO(req) });
   });
 
   // Register subscription routes

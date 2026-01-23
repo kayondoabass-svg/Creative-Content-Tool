@@ -34,6 +34,9 @@ export const users = pgTable("users", {
   freePresentationCount: integer("free_presentation_count").default(0),
   freeVideoCount: integer("free_video_count").default(0),
   usageResetDate: timestamp("usage_reset_date").defaultNow(),
+  // Analytics fields
+  country: varchar("country"),
+  lastActiveAt: timestamp("last_active_at").defaultNow(),
 });
 
 export type UpsertUser = typeof users.$inferInsert;
@@ -41,3 +44,31 @@ export type User = typeof users.$inferSelect;
 
 // Subscription tier type
 export type SubscriptionTier = "free" | "weekly" | "monthly" | "yearly";
+
+// Feature usage tracking table
+export const featureUsage = pgTable("feature_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  featureType: varchar("feature_type").notNull(), // image, presentation, text, activity, storyboard, worksheet
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type FeatureUsage = typeof featureUsage.$inferSelect;
+
+// Job postings table for hiring
+export const jobPostings = pgTable("job_postings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  department: varchar("department").notNull(),
+  location: varchar("location").notNull(),
+  type: varchar("type").notNull(), // full-time, part-time, contract, remote
+  description: varchar("description"),
+  requirements: varchar("requirements"),
+  salary: varchar("salary"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type JobPosting = typeof jobPostings.$inferSelect;
+export type InsertJobPosting = typeof jobPostings.$inferInsert;
