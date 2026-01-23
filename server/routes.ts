@@ -125,7 +125,10 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
     n: 1,
   });
 
-  const imageData = response.data[0];
+  const imageData = response.data?.[0];
+  if (!imageData) {
+    throw new Error("Failed to generate image");
+  }
 
   return {
     title: extractTitle(prompt),
@@ -140,7 +143,7 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   const context = buildContext(gradeLevel, subject);
   
   const response = await openai.chat.completions.create({
-    model: "gpt-5",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
@@ -177,7 +180,7 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
   const context = buildContext(gradeLevel, subject);
   
   const response = await openai.chat.completions.create({
-    model: "gpt-5",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
@@ -209,7 +212,7 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
   const context = buildContext(gradeLevel, subject);
   
   const response = await openai.chat.completions.create({
-    model: "gpt-5",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
@@ -249,7 +252,7 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
   const context = buildContext(gradeLevel, subject);
   
   const response = await openai.chat.completions.create({
-    model: "gpt-5",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
