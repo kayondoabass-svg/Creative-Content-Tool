@@ -115,37 +115,48 @@ export function GeneratedContentDisplay({
         });
 
         // Layout with image on left, content on right (or just content if no image)
+        // 16:9 slide is 10" x 5.625" - use 90%+ of available space
         if (hasImage && layout === "single" && slide.image) {
-          // Single image on left
-          pptSlide.addImage({
-            data: slide.image,
-            x: 0.5,
-            y: 1.2,
-            w: 3.5,
-            h: 3.5,
-          });
-          
-          // Content on right
           if (hasContent) {
+            // Image on left (larger), content on right
+            pptSlide.addImage({
+              data: slide.image,
+              x: 0.3,
+              y: 1.1,
+              w: 4.8,
+              h: 4.2,
+            });
+            
             const bulletPoints = slide.content.map(point => ({
               text: point,
               options: { bullet: true, fontSize: 18, color: "555555", breakLine: true }
             }));
             pptSlide.addText(bulletPoints, {
-              x: 4.3,
-              y: 1.2,
-              w: 5.2,
-              h: 3.5,
+              x: 5.3,
+              y: 1.1,
+              w: 4.4,
+              h: 4.2,
               valign: "top",
+            });
+          } else {
+            // Image only - center and fill most of the slide
+            pptSlide.addImage({
+              data: slide.image,
+              x: 0.5,
+              y: 1.1,
+              w: 9,
+              h: 4.3,
+              sizing: { type: "contain", w: 9, h: 4.3 },
             });
           }
         } else if (hasImage && layout === "grid" && slide.images && slide.images.length > 0) {
-          // Grid of images (2x2)
+          // Grid of images (2x2) - larger images
+          const imgSize = 2.15;
           const gridPositions = [
-            { x: 0.5, y: 1.2 },
-            { x: 2.8, y: 1.2 },
-            { x: 0.5, y: 3.0 },
-            { x: 2.8, y: 3.0 },
+            { x: 0.3, y: 1.1 },
+            { x: 2.6, y: 1.1 },
+            { x: 0.3, y: 3.35 },
+            { x: 2.6, y: 3.35 },
           ];
           
           slide.images.slice(0, 4).forEach((img, idx) => {
@@ -153,8 +164,8 @@ export function GeneratedContentDisplay({
               data: img,
               x: gridPositions[idx].x,
               y: gridPositions[idx].y,
-              w: 2.0,
-              h: 2.0,
+              w: imgSize,
+              h: imgSize,
             });
           });
           
@@ -165,10 +176,10 @@ export function GeneratedContentDisplay({
               options: { bullet: true, fontSize: 16, color: "555555", breakLine: true }
             }));
             pptSlide.addText(bulletPoints, {
-              x: 5.2,
-              y: 1.2,
-              w: 4.3,
-              h: 3.5,
+              x: 5.0,
+              y: 1.1,
+              w: 4.7,
+              h: 4.2,
               valign: "top",
             });
           }
