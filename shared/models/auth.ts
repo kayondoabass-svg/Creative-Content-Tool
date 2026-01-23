@@ -29,6 +29,9 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   subscriptionEndsAt: timestamp("subscription_ends_at"),
+  // Paddle subscription fields
+  paddleCustomerId: varchar("paddle_customer_id"),
+  paddleSubscriptionId: varchar("paddle_subscription_id"),
   // Free tier usage tracking
   freeImageCount: integer("free_image_count").default(0),
   freePresentationCount: integer("free_presentation_count").default(0),

@@ -1,10 +1,11 @@
+import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Crown, ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface SubscriptionStatus {
@@ -14,13 +15,28 @@ interface SubscriptionStatus {
   currentPeriodEnd: string | null;
 }
 
+interface PaddlePrices {
+  weekly: string;
+  monthly: string;
+  yearly: string;
+}
+
+interface PaddleConfig {
+  clientToken: string;
+}
+
+declare global {
+  interface Window {
+    Paddle: any;
+  }
+}
+
 const plans = [
   {
     id: "weekly",
     name: "Weekly",
     price: "$4.99",
     period: "per week",
-    priceId: "price_1SsnFDCWasGFUXr2lZC3cPyw",
     features: [
       "Unlimited content generations",
       "HD/4K image quality",
@@ -35,7 +51,6 @@ const plans = [
     price: "$14.99",
     period: "per month",
     badge: "Save 25%",
-    priceId: "price_1SsnFDCWasGFUXr2zVsaPtkL",
     features: [
       "Unlimited content generations",
       "HD/4K image quality",
@@ -51,7 +66,6 @@ const plans = [
     period: "per year",
     badge: "Best Value",
     highlight: true,
-    priceId: "price_1SsnFDCWasGFUXr2HG42jpNA",
     features: [
       "Unlimited content generations",
       "HD/4K image quality",
@@ -72,46 +86,88 @@ export default function PricingPage() {
     enabled: isAuthenticated,
   });
 
-  const checkoutMutation = useMutation({
-    mutationFn: async (priceId: string) => {
-      const response = await apiRequest("POST", "/api/subscription/checkout", { priceId });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Checkout Error",
-        description: error.message || "Failed to start checkout",
-      });
-    },
+  const { data: paddlePrices } = useQuery<PaddlePrices>({
+    queryKey: ["/api/paddle/prices"],
+    enabled: isAuthenticated,
   });
 
-  const portalMutation = useMutation({
+  const { data: paddleConfig } = useQuery<PaddleConfig>({
+    queryKey: ["/api/paddle/config"],
+  });
+
+  useEffect(() => {
+    if (!paddleConfig?.clientToken) return;
+    
+    if (!window.Paddle) {
+      const script = document.createElement("script");
+      script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
+      script.async = true;
+      script.onload = () => {
+        if (window.Paddle && paddleConfig.clientToken) {
+          window.Paddle.Initialize({
+            token: paddleConfig.clientToken,
+          });
+        }
+      };
+      document.head.appendChild(script);
+    } else if (paddleConfig.clientToken) {
+      window.Paddle.Initialize({
+        token: paddleConfig.clientToken,
+      });
+    }
+  }, [paddleConfig?.clientToken]);
+
+  const cancelMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/subscription/portal");
+      const response = await apiRequest("POST", "/api/subscription/cancel");
       return response.json();
     },
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
+    onSuccess: () => {
+      toast({
+        title: "Subscription Cancelled",
+        description: "Your subscription will remain active until the end of the billing period.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/status"] });
     },
     onError: (error: Error) => {
       toast({
         variant: "destructive",
-        title: "Portal Error",
-        description: error.message || "Failed to open billing portal",
+        title: "Cancellation Error",
+        description: error.message || "Failed to cancel subscription",
       });
     },
   });
 
-  const handleSubscribe = (priceId: string) => {
-    checkoutMutation.mutate(priceId);
+  const handleSubscribe = (planId: string) => {
+    if (!window.Paddle || !user) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Payment system not ready. Please try again.",
+      });
+      return;
+    }
+
+    const priceId = paddlePrices?.[planId as keyof PaddlePrices];
+    if (!priceId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Price not configured. Please contact support.",
+      });
+      return;
+    }
+
+    window.Paddle.Checkout.open({
+      items: [{ priceId, quantity: 1 }],
+      customer: {
+        email: user.email,
+      },
+      customData: {
+        user_id: user.id,
+      },
+      successUrl: window.location.origin + "/?checkout=success",
+    });
   };
 
   const isPremium = subscriptionStatus?.isPremium;
@@ -171,14 +227,15 @@ export default function PricingPage() {
           </CardHeader>
           <CardContent>
             <Button 
-              onClick={() => portalMutation.mutate()}
-              disabled={portalMutation.isPending}
-              data-testid="button-manage-subscription"
+              variant="destructive"
+              onClick={() => cancelMutation.mutate()}
+              disabled={cancelMutation.isPending}
+              data-testid="button-cancel-subscription"
             >
-              {portalMutation.isPending ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading...</>
+              {cancelMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Cancelling...</>
               ) : (
-                "Manage Subscription"
+                "Cancel Subscription"
               )}
             </Button>
           </CardContent>
@@ -216,15 +273,10 @@ export default function PricingPage() {
                 <Button 
                   className="w-full" 
                   variant={plan.highlight ? "default" : "outline"}
-                  onClick={() => handleSubscribe(plan.priceId)}
-                  disabled={checkoutMutation.isPending}
+                  onClick={() => handleSubscribe(plan.id)}
                   data-testid={`button-subscribe-${plan.id}`}
                 >
-                  {checkoutMutation.isPending ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading...</>
-                  ) : (
-                    "Subscribe Now"
-                  )}
+                  Subscribe Now
                 </Button>
               </CardContent>
             </Card>
@@ -233,8 +285,8 @@ export default function PricingPage() {
       )}
 
       <div className="mt-12 text-center text-sm text-muted-foreground">
-        <p>All plans include a 7-day free trial. Cancel anytime.</p>
-        <p className="mt-2">Secure payment powered by Stripe.</p>
+        <p>All plans include a 7-day money-back guarantee. Cancel anytime.</p>
+        <p className="mt-2">Secure payment powered by Paddle.</p>
       </div>
     </div>
   );

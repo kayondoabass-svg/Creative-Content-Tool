@@ -8,6 +8,8 @@ import sharp from "sharp";
 import { stripeService } from "./stripeService";
 import { isAuthenticated } from "./replit_integrations/auth";
 import { getStripePublishableKey } from "./stripeClient";
+import * as paddleService from "./paddleService";
+import crypto from "crypto";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -1380,6 +1382,114 @@ export function registerSubscriptionRoutes(app: any) {
     } catch (error) {
       console.error("Error creating portal session:", error);
       res.status(500).json({ error: "Failed to create portal session" });
+    }
+  });
+
+  // ============ PADDLE ROUTES ============
+
+  // Get Paddle client config (public)
+  app.get("/api/paddle/config", async (req: any, res: any) => {
+    try {
+      res.json({
+        clientToken: process.env.PADDLE_CLIENT_TOKEN || "",
+      });
+    } catch (error) {
+      console.error("Error fetching Paddle config:", error);
+      res.status(500).json({ error: "Failed to fetch config" });
+    }
+  });
+
+  // Get Paddle price IDs
+  app.get("/api/paddle/prices", isAuthenticated, async (req: any, res: any) => {
+    try {
+      res.json({
+        weekly: process.env.PADDLE_WEEKLY_PRICE_ID || "",
+        monthly: process.env.PADDLE_MONTHLY_PRICE_ID || "",
+        yearly: process.env.PADDLE_YEARLY_PRICE_ID || "",
+      });
+    } catch (error) {
+      console.error("Error fetching Paddle prices:", error);
+      res.status(500).json({ error: "Failed to fetch prices" });
+    }
+  });
+
+  // Cancel subscription via Paddle
+  app.post("/api/subscription/cancel", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const success = await paddleService.cancelSubscription(userId);
+      if (success) {
+        res.json({ success: true, message: "Subscription will be cancelled at end of billing period" });
+      } else {
+        res.status(400).json({ error: "No active subscription found" });
+      }
+    } catch (error) {
+      console.error("Error canceling subscription:", error);
+      res.status(500).json({ error: "Failed to cancel subscription" });
+    }
+  });
+
+  // Paddle webhook handler
+  app.post("/api/paddle/webhook", async (req: any, res: any) => {
+    try {
+      const signature = req.headers["paddle-signature"];
+      const rawBody = JSON.stringify(req.body);
+      
+      // Verify webhook signature if secret is set
+      const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
+      if (webhookSecret && signature) {
+        const parts = signature.split(";").reduce((acc: any, part: string) => {
+          const [key, value] = part.split("=");
+          acc[key] = value;
+          return acc;
+        }, {});
+        
+        const timestamp = parts["ts"];
+        const receivedHash = parts["h1"];
+        
+        const signedPayload = `${timestamp}:${rawBody}`;
+        const expectedHash = crypto
+          .createHmac("sha256", webhookSecret)
+          .update(signedPayload)
+          .digest("hex");
+        
+        if (expectedHash !== receivedHash) {
+          console.error("Invalid Paddle webhook signature");
+          return res.status(401).json({ error: "Invalid signature" });
+        }
+      }
+
+      const event = req.body;
+      const eventType = event.event_type;
+      const data = event.data;
+
+      console.log(`Paddle webhook received: ${eventType}`);
+
+      switch (eventType) {
+        case "subscription.created":
+          await paddleService.handleSubscriptionCreated(data);
+          break;
+        case "subscription.updated":
+          await paddleService.handleSubscriptionUpdated(data);
+          break;
+        case "subscription.canceled":
+          await paddleService.handleSubscriptionCanceled(data);
+          break;
+        case "subscription.activated":
+          await paddleService.handleSubscriptionUpdated(data);
+          break;
+        default:
+          console.log(`Unhandled Paddle event: ${eventType}`);
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Error processing Paddle webhook:", error);
+      res.status(500).json({ error: "Webhook processing failed" });
     }
   });
 }
