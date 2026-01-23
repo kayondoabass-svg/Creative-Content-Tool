@@ -735,13 +735,13 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                   )}
                 </div>
                 {isListening && (
-                  <p className="text-sm text-primary animate-pulse flex items-center gap-2 mt-2">
+                  <p className="text-sm text-primary animate-pulse flex items-center gap-2 mt-2" data-testid="text-recording-status">
                     <span className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
                     Recording... Click the stop button or speak to add to your prompt
                   </p>
                 )}
                 {speechError && (
-                  <p className="text-sm text-destructive mt-2">{speechError}</p>
+                  <p className="text-sm text-destructive mt-2" data-testid="text-speech-error">{speechError}</p>
                 )}
               </FormItem>
             )}

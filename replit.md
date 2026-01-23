@@ -31,6 +31,18 @@ MVP complete with all core features:
 - Unlimited content generations
 
 ## Recent Changes
+- January 23, 2026: Added voice-to-text input feature
+  - "Voice or Text to Reality" tagline updated on landing page
+  - Voice recorder button in prompt input using Web Speech API
+  - Real-time speech-to-text transcription
+  - Transcribed text automatically appends to prompt field
+  - Visual recording indicator and error handling
+- January 23, 2026: Added CEO dashboard for founder analytics
+  - Dashboard at /ceo restricted to kayondoabass@gmail.com
+  - User statistics: total, new signups, subscription breakdown
+  - Geographic analytics by country
+  - Feature usage tracking across content types
+  - Hiring section with job posting management
 - January 23, 2026: Added user authentication and subscription payments
   - Integrated Replit Auth for sign up/sign in (supports OAuth providers)
   - Set up Stripe for subscription management with stripe-replit-sync
