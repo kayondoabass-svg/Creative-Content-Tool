@@ -15,6 +15,11 @@ MVP complete with all core features:
 - Adjustable slide count (3-20 slides)
 
 ## Recent Changes
+- January 23, 2026: Added video storyboard options
+  - Video length selector (1min, 5min, 10min, 30min)
+  - Video style selector (Animation or Real Life)
+  - Video quality selector (2D, 3D, HD, 4K)
+  - Frame count scales with video length
 - January 23, 2026: Added presentation features
   - Slideshow "Present" mode with fullscreen view
   - Keyboard navigation (arrow keys, space, escape)

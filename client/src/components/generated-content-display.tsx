@@ -389,6 +389,21 @@ function StoryboardContent({ content }: { content: string }) {
           <p className="text-muted-foreground">{data.description}</p>
         )}
         
+        <div className="flex flex-wrap gap-2">
+          {data.duration && (
+            <Badge variant="outline" data-testid="badge-duration">{data.duration}</Badge>
+          )}
+          {data.style && (
+            <Badge variant="outline" data-testid="badge-style">{data.style}</Badge>
+          )}
+          {data.quality && (
+            <Badge variant="outline" data-testid="badge-quality">{data.quality}</Badge>
+          )}
+          {data.targetAge && (
+            <Badge variant="secondary" data-testid="badge-target-age">{data.targetAge}</Badge>
+          )}
+        </div>
+        
         <div className="grid gap-4">
           {frames.map((frame, index) => (
             <Card key={index} className="p-4 bg-gradient-to-r from-muted/50 to-muted/20">

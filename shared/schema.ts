@@ -40,6 +40,15 @@ export const insertGeneratedContentSchema = createInsertSchema(generatedContent)
 export type GeneratedContent = typeof generatedContent.$inferSelect;
 export type InsertGeneratedContent = z.infer<typeof insertGeneratedContentSchema>;
 
+// Video options schema
+export const videoOptionsSchema = z.object({
+  length: z.enum(["1min", "5min", "10min", "30min"]).optional(),
+  style: z.enum(["animation", "reallife"]).optional(),
+  quality: z.enum(["2d", "3d", "hd", "4k"]).optional(),
+});
+
+export type VideoOptions = z.infer<typeof videoOptionsSchema>;
+
 // Content generation request schema
 export const generateContentSchema = z.object({
   type: z.enum(contentTypes),
@@ -47,6 +56,7 @@ export const generateContentSchema = z.object({
   gradeLevel: z.string().optional(),
   subject: z.string().optional(),
   slideCount: z.number().min(3).max(20).optional(),
+  videoOptions: videoOptionsSchema.optional(),
 });
 
 export type GenerateContentRequest = z.infer<typeof generateContentSchema>;

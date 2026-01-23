@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateContentSchema, type ContentType, type Slide, type Activity, type StoryboardFrame } from "@shared/schema";
+import { generateContentSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions } from "@shared/schema";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -55,7 +55,7 @@ export async function registerRoutes(
   app.post("/api/generate", async (req, res) => {
     try {
       const validatedData = generateContentSchema.parse(req.body);
-      const { type, prompt, gradeLevel, subject, slideCount } = validatedData;
+      const { type, prompt, gradeLevel, subject, slideCount, videoOptions } = validatedData;
 
       let generatedContent: string;
       let title: string;
@@ -86,7 +86,7 @@ export async function registerRoutes(
           break;
 
         case "storyboard":
-          const storyboardResult = await generateStoryboard(prompt, gradeLevel, subject);
+          const storyboardResult = await generateStoryboard(prompt, gradeLevel, subject, videoOptions);
           generatedContent = JSON.stringify(storyboardResult);
           title = storyboardResult.title;
           break;
@@ -251,21 +251,59 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
 }
 
 // Storyboard generation (for animated videos)
-async function generateStoryboard(prompt: string, gradeLevel?: string, subject?: string) {
+async function generateStoryboard(prompt: string, gradeLevel?: string, subject?: string, videoOptions?: VideoOptions) {
   const context = buildContext(gradeLevel, subject);
+  
+  // Parse video options
+  const length = videoOptions?.length || "5min";
+  const style = videoOptions?.style || "animation";
+  const quality = videoOptions?.quality || "hd";
+  
+  // Determine frame count based on length
+  const frameCount = {
+    "1min": 6,
+    "5min": 15,
+    "10min": 25,
+    "30min": 50,
+  }[length] || 15;
+  
+  const styleDescription = style === "animation" 
+    ? "colorful 2D/3D animated style like Cocomelon, Super Simple Songs, or Pixar" 
+    : "real-life footage with actors, props, and real environments like educational documentaries";
+  
+  const qualityDescription = {
+    "2d": "flat 2D animation with bold outlines and bright colors",
+    "3d": "3D rendered CGI animation with depth and lighting",
+    "hd": "high-definition 1080p quality",
+    "4k": "ultra high-definition 4K cinematic quality",
+  }[quality] || "high-definition quality";
+  
+  const durationText = {
+    "1min": "1 minute",
+    "5min": "5 minutes",
+    "10min": "10 minutes",
+    "30min": "30 minutes",
+  }[length] || "5 minutes";
   
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
         role: "system",
-        content: `You are an expert educational video content creator specializing in creating storyboards for animated educational videos like Cocomelon, Super Simple Songs, or Smile and Learn. ${context}
+        content: `You are an expert educational video content creator specializing in creating storyboards for ${styleDescription}. ${context}
+        
+        Video specifications:
+        - Duration: ${durationText}
+        - Style: ${style === "animation" ? "Animated" : "Real-life/Live-action"}
+        - Quality: ${qualityDescription}
         
         Return a JSON object with this structure:
         {
           "title": "Video Title",
           "description": "Brief description of the video concept",
-          "duration": "Estimated duration (e.g., '2-3 minutes')",
+          "duration": "${durationText}",
+          "style": "${style === "animation" ? "Animation" : "Real Life"}",
+          "quality": "${quality.toUpperCase()}",
           "targetAge": "Target age group",
           "frames": [
             {
@@ -273,20 +311,20 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
               "description": "What happens in this scene",
               "dialogue": "Any spoken words or song lyrics",
               "action": "Animation/movement description",
-              "imagePrompt": "Detailed visual description for illustrating this frame"
+              "imagePrompt": "Detailed visual description for illustrating this frame in ${styleDescription} with ${qualityDescription}"
             }
           ]
         }
         
-        Create 8-12 frames that tell a complete educational story with a clear beginning, middle, and end. Include catchy songs or rhymes when appropriate.`
+        Create exactly ${frameCount} frames that tell a complete educational story with a clear beginning, middle, and end. Include catchy songs or rhymes when appropriate for animated content, or educational narration for real-life content.`
       },
       {
         role: "user",
-        content: `Create a storyboard for an animated educational video about: ${prompt}. Make it fun, colorful, and engaging like popular children's educational YouTube videos.`
+        content: `Create a ${durationText} ${style === "animation" ? "animated" : "real-life"} educational video storyboard about: ${prompt}. Use ${qualityDescription}. Make it engaging like popular children's educational YouTube videos.`
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 3000,
+    max_completion_tokens: 6000,
   });
 
   const content = response.choices[0]?.message?.content || "{}";

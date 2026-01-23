@@ -12,9 +12,28 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }) => void;
   isGenerating: boolean;
 }
+
+const videoLengths = [
+  { value: "1min", label: "1 min" },
+  { value: "5min", label: "5 min" },
+  { value: "10min", label: "10 min" },
+  { value: "30min", label: "30 min" },
+];
+
+const videoStyles = [
+  { value: "animation", label: "Animation" },
+  { value: "reallife", label: "Real Life" },
+];
+
+const videoQualities = [
+  { value: "2d", label: "2D" },
+  { value: "3d", label: "3D" },
+  { value: "hd", label: "HD" },
+  { value: "4k", label: "4K" },
+];
 
 const gradeLevels = [
   "Pre-K",
@@ -56,6 +75,9 @@ const formSchema = z.object({
   gradeLevel: z.string().optional(),
   subject: z.string().optional(),
   slideCount: z.string().optional(),
+  videoLength: z.string().optional(),
+  videoStyle: z.string().optional(),
+  videoQuality: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -68,16 +90,26 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       gradeLevel: "",
       subject: "",
       slideCount: "6",
+      videoLength: "5min",
+      videoStyle: "animation",
+      videoQuality: "hd",
     },
   });
 
   const onSubmit = (values: FormValues) => {
     const slideCount = values.slideCount ? parseInt(values.slideCount) : undefined;
+    const videoOptions = selectedType === "storyboard" ? {
+      length: values.videoLength,
+      style: values.videoStyle,
+      quality: values.videoQuality,
+    } : undefined;
+    
     onGenerate(
       values.prompt.trim(),
       values.gradeLevel || undefined,
       values.subject || undefined,
-      slideCount
+      slideCount,
+      videoOptions
     );
   };
 
@@ -160,6 +192,82 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
               />
             )}
           </div>
+
+          {selectedType === "storyboard" && (
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <FormField
+                control={form.control}
+                name="videoLength"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Length:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[90px]" data-testid="select-video-length">
+                          <SelectValue placeholder="Length" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {videoLengths.map((len) => (
+                          <SelectItem key={len.value} value={len.value}>
+                            {len.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="videoStyle"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Style:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[110px]" data-testid="select-video-style">
+                          <SelectValue placeholder="Style" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {videoStyles.map((style) => (
+                          <SelectItem key={style.value} value={style.value}>
+                            {style.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="videoQuality"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Quality:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[80px]" data-testid="select-video-quality">
+                          <SelectValue placeholder="Quality" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {videoQualities.map((qual) => (
+                          <SelectItem key={qual.value} value={qual.value}>
+                            {qual.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
 
           <FormField
             control={form.control}
