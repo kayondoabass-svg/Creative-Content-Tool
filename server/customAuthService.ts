@@ -65,10 +65,6 @@ export async function signUp(
     // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // CEO email is auto-verified
-    const CEO_EMAIL = "kayondoabass@gmail.com";
-    const isCEO = email.toLowerCase() === CEO_EMAIL;
-    
     // Create user
     const [newUser] = await db
       .insert(users)
@@ -77,7 +73,7 @@ export async function signUp(
         passwordHash,
         firstName,
         lastName,
-        emailVerified: isCEO, // Auto-verify CEO
+        emailVerified: false,
       })
       .returning();
 
@@ -92,16 +88,12 @@ export async function signUp(
       expiresAt,
     });
 
-    // Only send verification email for non-CEO
-    if (!isCEO) {
-      await sendVerificationEmail(email, code);
-    }
+    // Send verification email
+    await sendVerificationEmail(email, code);
 
     return {
       success: true,
-      message: isCEO 
-        ? "Account created! You can now log in." 
-        : "Account created. Please check your email for a verification code.",
+      message: "Account created. Please check your email for a verification code.",
       userId: newUser.id,
     };
   } catch (error) {
@@ -196,52 +188,23 @@ export async function login(
   password: string
 ): Promise<{ success: boolean; message: string; user?: any }> {
   try {
-    const CEO_EMAIL = "kayondoabass@gmail.com";
-    const isCEO = email.toLowerCase() === CEO_EMAIL;
-    
-    let [user] = await db
+    const [user] = await db
       .select()
       .from(users)
       .where(eq(users.email, email.toLowerCase()))
       .limit(1);
-
-    // CEO auto-provisioning: create account if doesn't exist
-    if (isCEO && !user) {
-      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          email: email.toLowerCase(),
-          passwordHash,
-          firstName: "Kayondo",
-          lastName: "Abass",
-          emailVerified: true,
-        })
-        .returning();
-      user = newUser;
-      console.log("CEO account auto-created on login");
-    }
 
     if (!user || !user.passwordHash) {
       return { success: false, message: "Invalid email or password" };
     }
 
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-    
-    // CEO password update: if password doesn't match, update to new password
-    if (isCEO && !isValidPassword) {
-      const newPasswordHash = await bcrypt.hash(password, SALT_ROUNDS);
-      await db
-        .update(users)
-        .set({ passwordHash: newPasswordHash, emailVerified: true })
-        .where(eq(users.id, user.id));
-      console.log("CEO password updated on login");
-    } else if (!isValidPassword) {
+    if (!isValidPassword) {
       return { success: false, message: "Invalid email or password" };
     }
 
-    // Allow CEO to bypass email verification
-    if (!user.emailVerified && !isCEO) {
+    // Require email verification
+    if (!user.emailVerified) {
       return { success: false, message: "Please verify your email first" };
     }
 
