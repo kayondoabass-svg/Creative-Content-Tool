@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { ContentType, Slide, Activity, StoryboardFrame, Worksheet } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { SlideshowModal } from "./slideshow-modal";
+import { VideoExportModal } from "./video-export-modal";
 import pptxgen from "pptxgenjs";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -24,7 +25,7 @@ export function GeneratedContentDisplay({
 }: GeneratedContentDisplayProps) {
   const [copied, setCopied] = useState(false);
   const [showSlideshow, setShowSlideshow] = useState(false);
-  const [isExportingVideo, setIsExportingVideo] = useState(false);
+  const [showVideoExport, setShowVideoExport] = useState(false);
   const { toast } = useToast();
 
   const getPresentationData = () => {
@@ -34,6 +35,20 @@ export function GeneratedContentDisplay({
       return { slides: data.slides || [], title: data.title || "Presentation" };
     } catch {
       return { slides: [], title: "" };
+    }
+  };
+
+  const getStoryboardData = () => {
+    if (type !== "storyboard") return null;
+    try {
+      const data = JSON.parse(content);
+      return {
+        title: data.title || "Video",
+        description: data.description,
+        frames: data.frames || [],
+      };
+    } catch {
+      return null;
     }
   };
 
@@ -78,46 +93,28 @@ export function GeneratedContentDisplay({
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadMP4 = async () => {
-    try {
-      setIsExportingVideo(true);
+  const handleOpenVideoExport = () => {
+    const storyboardData = getStoryboardData();
+    if (!storyboardData) {
       toast({
-        title: "Creating video...",
-        description: "This may take a minute. Please wait.",
-      });
-      
-      const response = await fetch("/api/storyboard-to-video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate video");
-      }
-      
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `brightboard-storyboard-${Date.now()}.mp4`;
-      a.click();
-      URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Video downloaded!",
-        description: "Your MP4 video has been saved.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Video export failed",
-        description: error.message || "Please try again later.",
+        title: "Error",
+        description: "Could not parse storyboard data.",
         variant: "destructive",
       });
-    } finally {
-      setIsExportingVideo(false);
+      return;
     }
+    
+    const framesWithImages = storyboardData.frames.filter((f: any) => f.image);
+    if (framesWithImages.length === 0) {
+      toast({
+        title: "No images available",
+        description: "Generate images for your storyboard first before exporting as video.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setShowVideoExport(true);
   };
 
   const handleDownloadPPT = async () => {
@@ -321,16 +318,11 @@ export function GeneratedContentDisplay({
               <Button 
                 variant="default" 
                 size="sm" 
-                onClick={handleDownloadMP4}
-                disabled={isExportingVideo}
+                onClick={handleOpenVideoExport}
                 data-testid="button-download-mp4"
               >
-                {isExportingVideo ? (
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Film className="h-4 w-4 mr-1.5" />
-                )}
-                {isExportingVideo ? "Creating..." : "Download MP4"}
+                <Film className="h-4 w-4 mr-1.5" />
+                Export Video
               </Button>
               <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
                 <Download className="h-4 w-4 mr-1.5" />
@@ -357,6 +349,15 @@ export function GeneratedContentDisplay({
           title={getPresentationData().title}
           isOpen={showSlideshow}
           onClose={() => setShowSlideshow(false)}
+        />
+      )}
+      
+      {type === "storyboard" && (
+        <VideoExportModal
+          isOpen={showVideoExport}
+          onClose={() => setShowVideoExport(false)}
+          content={content}
+          storyboardData={getStoryboardData()}
         />
       )}
     </Card>

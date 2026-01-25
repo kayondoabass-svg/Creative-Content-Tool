@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions } from "@shared/schema";
+import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions } from "@shared/schema";
 import OpenAI from "openai";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import sharp from "sharp";
@@ -436,11 +436,8 @@ export async function registerRoutes(
   // Export storyboard as MP4 video
   app.post("/api/storyboard-to-video", async (req, res) => {
     try {
-      const { content } = req.body;
-      
-      if (!content) {
-        return res.status(400).json({ error: "No storyboard content provided" });
-      }
+      const validatedRequest = videoExportSchema.parse(req.body);
+      const { content, includeNarration, includeMusic, voice } = validatedRequest;
       
       const storyboardData = JSON.parse(content);
       
@@ -453,7 +450,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "No frames with images found. Generate images first." });
       }
       
-      const videoBuffer = await generateVideoFromStoryboard(storyboardData);
+      const videoOptions = {
+        includeNarration,
+        includeMusic,
+        voice
+      };
+      
+      const videoBuffer = await generateVideoFromStoryboard(storyboardData, videoOptions);
       
       const title = storyboardData.title?.replace(/[^a-zA-Z0-9]/g, '-') || 'storyboard';
       const filename = `brightboard-${title}-${Date.now()}.mp4`;

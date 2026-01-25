@@ -146,3 +146,13 @@ export const fileConversionSchema = z.object({
 });
 
 export type FileConversionRequest = z.infer<typeof fileConversionSchema>;
+
+// Video export request schema
+export const videoExportSchema = z.object({
+  content: z.string(),
+  includeNarration: z.boolean().optional().default(false),
+  includeMusic: z.boolean().optional().default(false),
+  voice: z.enum(["alloy", "echo", "fable", "onyx", "nova", "shimmer"]).optional().default("nova"),
+});
+
+export type VideoExportRequest = z.infer<typeof videoExportSchema>;
