@@ -21,6 +21,7 @@ import CEODashboard from "@/pages/ceo-dashboard";
 import Terms from "@/pages/terms";
 import Privacy from "@/pages/privacy";
 import Refund from "@/pages/refund";
+import Affiliate from "@/pages/affiliate";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import type { OrganizationSettings } from "@shared/schema";
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/refund" component={Refund} />
+      <Route path="/affiliate" component={Affiliate} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />

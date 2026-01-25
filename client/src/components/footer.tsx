@@ -7,7 +7,7 @@ export function Footer() {
   return (
     <footer className="border-t bg-card/50" data-testid="footer">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-teal-400 rounded-lg flex items-center justify-center">
@@ -59,6 +59,17 @@ export function Footer() {
               <li>
                 <Link href="/refund" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-refund">
                   Refund Policy
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-4">Earn</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/affiliate" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-affiliate">
+                  Affiliate Program
                 </Link>
               </li>
             </ul>
