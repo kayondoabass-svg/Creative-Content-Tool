@@ -31,13 +31,14 @@ MVP complete with all core features:
 - Unlimited content generations
 
 ## Recent Changes
-- January 25, 2026: Added MP4 video export for storyboards
-  - Export storyboards as downloadable MP4 videos
+- January 25, 2026: Added tiered MP4 video export for storyboards
+  - **Free tier**: Video slideshow with images + "Made with BrightBoard" watermark
+  - **Premium tier**: Full video with AI narration, background music, subtitles, no watermark
   - Text-to-speech narration using OpenAI gpt-audio model
   - Voice selection: Nova, Alloy, Echo, Fable, Onyx, Shimmer
+  - Burned-in subtitles with styled text overlay
   - Background music with synthesized chord progression
-  - Preview modal with toggles for narration and music
-  - Proper audio/video duration alignment
+  - Paddle subscription status check for premium gating
   - Zod validation for video export requests
 - January 25, 2026: Replaced Replit Auth with custom email/password authentication
   - Custom signup page with first name, last name, email, password fields
