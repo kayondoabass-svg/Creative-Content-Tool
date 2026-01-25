@@ -330,3 +330,40 @@ export async function getUserById(userId: string) {
     emailVerified: user.emailVerified,
   };
 }
+
+// Emergency password reset for CEO (bypasses email verification)
+export async function emergencyPasswordReset(
+  email: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const normalizedEmail = email.toLowerCase();
+    
+    // Find the user
+    const existingUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizedEmail))
+      .limit(1);
+
+    if (existingUsers.length === 0) {
+      return { success: false, message: "User not found" };
+    }
+
+    // Hash new password and update
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    
+    await db
+      .update(users)
+      .set({ 
+        passwordHash,
+        emailVerified: true // Also verify email since this is admin action
+      })
+      .where(eq(users.email, normalizedEmail));
+
+    return { success: true, message: "Password reset successfully" };
+  } catch (error) {
+    console.error("Emergency password reset error:", error);
+    return { success: false, message: "Failed to reset password" };
+  }
+}

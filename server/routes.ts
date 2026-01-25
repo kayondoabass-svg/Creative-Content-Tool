@@ -214,6 +214,39 @@ export async function registerRoutes(
     res.json({ siteKey: process.env.RECAPTCHA_SITE_KEY || null });
   });
 
+  // Emergency CEO password reset (for bootstrapping when email isn't configured)
+  app.post("/api/auth/emergency-reset", async (req, res) => {
+    try {
+      const { email, newPassword, adminKey } = req.body;
+      const CEO_EMAIL = "kayondoabass@gmail.com";
+      const ADMIN_KEY = process.env.ADMIN_RESET_KEY || "brightboard-emergency-2026";
+      
+      // Only allow for CEO email with correct admin key
+      if (email?.toLowerCase() !== CEO_EMAIL) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      
+      if (adminKey !== ADMIN_KEY) {
+        return res.status(403).json({ error: "Invalid admin key" });
+      }
+      
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+      
+      const result = await customAuth.emergencyPasswordReset(email, newPassword);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+      
+      res.json({ message: "Password reset successfully. You can now log in." });
+    } catch (error) {
+      console.error("Emergency reset error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
   // ========== END CUSTOM AUTH ROUTES ==========
 
   // Get all generated content
