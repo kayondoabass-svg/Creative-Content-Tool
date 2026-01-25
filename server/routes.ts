@@ -10,6 +10,7 @@ import { isAuthenticated } from "./replit_integrations/auth";
 import { getStripePublishableKey } from "./stripeClient";
 import * as paddleService from "./paddleService";
 import crypto from "crypto";
+import * as customAuth from "./customAuthService";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -20,6 +21,193 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // ========== CUSTOM AUTHENTICATION ROUTES ==========
+  
+  // Sign up with email/password
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, recaptchaToken } = req.body;
+      
+      if (!email || !password || !firstName || !lastName) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
+      
+      if (password.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+      
+      const result = await customAuth.signUp(email, password, firstName, lastName, recaptchaToken);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+      
+      res.json({ message: result.message, userId: result.userId });
+    } catch (error) {
+      console.error("Signup error:", error);
+      res.status(500).json({ error: "Failed to sign up" });
+    }
+  });
+
+  // Verify email with code
+  app.post("/api/auth/verify-email", async (req, res) => {
+    try {
+      const { email, code } = req.body;
+      
+      if (!email || !code) {
+        return res.status(400).json({ error: "Email and code are required" });
+      }
+      
+      const result = await customAuth.verifyEmail(email, code);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+      
+      res.json({ message: result.message });
+    } catch (error) {
+      console.error("Verify email error:", error);
+      res.status(500).json({ error: "Failed to verify email" });
+    }
+  });
+
+  // Resend verification code
+  app.post("/api/auth/resend-code", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      const result = await customAuth.resendVerificationCode(email);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+      
+      res.json({ message: result.message });
+    } catch (error) {
+      console.error("Resend code error:", error);
+      res.status(500).json({ error: "Failed to resend code" });
+    }
+  });
+
+  // Login with email/password
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+      
+      const result = await customAuth.login(email, password);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+      
+      // Store user in session
+      (req as any).session.userId = result.user.id;
+      (req as any).session.user = result.user;
+      
+      res.json({ user: result.user });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Failed to login" });
+    }
+  });
+
+  // Logout
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      (req as any).session.destroy((err: any) => {
+        if (err) {
+          console.error("Session destroy error:", err);
+          return res.status(500).json({ error: "Failed to logout" });
+        }
+        res.clearCookie("connect.sid");
+        res.json({ message: "Logged out successfully" });
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ error: "Failed to logout" });
+    }
+  });
+
+  // Get current user
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      const userId = (req as any).session?.userId;
+      
+      if (!userId) {
+        return res.json({ user: null });
+      }
+      
+      const user = await customAuth.getUserById(userId);
+      
+      if (!user) {
+        return res.json({ user: null });
+      }
+      
+      res.json({ user });
+    } catch (error) {
+      console.error("Get current user error:", error);
+      res.status(500).json({ error: "Failed to get user" });
+    }
+  });
+
+  // Request password reset
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      const result = await customAuth.requestPasswordReset(email);
+      res.json({ message: result.message });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Failed to request password reset" });
+    }
+  });
+
+  // Reset password with code
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { email, code, newPassword } = req.body;
+      
+      if (!email || !code || !newPassword) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
+      
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+      
+      const result = await customAuth.resetPassword(email, code, newPassword);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+      
+      res.json({ message: result.message });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
+  // Get reCAPTCHA site key (for frontend)
+  app.get("/api/auth/recaptcha-key", async (req, res) => {
+    res.json({ siteKey: process.env.RECAPTCHA_SITE_KEY || null });
+  });
+
+  // ========== END CUSTOM AUTH ROUTES ==========
+
   // Get all generated content
   app.get("/api/content", async (req, res) => {
     try {
