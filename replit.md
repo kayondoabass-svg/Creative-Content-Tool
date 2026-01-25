@@ -31,6 +31,13 @@ MVP complete with all core features:
 - Unlimited content generations
 
 ## Recent Changes
+- January 25, 2026: Added comprehensive footer to all public pages
+  - BrightBoard logo and description
+  - Product links: Pricing, Features, Get Started
+  - Legal links: Terms & Conditions, Privacy Policy, Refund Policy
+  - Contact email: support@brightboardapp.com
+  - Copyright notice with current year
+  - Footer component at client/src/components/footer.tsx
 - January 25, 2026: Added tiered MP4 video export for storyboards
   - **Free tier**: Video slideshow with images + "Made with BrightBoard" watermark
   - **Premium tier**: Full video with AI narration, background music, subtitles, no watermark

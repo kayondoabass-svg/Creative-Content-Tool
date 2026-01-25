@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles, Image, FileText, Presentation, Gamepad2, Video, FileSpreadsheet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Footer } from "@/components/footer";
 
 const showcaseSlides = [
   {
@@ -194,11 +195,7 @@ export default function LandingPage() {
 
       </main>
 
-      <footer className="border-t py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} BrightBoard. All rights reserved.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

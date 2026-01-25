@@ -7,6 +7,7 @@ import { Check, Crown, ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Footer } from "@/components/footer";
 
 interface SubscriptionStatus {
   isPremium: boolean;
@@ -288,6 +289,8 @@ export default function PricingPage() {
         <p>All plans include a 7-day money-back guarantee. Cancel anytime.</p>
         <p className="mt-2">Secure payment powered by Paddle.</p>
       </div>
+
+      <Footer />
     </div>
   );
 }
