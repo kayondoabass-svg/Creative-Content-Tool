@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon } from "lucide-react";
+import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon, Film } from "lucide-react";
 import { useState } from "react";
 import type { ContentType, Slide, Activity, StoryboardFrame, Worksheet } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,7 @@ export function GeneratedContentDisplay({
 }: GeneratedContentDisplayProps) {
   const [copied, setCopied] = useState(false);
   const [showSlideshow, setShowSlideshow] = useState(false);
+  const [isExportingVideo, setIsExportingVideo] = useState(false);
   const { toast } = useToast();
 
   const getPresentationData = () => {
@@ -75,6 +76,48 @@ export function GeneratedContentDisplay({
     a.download = `brightboard-${type}-${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadMP4 = async () => {
+    try {
+      setIsExportingVideo(true);
+      toast({
+        title: "Creating video...",
+        description: "This may take a minute. Please wait.",
+      });
+      
+      const response = await fetch("/api/storyboard-to-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate video");
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `brightboard-storyboard-${Date.now()}.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Video downloaded!",
+        description: "Your MP4 video has been saved.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Video export failed",
+        description: error.message || "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingVideo(false);
+    }
   };
 
   const handleDownloadPPT = async () => {
@@ -274,10 +317,26 @@ export function GeneratedContentDisplay({
             </>
           )}
           {type === "storyboard" ? (
-            <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
-              <Download className="h-4 w-4 mr-1.5" />
-              Save Script
-            </Button>
+            <>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={handleDownloadMP4}
+                disabled={isExportingVideo}
+                data-testid="button-download-mp4"
+              >
+                {isExportingVideo ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Film className="h-4 w-4 mr-1.5" />
+                )}
+                {isExportingVideo ? "Creating..." : "Download MP4"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
+                <Download className="h-4 w-4 mr-1.5" />
+                Save Script
+              </Button>
+            </>
           ) : type === "worksheet" ? (
             <WorksheetDownloadButtons content={content} toast={toast} />
           ) : type !== "presentation" && (

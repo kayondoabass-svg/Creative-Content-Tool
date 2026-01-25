@@ -7,6 +7,7 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import sharp from "sharp";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
+import { generateVideoFromStoryboard } from "./videoService";
 
 // Custom authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -429,6 +430,41 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error converting file:", error);
       res.status(500).json({ error: "Failed to convert file" });
+    }
+  });
+
+  // Export storyboard as MP4 video
+  app.post("/api/storyboard-to-video", async (req, res) => {
+    try {
+      const { content } = req.body;
+      
+      if (!content) {
+        return res.status(400).json({ error: "No storyboard content provided" });
+      }
+      
+      const storyboardData = JSON.parse(content);
+      
+      if (!storyboardData.frames || storyboardData.frames.length === 0) {
+        return res.status(400).json({ error: "No frames found in storyboard" });
+      }
+      
+      const framesWithImages = storyboardData.frames.filter((f: any) => f.image);
+      if (framesWithImages.length === 0) {
+        return res.status(400).json({ error: "No frames with images found. Generate images first." });
+      }
+      
+      const videoBuffer = await generateVideoFromStoryboard(storyboardData);
+      
+      const title = storyboardData.title?.replace(/[^a-zA-Z0-9]/g, '-') || 'storyboard';
+      const filename = `brightboard-${title}-${Date.now()}.mp4`;
+      
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', videoBuffer.length);
+      res.send(videoBuffer);
+    } catch (error) {
+      console.error("Error generating video:", error);
+      res.status(500).json({ error: "Failed to generate video. Please try again." });
     }
   });
 
