@@ -1,0 +1,147 @@
+// Resend email service for BrightBoard
+import { Resend } from 'resend';
+
+let connectionSettings: any;
+
+async function getCredentials() {
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY 
+    ? 'repl ' + process.env.REPL_IDENTITY 
+    : process.env.WEB_REPL_RENEWAL 
+    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
+    : null;
+
+  if (!xReplitToken) {
+    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+  }
+
+  connectionSettings = await fetch(
+    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
+    {
+      headers: {
+        'Accept': 'application/json',
+        'X_REPLIT_TOKEN': xReplitToken
+      }
+    }
+  ).then(res => res.json()).then(data => data.items?.[0]);
+
+  if (!connectionSettings || (!connectionSettings.settings.api_key)) {
+    throw new Error('Resend not connected');
+  }
+  return {
+    apiKey: connectionSettings.settings.api_key, 
+    fromEmail: connectionSettings.settings.from_email
+  };
+}
+
+async function getResendClient() {
+  const { apiKey, fromEmail } = await getCredentials();
+  return {
+    client: new Resend(apiKey),
+    fromEmail
+  };
+}
+
+export async function sendVerificationEmail(email: string, code: string): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    
+    const result = await client.emails.send({
+      from: fromEmail || 'BrightBoard <noreply@brightboardapp.com>',
+      to: email,
+      subject: 'Verify your BrightBoard account',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 40px 20px;">
+          <div style="max-width: 480px; margin: 0 auto; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <h1 style="color: #7c3aed; margin: 0; font-size: 28px;">BrightBoard</h1>
+              <p style="color: #6b7280; margin: 8px 0 0 0;">AI Content for Teachers</p>
+            </div>
+            
+            <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px;">Verify your email</h2>
+            <p style="color: #4b5563; line-height: 1.6; margin: 0 0 24px 0;">
+              Enter this verification code to complete your BrightBoard account setup:
+            </p>
+            
+            <div style="background: linear-gradient(135deg, #7c3aed, #06b6d4); border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
+              <span style="font-size: 32px; font-weight: bold; color: white; letter-spacing: 8px;">${code}</span>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
+              This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.
+            </p>
+          </div>
+          
+          <p style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 24px;">
+            &copy; ${new Date().getFullYear()} BrightBoard. All rights reserved.
+          </p>
+        </body>
+        </html>
+      `,
+    });
+
+    console.log('Verification email sent:', result);
+    return true;
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    return false;
+  }
+}
+
+export async function sendPasswordResetEmail(email: string, code: string): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    
+    const result = await client.emails.send({
+      from: fromEmail || 'BrightBoard <noreply@brightboardapp.com>',
+      to: email,
+      subject: 'Reset your BrightBoard password',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 40px 20px;">
+          <div style="max-width: 480px; margin: 0 auto; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <h1 style="color: #7c3aed; margin: 0; font-size: 28px;">BrightBoard</h1>
+              <p style="color: #6b7280; margin: 8px 0 0 0;">AI Content for Teachers</p>
+            </div>
+            
+            <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px;">Reset your password</h2>
+            <p style="color: #4b5563; line-height: 1.6; margin: 0 0 24px 0;">
+              Enter this code to reset your password:
+            </p>
+            
+            <div style="background: linear-gradient(135deg, #7c3aed, #06b6d4); border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
+              <span style="font-size: 32px; font-weight: bold; color: white; letter-spacing: 8px;">${code}</span>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
+              This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.
+            </p>
+          </div>
+          
+          <p style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 24px;">
+            &copy; ${new Date().getFullYear()} BrightBoard. All rights reserved.
+          </p>
+        </body>
+        </html>
+      `,
+    });
+
+    console.log('Password reset email sent:', result);
+    return true;
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    return false;
+  }
+}
