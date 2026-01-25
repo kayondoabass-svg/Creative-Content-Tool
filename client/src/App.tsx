@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -21,6 +21,8 @@ import CEODashboard from "@/pages/ceo-dashboard";
 import Terms from "@/pages/terms";
 import Privacy from "@/pages/privacy";
 import Refund from "@/pages/refund";
+import LoginPage from "@/pages/login";
+import SignupPage from "@/pages/signup";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
@@ -41,6 +43,8 @@ function Router() {
       <Route path="/privacy" component={Privacy} />
       <Route path="/refund" component={Refund} />
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/login" component={LoginPage} />
+      <Route path="/signup" component={SignupPage} />
       
       {/* Protected pages - require auth */}
       {!isAuthenticated ? (
@@ -57,7 +61,7 @@ function Router() {
 }
 
 function UserMenu() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { data: subscriptionStatus } = useQuery({
     queryKey: ["/api/subscription/status"],
     enabled: isAuthenticated,
@@ -74,7 +78,7 @@ function UserMenu() {
   if (!isAuthenticated || !user) {
     return (
       <Button asChild size="sm" data-testid="button-login-header">
-        <a href="/api/login">Sign In</a>
+        <Link href="/login">Sign In</Link>
       </Button>
     );
   }
@@ -131,11 +135,13 @@ function UserMenu() {
           </>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer" asChild>
-          <a href="/api/logout" className="flex items-center gap-2 text-destructive">
-            <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
-          </a>
+        <DropdownMenuItem 
+          className="cursor-pointer flex items-center gap-2 text-destructive" 
+          onClick={() => logout()}
+          data-testid="button-logout"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
