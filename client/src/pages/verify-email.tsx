@@ -15,9 +15,15 @@ export default function VerifyEmailPage() {
   const { toast } = useToast();
   
   const params = new URLSearchParams(search);
-  const emailFromUrl = params.get("email") || "";
+  const emailFromUrl = params.get("email") || localStorage.getItem("pendingVerificationEmail") || "";
   
   const [email, setEmail] = useState(emailFromUrl);
+
+  useEffect(() => {
+    if (email) {
+      localStorage.setItem("pendingVerificationEmail", email);
+    }
+  }, [email]);
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerified, setIsVerified] = useState(false);
 
@@ -37,6 +43,7 @@ export default function VerifyEmailPage() {
     
     try {
       await verifyEmail({ email, code: verificationCode });
+      localStorage.removeItem("pendingVerificationEmail");
       setIsVerified(true);
       toast({ title: "Email verified!", description: "Redirecting to login..." });
       setTimeout(() => setLocation("/login"), 2000);

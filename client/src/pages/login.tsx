@@ -35,9 +35,22 @@ export default function LoginPage() {
       toast({ title: "Welcome back!" });
       setLocation("/");
     } catch (error: any) {
+      const errorMessage = error.message || "Please check your credentials";
+      
+      if (errorMessage.toLowerCase().includes("verify your email") || errorMessage.toLowerCase().includes("not verified")) {
+        localStorage.setItem("pendingVerificationEmail", email);
+        toast({ 
+          title: "Email not verified", 
+          description: "Redirecting you to verify your email...",
+          variant: "destructive" 
+        });
+        setTimeout(() => setLocation(`/verify-email?email=${encodeURIComponent(email)}`), 1500);
+        return;
+      }
+      
       toast({ 
         title: "Login failed", 
-        description: error.message || "Please check your credentials",
+        description: errorMessage,
         variant: "destructive" 
       });
     }

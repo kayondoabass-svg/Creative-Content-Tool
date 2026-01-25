@@ -74,8 +74,9 @@ export default function SignupPage() {
       }
       
       await signup({ email, password, firstName, lastName, recaptchaToken });
-      setStep("verify");
+      localStorage.setItem("pendingVerificationEmail", email);
       toast({ title: "Check your email", description: "We sent you a verification code" });
+      setLocation(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       toast({ 
         title: "Sign up failed", 
