@@ -6,8 +6,15 @@ import OpenAI from "openai";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import sharp from "sharp";
 import { stripeService } from "./stripeService";
-import { isAuthenticated } from "./replit_integrations/auth";
 import { getStripePublishableKey } from "./stripeClient";
+
+// Custom authentication middleware
+function isAuthenticated(req: any, res: any, next: any) {
+  if (req.session?.userId) {
+    return next();
+  }
+  return res.status(401).json({ error: "Not authenticated" });
+}
 import * as paddleService from "./paddleService";
 import crypto from "crypto";
 import * as customAuth from "./customAuthService";

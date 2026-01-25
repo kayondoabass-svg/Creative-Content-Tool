@@ -69,7 +69,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-4">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
             <Button asChild data-testid="button-login">
-              <a href="/api/login">Sign In</a>
+              <a href="/login">Sign In</a>
             </Button>
           </div>
         </div>
@@ -87,7 +87,7 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild data-testid="button-get-started">
-                <a href="/api/login">Get Started Free</a>
+                <a href="/signup">Get Started Free</a>
               </Button>
             </div>
           </div>

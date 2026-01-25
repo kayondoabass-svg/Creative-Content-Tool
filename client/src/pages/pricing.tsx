@@ -178,7 +178,7 @@ export default function PricingPage() {
         <h1 className="text-2xl font-bold mb-4">Please Sign In</h1>
         <p className="text-muted-foreground mb-8">Sign in to view subscription options</p>
         <Button asChild>
-          <a href="/api/login">Sign In</a>
+          <a href="/login">Sign In</a>
         </Button>
       </div>
     );
