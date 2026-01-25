@@ -30,9 +30,9 @@ export default function Affiliate() {
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
-              <h3 className="font-semibold text-lg mb-2">30% Commission</h3>
+              <h3 className="font-semibold text-lg mb-2">Earn Per Referral</h3>
               <p className="text-sm text-muted-foreground">
-                Earn 30% recurring commission on every subscription you refer
+                $1.50/week, $4.50/month, or $20/year for each subscriber you refer
               </p>
             </CardContent>
           </Card>
@@ -126,8 +126,9 @@ export default function Affiliate() {
               <div>
                 <h4 className="font-semibold mb-2">Commission Structure</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>30% commission on all subscription payments</li>
-                  <li>Recurring commissions for subscription renewals</li>
+                  <li>Weekly plan: $1.50 per referral/week</li>
+                  <li>Monthly plan: $4.50 per referral/month</li>
+                  <li>Yearly plan: $20 per referral/year</li>
                   <li>90-day cookie duration</li>
                 </ul>
               </div>
