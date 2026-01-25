@@ -24,6 +24,7 @@ import Refund from "@/pages/refund";
 import Affiliate from "@/pages/affiliate";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
+import VerifyEmailPage from "@/pages/verify-email";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/pricing" component={PricingPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
+      <Route path="/verify-email" component={VerifyEmailPage} />
       
       {/* Protected pages - require auth */}
       {!isAuthenticated ? (
