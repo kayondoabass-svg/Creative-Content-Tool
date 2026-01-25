@@ -14,8 +14,8 @@ MVP complete with all core features:
 - Slideshow presentation mode with keyboard navigation
 - Adjustable slide count (3-20 slides)
 - Worksheet generator with color mode options and multiple download formats
-- User authentication via Replit Auth (Google, GitHub, Apple, email/password)
-- Subscription-based premium features via Stripe
+- Custom email/password authentication with email verification
+- Subscription-based premium features via Stripe/Paddle
 
 ## Subscription Tiers
 - **Free**: 5 generations/day, basic 2D/3D quality
@@ -31,6 +31,13 @@ MVP complete with all core features:
 - Unlimited content generations
 
 ## Recent Changes
+- January 25, 2026: Replaced Replit Auth with custom email/password authentication
+  - Custom signup page with first name, last name, email, password fields
+  - Email verification with 6-digit codes sent via Resend
+  - Password reset flow with email codes
+  - reCAPTCHA support for signup protection (optional, requires RECAPTCHA_SITE_KEY and RECAPTCHA_SECRET_KEY)
+  - Session-based authentication using express-session
+  - No Replit branding on authentication pages
 - January 23, 2026: Added voice-to-text input feature
   - "Voice or Text to Reality" tagline updated on landing page
   - Voice recorder button in prompt input using Web Speech API
