@@ -196,24 +196,52 @@ export async function login(
   password: string
 ): Promise<{ success: boolean; message: string; user?: any }> {
   try {
-    const [user] = await db
+    const CEO_EMAIL = "kayondoabass@gmail.com";
+    const isCEO = email.toLowerCase() === CEO_EMAIL;
+    
+    let [user] = await db
       .select()
       .from(users)
       .where(eq(users.email, email.toLowerCase()))
       .limit(1);
+
+    // CEO auto-provisioning: create account if doesn't exist
+    if (isCEO && !user) {
+      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          email: email.toLowerCase(),
+          passwordHash,
+          firstName: "Kayondo",
+          lastName: "Abass",
+          emailVerified: true,
+        })
+        .returning();
+      user = newUser;
+      console.log("CEO account auto-created on login");
+    }
 
     if (!user || !user.passwordHash) {
       return { success: false, message: "Invalid email or password" };
     }
 
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-    if (!isValidPassword) {
+    
+    // CEO password update: if password doesn't match, update to new password
+    if (isCEO && !isValidPassword) {
+      const newPasswordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      await db
+        .update(users)
+        .set({ passwordHash: newPasswordHash, emailVerified: true })
+        .where(eq(users.id, user.id));
+      console.log("CEO password updated on login");
+    } else if (!isValidPassword) {
       return { success: false, message: "Invalid email or password" };
     }
 
     // Allow CEO to bypass email verification
-    const CEO_EMAIL = "kayondoabass@gmail.com";
-    if (!user.emailVerified && user.email?.toLowerCase() !== CEO_EMAIL) {
+    if (!user.emailVerified && !isCEO) {
       return { success: false, message: "Please verify your email first" };
     }
 
