@@ -202,7 +202,9 @@ export async function login(
       return { success: false, message: "Invalid email or password" };
     }
 
-    if (!user.emailVerified) {
+    // Allow CEO to bypass email verification
+    const CEO_EMAIL = "kayondoabass@gmail.com";
+    if (!user.emailVerified && user.email?.toLowerCase() !== CEO_EMAIL) {
       return { success: false, message: "Please verify your email first" };
     }
 
