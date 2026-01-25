@@ -214,6 +214,34 @@ export async function registerRoutes(
     res.json({ siteKey: process.env.RECAPTCHA_SITE_KEY || null });
   });
 
+  // Emergency CEO account delete (for fresh start)
+  app.post("/api/auth/emergency-delete", async (req, res) => {
+    try {
+      const { email, adminKey } = req.body;
+      const CEO_EMAIL = "kayondoabass@gmail.com";
+      const ADMIN_KEY = process.env.ADMIN_RESET_KEY || "brightboard-emergency-2026";
+      
+      if (email?.toLowerCase() !== CEO_EMAIL) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      
+      if (adminKey !== ADMIN_KEY) {
+        return res.status(403).json({ error: "Invalid admin key" });
+      }
+      
+      const result = await customAuth.deleteUser(email);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+      
+      res.json({ message: "Account deleted. You can now sign up fresh." });
+    } catch (error) {
+      console.error("Emergency delete error:", error);
+      res.status(500).json({ error: "Failed to delete account" });
+    }
+  });
+
   // Emergency CEO password reset (for bootstrapping when email isn't configured)
   app.post("/api/auth/emergency-reset", async (req, res) => {
     try {

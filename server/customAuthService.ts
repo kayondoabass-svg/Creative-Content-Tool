@@ -333,6 +333,30 @@ export async function getUserById(userId: string) {
   };
 }
 
+// Delete user account
+export async function deleteUser(
+  email: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const normalizedEmail = email.toLowerCase();
+    
+    // Delete verification codes first
+    await db
+      .delete(verificationCodes)
+      .where(eq(verificationCodes.email, normalizedEmail));
+    
+    // Delete the user
+    const result = await db
+      .delete(users)
+      .where(eq(users.email, normalizedEmail));
+
+    return { success: true, message: "User deleted successfully" };
+  } catch (error) {
+    console.error("Delete user error:", error);
+    return { success: false, message: "Failed to delete user" };
+  }
+}
+
 // Emergency password reset for CEO (bypasses email verification)
 export async function emergencyPasswordReset(
   email: string,
