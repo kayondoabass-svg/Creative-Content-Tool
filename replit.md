@@ -31,6 +31,14 @@ MVP complete with all core features:
 - Unlimited content generations
 
 ## Recent Changes
+- January 25, 2026: Added MP4 video export for storyboards
+  - Export storyboards as downloadable MP4 videos
+  - Text-to-speech narration using OpenAI gpt-audio model
+  - Voice selection: Nova, Alloy, Echo, Fable, Onyx, Shimmer
+  - Background music with synthesized chord progression
+  - Preview modal with toggles for narration and music
+  - Proper audio/video duration alignment
+  - Zod validation for video export requests
 - January 25, 2026: Replaced Replit Auth with custom email/password authentication
   - Custom signup page with first name, last name, email, password fields
   - Email verification with 6-digit codes sent via Resend
