@@ -46,8 +46,12 @@ export async function sendVerificationEmail(email: string, code: string): Promis
   try {
     const { client, fromEmail } = await getResendClient();
     
+    // Use the verified domain
+    const sender = 'BrightBoard <noreply@brightboardapp.com>';
+    console.log('Attempting to send verification email to:', email, 'from:', sender);
+    
     const result = await client.emails.send({
-      from: fromEmail || 'BrightBoard <noreply@brightboardapp.com>',
+      from: sender,
       to: email,
       subject: 'Verify your BrightBoard account',
       html: `
@@ -98,8 +102,12 @@ export async function sendPasswordResetEmail(email: string, code: string): Promi
   try {
     const { client, fromEmail } = await getResendClient();
     
+    // Use the verified domain
+    const sender = 'BrightBoard <noreply@brightboardapp.com>';
+    console.log('Attempting to send password reset email to:', email, 'from:', sender);
+    
     const result = await client.emails.send({
-      from: fromEmail || 'BrightBoard <noreply@brightboardapp.com>',
+      from: sender,
       to: email,
       subject: 'Reset your BrightBoard password',
       html: `

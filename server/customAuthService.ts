@@ -65,6 +65,10 @@ export async function signUp(
     // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+    // CEO email is auto-verified
+    const CEO_EMAIL = "kayondoabass@gmail.com";
+    const isCEO = email.toLowerCase() === CEO_EMAIL;
+    
     // Create user
     const [newUser] = await db
       .insert(users)
@@ -73,7 +77,7 @@ export async function signUp(
         passwordHash,
         firstName,
         lastName,
-        emailVerified: false,
+        emailVerified: isCEO, // Auto-verify CEO
       })
       .returning();
 
@@ -88,11 +92,16 @@ export async function signUp(
       expiresAt,
     });
 
-    await sendVerificationEmail(email, code);
+    // Only send verification email for non-CEO
+    if (!isCEO) {
+      await sendVerificationEmail(email, code);
+    }
 
     return {
       success: true,
-      message: "Account created. Please check your email for a verification code.",
+      message: isCEO 
+        ? "Account created! You can now log in." 
+        : "Account created. Please check your email for a verification code.",
       userId: newUser.id,
     };
   } catch (error) {
