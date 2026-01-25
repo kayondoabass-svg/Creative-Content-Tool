@@ -24,7 +24,9 @@ interface StoryboardData {
 interface VideoOptions {
   includeNarration?: boolean;
   includeMusic?: boolean;
+  includeSubtitles?: boolean;
   voice?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+  isPremium?: boolean;
 }
 
 async function downloadImage(url: string, filepath: string): Promise<void> {
@@ -139,6 +141,45 @@ async function concatenateAudio(audioFiles: string[], outputPath: string): Promi
   });
 }
 
+async function generateSubtitleFile(
+  frames: StoryboardFrame[],
+  frameDurations: number[],
+  tempDir: string
+): Promise<string> {
+  const srtFile = path.join(tempDir, 'subtitles.srt');
+  let srtContent = '';
+  let currentTime = 0;
+  
+  for (let i = 0; i < frames.length; i++) {
+    const frame = frames[i];
+    const text = frame.dialogue || frame.description;
+    
+    if (text) {
+      const startTime = currentTime;
+      const endTime = currentTime + frameDurations[i];
+      
+      const formatTime = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 1000);
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
+      };
+      
+      const cleanText = text.replace(/\n/g, ' ').substring(0, 100);
+      
+      srtContent += `${i + 1}\n`;
+      srtContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
+      srtContent += `${cleanText}\n\n`;
+    }
+    
+    currentTime += frameDurations[i];
+  }
+  
+  await fs.promises.writeFile(srtFile, srtContent);
+  return srtFile;
+}
+
 async function generateBackgroundMusic(duration: number, tempDir: string): Promise<string> {
   const musicFile = path.join(tempDir, 'background_music.mp3');
   
@@ -179,7 +220,13 @@ export async function generateVideoFromStoryboard(
   const tempDir = `/tmp/storyboard-video-${Date.now()}`;
   await fs.promises.mkdir(tempDir, { recursive: true });
   
-  const { includeNarration = false, includeMusic = false, voice = 'nova' } = options;
+  const { 
+    includeNarration = false, 
+    includeMusic = false, 
+    includeSubtitles = false,
+    voice = 'nova',
+    isPremium = false 
+  } = options;
   
   try {
     const framesWithImages = storyboardData.frames.filter(f => f.image);
@@ -234,12 +281,25 @@ export async function generateVideoFromStoryboard(
     
     const silentVideoFile = path.join(tempDir, 'silent_video.mp4');
     
+    let videoFilter = 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black';
+    
+    if (!isPremium) {
+      videoFilter += ",drawtext=text='Made with BrightBoard':fontsize=24:fontcolor=white@0.6:x=w-tw-20:y=h-th-20:shadowcolor=black@0.4:shadowx=1:shadowy=1";
+    }
+    
+    let subtitleFile: string | null = null;
+    if (includeSubtitles && isPremium) {
+      subtitleFile = await generateSubtitleFile(framesWithImages, frameDurations, tempDir);
+      const escapedPath = subtitleFile.replace(/:/g, '\\:').replace(/'/g, "\\'");
+      videoFilter += `,subtitles='${escapedPath}':force_style='FontSize=22,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,Outline=2,MarginV=40'`;
+    }
+    
     await new Promise<void>((resolve, reject) => {
       ffmpeg()
         .input(concatFile)
         .inputOptions(['-f', 'concat', '-safe', '0'])
         .outputOptions([
-          '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black',
+          '-vf', videoFilter,
           '-c:v', 'libx264',
           '-pix_fmt', 'yuv420p',
           '-r', '30',

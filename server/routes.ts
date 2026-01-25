@@ -437,7 +437,7 @@ export async function registerRoutes(
   app.post("/api/storyboard-to-video", async (req, res) => {
     try {
       const validatedRequest = videoExportSchema.parse(req.body);
-      const { content, includeNarration, includeMusic, voice } = validatedRequest;
+      const { content, includeNarration, includeMusic, includeSubtitles, voice } = validatedRequest;
       
       const storyboardData = JSON.parse(content);
       
@@ -450,10 +450,24 @@ export async function registerRoutes(
         return res.status(400).json({ error: "No frames with images found. Generate images first." });
       }
       
+      let isPremium = false;
+      const userId = (req.session as any)?.userId;
+      if (userId) {
+        try {
+          const { getSubscriptionStatus } = await import('./paddleService');
+          const subscriptionStatus = await getSubscriptionStatus(userId);
+          isPremium = subscriptionStatus.isPremium;
+        } catch (err) {
+          console.error('Error checking subscription status:', err);
+        }
+      }
+      
       const videoOptions = {
-        includeNarration,
-        includeMusic,
-        voice
+        includeNarration: isPremium ? includeNarration : false,
+        includeMusic: isPremium ? includeMusic : false,
+        includeSubtitles: isPremium ? includeSubtitles : false,
+        voice,
+        isPremium
       };
       
       const videoBuffer = await generateVideoFromStoryboard(storyboardData, videoOptions);

@@ -152,6 +152,7 @@ export const videoExportSchema = z.object({
   content: z.string(),
   includeNarration: z.boolean().optional().default(false),
   includeMusic: z.boolean().optional().default(false),
+  includeSubtitles: z.boolean().optional().default(false),
   voice: z.enum(["alloy", "echo", "fable", "onyx", "nova", "shimmer"]).optional().default("nova"),
 });
 
