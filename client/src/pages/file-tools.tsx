@@ -265,26 +265,28 @@ export default function FileToolsPage() {
                 <CardDescription>Transform your files between different formats</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {conversionOptions.map((opt) => (
-                    <button
-                      key={`${opt.from}-to-${opt.to}`}
-                      onClick={() => setConversionType(`${opt.from}-to-${opt.to}`)}
-                      className={`p-4 rounded-lg border-2 transition-all hover-elevate ${
-                        conversionType === `${opt.from}-to-${opt.to}`
-                          ? "border-primary bg-primary/5"
-                          : "border-muted"
-                      }`}
-                      data-testid={`conversion-${opt.from}-to-${opt.to}`}
-                    >
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <opt.fromIcon className="h-5 w-5 text-muted-foreground" />
-                        <ArrowRight className="h-4 w-4" />
-                        <opt.toIcon className="h-5 w-5 text-primary" />
-                      </div>
-                      <p className="text-sm font-medium">{opt.label}</p>
-                    </button>
-                  ))}
+                <div className="space-y-2">
+                  <Label>Conversion Type</Label>
+                  <Select value={conversionType} onValueChange={setConversionType}>
+                    <SelectTrigger data-testid="select-conversion-type">
+                      <SelectValue placeholder="Select conversion type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {conversionOptions.map((opt) => (
+                        <SelectItem 
+                          key={`${opt.from}-to-${opt.to}`} 
+                          value={`${opt.from}-to-${opt.to}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <opt.fromIcon className="h-4 w-4 text-muted-foreground" />
+                            <ArrowRight className="h-3 w-3" />
+                            <opt.toIcon className="h-4 w-4 text-primary" />
+                            <span>{opt.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="border-2 border-dashed rounded-lg p-8 text-center">
