@@ -1,0 +1,103 @@
+{
+  "common": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "getStarted": "Get Started Free",
+    "features": "Features",
+    "fileTools": "File Tools",
+    "pricing": "Pricing",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "download": "Download",
+    "copy": "Copy",
+    "delete": "Delete",
+    "generate": "Generate",
+    "premium": "Premium",
+    "free": "Free",
+    "upgrade": "Upgrade to Premium",
+    "manageSubscription": "Manage Subscription"
+  },
+  "landing": {
+    "heroTitle": "Voice or Text to Reality",
+    "heroSubtitle": "Content for Busy Teachers",
+    "heroDescription": "Create stunning educational images, presentations, activities, worksheets, and video storyboards in seconds. Let AI do the heavy lifting so you can focus on what matters most - your students.",
+    "featuresTitle": "Everything You Need to Create Amazing Content"
+  },
+  "contentTypes": {
+    "image": "Educational Images",
+    "imageDesc": "Generate beautiful, classroom-ready illustrations that bring concepts to life",
+    "presentation": "Presentations",
+    "presentationDesc": "Create complete slide decks with images and speaker notes in minutes",
+    "text": "Text Content",
+    "textDesc": "Generate stories, explanations, and learning materials tailored to any grade level",
+    "activity": "Activities & Games",
+    "activityDesc": "Design interactive quizzes, matching games, and engaging classroom activities",
+    "storyboard": "Video Storyboards",
+    "storyboardDesc": "Plan animated educational videos with frame-by-frame visual guides",
+    "worksheet": "Worksheets",
+    "worksheetDesc": "Generate printable worksheets with questions, fill-in-blanks, and more"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "verifyEmail": "Verify Your Email",
+    "verificationCode": "Verification Code",
+    "resendCode": "Resend Code",
+    "loginTitle": "Welcome Back",
+    "loginSubtitle": "Sign in to continue creating amazing content",
+    "signupTitle": "Create Your Account",
+    "signupSubtitle": "Start creating educational content in seconds"
+  },
+  "home": {
+    "whatCreate": "What would you like to create?",
+    "promptPlaceholder": "Describe the educational content you want to create...",
+    "gradeLevel": "Grade Level",
+    "subject": "Subject",
+    "history": "History",
+    "clearHistory": "Clear History"
+  },
+  "grades": {
+    "preschool": "Preschool",
+    "kindergarten": "Kindergarten",
+    "grade1": "1st Grade",
+    "grade2": "2nd Grade",
+    "grade3": "3rd Grade",
+    "grade4": "4th Grade",
+    "grade5": "5th Grade",
+    "middle": "Middle School",
+    "high": "High School"
+  },
+  "subjects": {
+    "math": "Math",
+    "science": "Science",
+    "english": "English",
+    "history": "History",
+    "art": "Art",
+    "music": "Music",
+    "pe": "Physical Education",
+    "social": "Social Studies"
+  },
+  "footer": {
+    "product": "Product",
+    "legal": "Legal",
+    "earn": "Earn",
+    "terms": "Terms & Conditions",
+    "privacy": "Privacy Policy",
+    "refund": "Refund Policy",
+    "affiliate": "Affiliate Program",
+    "contact": "Contact",
+    "description": "AI-powered content creation platform for busy teachers. Create educational images, presentations, activities, worksheets, and video storyboards in seconds."
+  },
+  "language": {
+    "selectLanguage": "Select Language",
+    "languageChanged": "Language changed successfully"
+  }
+}
