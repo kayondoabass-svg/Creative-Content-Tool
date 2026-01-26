@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Check, Crown, ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { PricingPDFDownload } from "@/components/pricing-pdf";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/footer";
@@ -208,6 +209,9 @@ export default function PricingPage() {
             : "Unlock unlimited content generation and premium features"
           }
         </p>
+        <div className="mt-4">
+          <PricingPDFDownload />
+        </div>
       </div>
 
       {isPremium && (
