@@ -1336,8 +1336,11 @@ This should look like it was designed by a world-class branding agency. Make it 
   const CEO_EMAIL = "kayondoabass@gmail.com";
 
   const isCEO = (req: any) => {
-    const user = req.user;
-    return user?.claims?.email === CEO_EMAIL;
+    // Support both custom auth (session.user) and Replit auth (req.user.claims)
+    const sessionUser = req.session?.user;
+    const replitUser = req.user;
+    const email = sessionUser?.email || replitUser?.claims?.email;
+    return email?.toLowerCase() === CEO_EMAIL.toLowerCase();
   };
 
   // Get dashboard stats
