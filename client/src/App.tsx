@@ -27,6 +27,7 @@ import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import VerifyEmailPage from "@/pages/verify-email";
 import FileToolsPage from "@/pages/file-tools";
+import GamesPage from "@/pages/games";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
@@ -52,6 +53,7 @@ function Router() {
       <Route path="/signup" component={SignupPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/file-tools" component={FileToolsPage} />
+      <Route path="/games" component={GamesPage} />
       
       {/* Protected pages - require auth */}
       {!isAuthenticated ? (
