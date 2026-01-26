@@ -354,7 +354,7 @@ export async function registerRoutes(
   // Generate logo using AI
   app.post("/api/generate-logo", async (req, res) => {
     try {
-      const { name, style } = req.body;
+      const { name, style, colors, colorScheme } = req.body;
       
       // Check authentication - premium feature only
       const sessionUserId = (req as any).session?.userId;
@@ -375,29 +375,44 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Please provide an organization name" });
       }
       
-      const stylePrompt = style || "modern, professional";
+      const stylePrompt = style || "Modern & Clean";
+      const colorPrompt = colors || "vibrant professional colors";
       
-      // Generate 5 different logo variations
-      const logoPromises = [];
+      // Premium quality logo variations with different design approaches
       const variations = [
-        "minimalist with clean lines",
-        "playful and colorful for children",
-        "academic and traditional",
-        "modern with geometric shapes",
-        "creative with educational symbols"
+        { name: "Icon + Text", desc: "distinctive icon symbol with the name in elegant typography below" },
+        { name: "Lettermark", desc: "creative monogram using the initials with artistic styling" },
+        { name: "Emblem", desc: "circular or shield-shaped emblem with the name integrated" },
+        { name: "Wordmark", desc: "stylized text-only logo with unique custom lettering" },
+        { name: "Mascot", desc: "friendly character or mascot representing education and learning" },
       ];
       
-      for (let i = 0; i < 5; i++) {
-        const variationStyle = `${stylePrompt}, ${variations[i]}`;
-        logoPromises.push(
-          openai.images.generate({
-            model: "gpt-image-1",
-            prompt: `Create a simple, clean logo for "${name}". Style: ${variationStyle}. The logo should be suitable for an educational institution or school. Use a clean white background. Make it unique and memorable. Variation ${i + 1} of 5.`,
-            n: 1,
-            size: "1024x1024",
-          })
-        );
-      }
+      const logoPromises = variations.map((variation, i) => {
+        const prompt = `Create a PREMIUM, PROFESSIONAL logo design for "${name}" - an educational institution.
+
+DESIGN TYPE: ${variation.name} - ${variation.desc}
+STYLE: ${stylePrompt} - high-end, polished, suitable for a top-tier school
+COLORS: Use ${colorPrompt} as the primary palette
+QUALITY: Award-winning logo design quality, vector-style crispness, perfect symmetry
+
+Requirements:
+- Clean white or very light background
+- High contrast for excellent readability
+- Scalable design that works at any size
+- Timeless and memorable
+- Educational/academic feel
+- Professional enough for letterheads, uniforms, and signage
+
+This should look like it was designed by a world-class branding agency. Make it distinctive, elegant, and instantly recognizable.`;
+
+        return openai.images.generate({
+          model: "gpt-image-1",
+          prompt,
+          n: 1,
+          size: "1024x1024",
+          quality: "high",
+        });
+      });
       
       const responses = await Promise.all(logoPromises);
       const logos = responses
@@ -409,7 +424,10 @@ export async function registerRoutes(
         return res.status(500).json({ error: "Failed to generate logos" });
       }
       
-      res.json({ logos, variations });
+      res.json({ 
+        logos, 
+        variations: variations.map(v => v.name)
+      });
     } catch (error) {
       console.error("Error generating logos:", error);
       res.status(500).json({ error: "Failed to generate logos" });

@@ -18,10 +18,28 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { OrganizationSettings } from "@shared/schema";
 
+const COLOR_SCHEMES = [
+  { id: "purple-teal", name: "Purple & Teal", colors: ["#7C3AED", "#14B8A6"], preview: "bg-gradient-to-r from-purple-600 to-teal-500" },
+  { id: "blue-orange", name: "Blue & Orange", colors: ["#3B82F6", "#F97316"], preview: "bg-gradient-to-r from-blue-500 to-orange-500" },
+  { id: "green-yellow", name: "Green & Gold", colors: ["#22C55E", "#EAB308"], preview: "bg-gradient-to-r from-green-500 to-yellow-500" },
+  { id: "red-pink", name: "Red & Pink", colors: ["#EF4444", "#EC4899"], preview: "bg-gradient-to-r from-red-500 to-pink-500" },
+  { id: "navy-gold", name: "Navy & Gold", colors: ["#1E3A8A", "#D97706"], preview: "bg-gradient-to-r from-blue-900 to-amber-600" },
+  { id: "custom", name: "Any Colors", colors: [], preview: "bg-gradient-to-r from-gray-400 to-gray-600" },
+];
+
+const LOGO_STYLES = [
+  { id: "modern", name: "Modern & Clean", icon: "✨" },
+  { id: "playful", name: "Playful & Fun", icon: "🎨" },
+  { id: "academic", name: "Academic & Classic", icon: "📚" },
+  { id: "minimalist", name: "Minimalist", icon: "◻️" },
+  { id: "creative", name: "Creative & Bold", icon: "🚀" },
+];
+
 export function LogoSettings() {
   const [open, setOpen] = useState(false);
   const [orgName, setOrgName] = useState("");
-  const [logoStyle, setLogoStyle] = useState("modern, professional");
+  const [selectedStyle, setSelectedStyle] = useState("modern");
+  const [selectedColorScheme, setSelectedColorScheme] = useState("purple-teal");
   const [generatedLogos, setGeneratedLogos] = useState<string[]>([]);
   const [logoVariations, setLogoVariations] = useState<string[]>([]);
   const [selectedLogoIndex, setSelectedLogoIndex] = useState<number | null>(null);
@@ -65,7 +83,7 @@ export function LogoSettings() {
   });
 
   const generateLogoMutation = useMutation({
-    mutationFn: async (data: { name: string; style: string }) => {
+    mutationFn: async (data: { name: string; style: string; colorScheme: string; colors: string }) => {
       const res = await apiRequest("POST", "/api/generate-logo", data);
       if (!res.ok) {
         const err = await res.json();
@@ -140,7 +158,16 @@ export function LogoSettings() {
       });
       return;
     }
-    generateLogoMutation.mutate({ name: orgName, style: logoStyle });
+    const style = LOGO_STYLES.find(s => s.id === selectedStyle)?.name || "Modern & Clean";
+    const colorScheme = COLOR_SCHEMES.find(c => c.id === selectedColorScheme);
+    const colors = colorScheme?.colors.length ? colorScheme.colors.join(" and ") : "vibrant, professional colors";
+    
+    generateLogoMutation.mutate({ 
+      name: orgName, 
+      style: style,
+      colorScheme: selectedColorScheme,
+      colors: colors
+    });
   };
 
   return (
@@ -273,15 +300,49 @@ export function LogoSettings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="logo-style">Style</Label>
-              <Input
-                id="logo-style"
-                placeholder="e.g., modern, playful, academic"
-                value={logoStyle}
-                onChange={(e) => setLogoStyle(e.target.value)}
-                disabled={!isPremium}
-                data-testid="input-logo-style"
-              />
+              <Label>Logo Style</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {LOGO_STYLES.map((style) => (
+                  <button
+                    key={style.id}
+                    type="button"
+                    disabled={!isPremium}
+                    className={`p-2 rounded-lg border-2 text-left transition-all text-sm ${
+                      selectedStyle === style.id
+                        ? "border-primary bg-primary/10"
+                        : "border-muted hover:border-muted-foreground/30"
+                    } ${!isPremium ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    onClick={() => setSelectedStyle(style.id)}
+                    data-testid={`style-${style.id}`}
+                  >
+                    <span className="text-lg">{style.icon}</span>
+                    <p className="font-medium text-xs mt-1">{style.name}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Color Scheme</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {COLOR_SCHEMES.map((scheme) => (
+                  <button
+                    key={scheme.id}
+                    type="button"
+                    disabled={!isPremium}
+                    className={`p-2 rounded-lg border-2 transition-all ${
+                      selectedColorScheme === scheme.id
+                        ? "border-primary"
+                        : "border-muted hover:border-muted-foreground/30"
+                    } ${!isPremium ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    onClick={() => setSelectedColorScheme(scheme.id)}
+                    data-testid={`color-${scheme.id}`}
+                  >
+                    <div className={`h-4 w-full rounded ${scheme.preview}`} />
+                    <p className="font-medium text-xs mt-1 text-center">{scheme.name}</p>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <Button
