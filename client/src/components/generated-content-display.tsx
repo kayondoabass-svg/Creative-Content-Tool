@@ -1,12 +1,13 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon, Film } from "lucide-react";
+import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon, Film, Gamepad2 } from "lucide-react";
 import { useState } from "react";
-import type { ContentType, Slide, Activity, StoryboardFrame, Worksheet } from "@shared/schema";
+import type { ContentType, Slide, Activity, StoryboardFrame, Worksheet, GameType } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { SlideshowModal } from "./slideshow-modal";
 import { VideoExportModal } from "./video-export-modal";
+import { GamePlayerModal } from "./game-player-modal";
 import pptxgen from "pptxgenjs";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -26,7 +27,22 @@ export function GeneratedContentDisplay({
   const [copied, setCopied] = useState(false);
   const [showSlideshow, setShowSlideshow] = useState(false);
   const [showVideoExport, setShowVideoExport] = useState(false);
+  const [showGamePlayer, setShowGamePlayer] = useState(false);
   const { toast } = useToast();
+
+  const getActivityData = () => {
+    if (type !== "activity") return null;
+    try {
+      const data = JSON.parse(content);
+      return {
+        title: data.title || data.gameName || "Interactive Game",
+        gameType: (data.gameType || "brainBattle") as GameType,
+        gameData: data,
+      };
+    } catch {
+      return null;
+    }
+  };
 
   const getPresentationData = () => {
     if (type !== "presentation") return { slides: [], title: "" };
@@ -331,6 +347,22 @@ export function GeneratedContentDisplay({
             </>
           ) : type === "worksheet" ? (
             <WorksheetDownloadButtons content={content} toast={toast} />
+          ) : type === "activity" ? (
+            <>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => setShowGamePlayer(true)}
+                data-testid="button-play-game"
+              >
+                <Gamepad2 className="h-4 w-4 mr-1.5" />
+                Play Game
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
+                <Download className="h-4 w-4 mr-1.5" />
+                Download
+              </Button>
+            </>
           ) : type !== "presentation" && (
             <Button variant="outline" size="sm" onClick={handleDownload} data-testid="button-download">
               <Download className="h-4 w-4 mr-1.5" />
@@ -358,6 +390,16 @@ export function GeneratedContentDisplay({
           onClose={() => setShowVideoExport(false)}
           content={content}
           storyboardData={getStoryboardData()}
+        />
+      )}
+      
+      {type === "activity" && getActivityData() && (
+        <GamePlayerModal
+          isOpen={showGamePlayer}
+          onClose={() => setShowGamePlayer(false)}
+          gameType={getActivityData()!.gameType}
+          gameData={getActivityData()!.gameData}
+          title={getActivityData()!.title}
         />
       )}
     </Card>

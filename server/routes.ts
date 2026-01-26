@@ -1841,79 +1841,79 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
   const context = buildContext(gradeLevel, subject);
   const gameType = options?.gameType || "luckySpinner";
   
-  // Game type descriptions for AI
+  // Game type descriptions for AI - structures must match the interactive game components
   const gameTypeDescriptions: Record<string, { name: string; description: string; itemCount: number; structure: string }> = {
     luckySpinner: {
       name: "Lucky Spinner",
       description: "A colorful spinning wheel game where students spin to randomly select questions, vocabulary words, or topics. Great for warm-ups and review!",
       itemCount: 8,
-      structure: `"wheelSegments": [{ "text": "Segment text", "color": "#HEX", "question": "Question when landed on", "answer": "Correct answer" }]`
+      structure: `"wheelSegments": [{ "text": "Short segment label (max 15 chars)", "challenge": "Challenge or question when landed on", "points": 10 }]`
     },
     mysteryBox: {
       name: "Mystery Box",
       description: "A grid of numbered boxes (like Baamboozle) that students tap to reveal hidden questions or challenges. Perfect for team competitions!",
-      itemCount: 16,
-      structure: `"boxes": [{ "number": 1, "question": "Question text", "answer": "Correct answer", "points": 10, "type": "question" | "bonus" | "lose-points" }]`
+      itemCount: 12,
+      structure: `"boxes": [{ "number": 1, "question": "Question text", "answer": "Correct answer", "points": 10 }]`
     },
     memoryMatch: {
       name: "Memory Match",
       description: "Flip cards to find matching pairs (word-definition, image-word, question-answer). Tests memory and knowledge!",
-      itemCount: 8,
-      structure: `"pairs": [{ "card1": "Front text (question/word)", "card2": "Back text (answer/definition)", "matchId": 1 }]`
+      itemCount: 6,
+      structure: `"pairs": [{ "term": "Word or question", "match": "Definition or answer" }]`
     },
     quickCatch: {
       name: "Quick Catch",
-      description: "Whack-a-mole style game where correct answers pop up and students must quickly tap them. Fast-paced and exciting!",
-      itemCount: 12,
-      structure: `"targets": [{ "text": "Answer text", "isCorrect": true/false, "points": 10 }], "question": "What is the main question?"`
+      description: "Whack-a-mole style game where correct items pop up and students must quickly tap the right ones!",
+      itemCount: 6,
+      structure: `"catchItems": { "instruction": "Tap only the correct answers!", "correct": ["Right answer 1", "Right answer 2", "Right answer 3"], "incorrect": ["Wrong 1", "Wrong 2", "Wrong 3"] }`
     },
     factOrFib: {
       name: "Fact or Fib",
       description: "Students decide if statements are TRUE or FALSE. Simple but engaging! Great for testing understanding.",
-      itemCount: 10,
-      structure: `"statements": [{ "statement": "Statement text", "isTrue": true/false, "explanation": "Why it's true/false" }]`
+      itemCount: 8,
+      structure: `"statements": [{ "statement": "Statement text", "isTrue": true or false, "explanation": "Why it's true or false" }]`
     },
     wordHunt: {
       name: "Word Hunt",
       description: "Classic word search puzzle where students find hidden vocabulary words in a letter grid. Calming and focused!",
-      itemCount: 10,
-      structure: `"words": ["WORD1", "WORD2"], "gridSize": 12, "hints": [{ "word": "WORD1", "hint": "Clue for this word" }]`
+      itemCount: 8,
+      structure: `"searchWords": ["WORD1", "WORD2", "WORD3"]`
     },
     letterRescue: {
       name: "Letter Rescue",
       description: "Hangman-style game where students guess letters to reveal hidden words before running out of tries!",
-      itemCount: 8,
-      structure: `"words": [{ "word": "ANSWER", "hint": "Clue to help guess", "category": "Category name" }]`
+      itemCount: 6,
+      structure: `"rescueWords": [{ "word": "ANSWER", "hint": "Clue to help guess", "category": "Category name" }]`
     },
     treasureChest: {
       name: "Treasure Chest",
-      description: "Open mystery boxes to reveal questions or challenges. Element of surprise with points and bonuses!",
-      itemCount: 12,
-      structure: `"chests": [{ "number": 1, "content": "Question or challenge", "answer": "Correct answer", "reward": "points" | "bonus" | "skip" }]`
+      description: "Open mystery chests to reveal challenges. Complete the challenge to earn the treasure!",
+      itemCount: 9,
+      structure: `"chests": [{ "id": 1, "challenge": "Challenge or question", "reward": "Prize or reward description", "points": 10 }]`
     },
     letterScramble: {
       name: "Letter Scramble",
       description: "Anagram game where students unscramble jumbled letters to form the correct vocabulary word!",
-      itemCount: 10,
-      structure: `"scrambles": [{ "scrambled": "DLROW", "answer": "WORLD", "hint": "The planet we live on" }]`
+      itemCount: 8,
+      structure: `"words": [{ "word": "ANSWER", "hint": "Clue to help unscramble", "points": 10 }]`
     },
     popAndLearn: {
       name: "Pop & Learn",
-      description: "Balloon pop game where students pop balloons to reveal and answer questions. Fun and colorful!",
-      itemCount: 10,
-      structure: `"balloons": [{ "color": "#HEX", "question": "Question text", "answer": "Correct answer", "points": 10 }]`
+      description: "Balloon pop game where students pop the correct balloon to answer questions!",
+      itemCount: 6,
+      structure: `"popQuestions": [{ "question": "Question text", "answer": "Correct answer", "options": ["Option A", "Option B", "Correct answer", "Option C"] }]`
     },
     brainBattle: {
       name: "Brain Battle",
       description: "Classic quiz format with points, teams, and competition. Questions with multiple choice answers!",
-      itemCount: 10,
-      structure: `"questions": [{ "question": "Question text", "options": ["A", "B", "C", "D"], "correctIndex": 0, "points": 10, "timeLimit": 30 }]`
+      itemCount: 8,
+      structure: `"questions": [{ "question": "Question text", "options": ["Option A", "Option B", "Option C", "Option D"], "correctIndex": 0, "points": 10, "explanation": "Why this is correct" }]`
     },
     missingPiece: {
       name: "Missing Piece",
       description: "Fill-in-the-blank challenges where students complete sentences by finding the missing words!",
-      itemCount: 10,
-      structure: `"sentences": [{ "sentence": "The ___ is the largest planet.", "answer": "Jupiter", "hint": "It has a big red spot" }]`
+      itemCount: 8,
+      structure: `"blanks": [{ "sentence": "The _____ is the largest planet.", "blank": "Jupiter", "hint": "It has a big red spot" }]`
     },
   };
   

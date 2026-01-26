@@ -31,11 +31,25 @@ MVP complete with all core features:
 - Unlimited content generations
 
 ## Recent Changes
-- January 26, 2026: Redesigned Online Games feature with 12 game types
-  - Replaced old Activities section with new Online Games
-  - 12 teacher-friendly game types: Lucky Spinner, Mystery Box, Memory Match, Quick Catch, Fact or Fib, Word Hunt, Letter Rescue, Treasure Chest, Letter Scramble, Pop & Learn, Brain Battle, Missing Piece
-  - Each game type has unique structure and display
-  - Game-specific rendering in GeneratedContentDisplay component
+- January 26, 2026: Interactive Online Games (like Bamboozle/Wordwall)
+  - Complete redesign: Games are now playable directly in the browser
+  - 12 interactive game types with full game logic:
+    - Lucky Spinner: Spin the wheel to select questions
+    - Mystery Box: Tap numbered boxes to reveal questions
+    - Memory Match: Flip cards to find matching pairs
+    - Quick Catch: Whack-a-mole style tapping game
+    - Fact or Fib: True/false quiz game
+    - Word Hunt: Find hidden words in letter grid
+    - Letter Rescue: Hangman-style letter guessing
+    - Treasure Chest: Open chests for challenges
+    - Letter Scramble: Unscramble anagram words
+    - Pop & Learn: Pop balloons with correct answers
+    - Brain Battle: Multiple choice quiz with points
+    - Missing Piece: Fill in the blank sentences
+  - "Play Game" button opens fullscreen game modal
+  - Games include scoring, progress tracking, animations
+  - Game components located in client/src/components/games/
+- January 26, 2026: Previous Online Games design (replaced)
   - Dropdown selector with descriptions for each game type
 - January 26, 2026: Added multi-language internationalization (i18n)
   - 11 supported languages: English, Vietnamese, Arabic, Hindi, Swahili, Zulu, Mandarin, French, Spanish, Portuguese, Luganda
