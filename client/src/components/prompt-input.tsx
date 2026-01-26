@@ -15,7 +15,7 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { style?: string }, includeLogo?: boolean) => void;
   isGenerating: boolean;
 }
 
@@ -111,11 +111,54 @@ const placeholders: Record<ContentType, string> = {
   worksheet: "Describe the worksheet you want to create... e.g., 'A math worksheet with addition problems for 2nd graders' or 'A vocabulary worksheet about animals'",
 };
 
+// Image generation options (for Educational Images)
+const imageStyles = [
+  { value: "animation", label: "Animation" },
+  { value: "reallife", label: "Real Life" },
+];
+
+const imageQualities = [
+  { value: "2d", label: "2D", premium: false },
+  { value: "3d", label: "3D", premium: false },
+  { value: "hd", label: "HD", premium: true },
+  { value: "4k", label: "4K", premium: true },
+];
+
+const imageLayouts = [
+  { value: "single", label: "Single Image" },
+  { value: "grid", label: "Grid (4 images)" },
+];
+
+// Text content styles
+const textStyles = [
+  { value: "story", label: "Story" },
+  { value: "explanation", label: "Explanation" },
+  { value: "poem", label: "Poem" },
+  { value: "dialogue", label: "Dialogue" },
+];
+
+// Activity styles
+const activityStyles = [
+  { value: "quiz", label: "Quiz" },
+  { value: "matching", label: "Matching Game" },
+  { value: "flashcards", label: "Flashcards" },
+  { value: "wordSearch", label: "Word Search" },
+];
+
 const formSchema = z.object({
   prompt: z.string().min(1, "Please describe what you want to create").max(2000),
   gradeLevel: z.string().optional(),
   subject: z.string().optional(),
   slideCount: z.string().optional(),
+  // Image options
+  imageStyle: z.string().optional(),
+  imageQuality: z.string().optional(),
+  imageLayout: z.string().optional(),
+  // Text options
+  textStyle: z.string().optional(),
+  // Activity options
+  activityStyle: z.string().optional(),
+  // Video options
   videoLength: z.string().optional(),
   videoStyle: z.string().optional(),
   videoQuality: z.string().optional(),
@@ -128,6 +171,8 @@ const formSchema = z.object({
   presentationTransitionDelay: z.string().optional(),
   presentationTapToReveal: z.boolean().optional(),
   worksheetColorMode: z.string().optional(),
+  // Logo toggle (applies to all visual content)
+  includeLogo: z.boolean().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -169,6 +214,15 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       gradeLevel: "",
       subject: "",
       slideCount: "6",
+      // Image options
+      imageStyle: "animation",
+      imageQuality: isPremium ? "hd" : "2d",
+      imageLayout: "single",
+      // Text options
+      textStyle: "story",
+      // Activity options
+      activityStyle: "quiz",
+      // Video options
       videoLength: "5min",
       videoStyle: "animation",
       videoQuality: isPremium ? "hd" : "2d",
@@ -180,6 +234,8 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       presentationTransitionDelay: "0",
       presentationTapToReveal: false,
       worksheetColorMode: "colored",
+      // Logo toggle
+      includeLogo: false,
     },
   });
 
@@ -237,6 +293,17 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
     const worksheetOptions = selectedType === "worksheet" ? {
       colorMode: values.worksheetColorMode,
     } : undefined;
+    const imageOptions = selectedType === "image" ? {
+      style: values.imageStyle,
+      quality: values.imageQuality,
+      layout: values.imageLayout,
+    } : undefined;
+    const textOptions = selectedType === "text" ? {
+      style: values.textStyle,
+    } : undefined;
+    const activityOptions = selectedType === "activity" ? {
+      style: values.activityStyle,
+    } : undefined;
     
     onGenerate(
       values.prompt.trim(),
@@ -246,7 +313,11 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       videoOptions,
       presentationOptions,
       selectedType === "presentation" ? referenceImage || undefined : undefined,
-      worksheetOptions
+      worksheetOptions,
+      imageOptions,
+      textOptions,
+      activityOptions,
+      values.includeLogo || false
     );
   };
 
@@ -328,7 +399,177 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                 )}
               />
             )}
+
+            {/* Logo toggle for visual content */}
+            {(selectedType === "image" || selectedType === "presentation" || selectedType === "storyboard" || selectedType === "worksheet") && (
+              <FormField
+                control={form.control}
+                name="includeLogo"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormControl>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <div 
+                          className={`relative w-10 h-5 rounded-full transition-colors ${field.value ? 'bg-primary' : 'bg-muted'}`}
+                          onClick={() => field.onChange(!field.value)}
+                          data-testid="toggle-include-logo"
+                        >
+                          <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${field.value ? 'translate-x-5' : ''}`} />
+                        </div>
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">Add Logo</span>
+                      </label>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            )}
           </div>
+
+          {/* Image options */}
+          {selectedType === "image" && (
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <FormField
+                control={form.control}
+                name="imageStyle"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Style:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[110px]" data-testid="select-image-style">
+                          <SelectValue placeholder="Style" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {imageStyles.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="imageQuality"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Quality:</FormLabel>
+                    <Select 
+                      onValueChange={(val) => {
+                        const option = imageQualities.find(q => q.value === val);
+                        if (!isPremium && option?.premium) return;
+                        field.onChange(val);
+                      }} 
+                      value={!isPremium && imageQualities.find(q => q.value === field.value)?.premium ? "2d" : field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-[100px]" data-testid="select-image-quality">
+                          <SelectValue placeholder="Quality" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {imageQualities.map((q) => (
+                          <SelectItem 
+                            key={q.value} 
+                            value={q.value}
+                            disabled={q.premium && !isPremium}
+                          >
+                            {q.label} {q.premium && !isPremium && <Lock className="w-3 h-3 inline ml-1" />}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="imageLayout"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Layout:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[130px]" data-testid="select-image-layout">
+                          <SelectValue placeholder="Layout" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {imageLayouts.map((l) => (
+                          <SelectItem key={l.value} value={l.value}>
+                            {l.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+
+          {/* Text content options */}
+          {selectedType === "text" && (
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <FormField
+                control={form.control}
+                name="textStyle"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Format:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[130px]" data-testid="select-text-style">
+                          <SelectValue placeholder="Format" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {textStyles.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+
+          {/* Activity options */}
+          {selectedType === "activity" && (
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <FormField
+                control={form.control}
+                name="activityStyle"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Type:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[150px]" data-testid="select-activity-style">
+                          <SelectValue placeholder="Activity Type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {activityStyles.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
 
           {selectedType === "presentation" && (
             <div className="flex flex-wrap items-center gap-3 pt-1">

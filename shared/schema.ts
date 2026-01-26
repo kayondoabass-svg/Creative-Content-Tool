@@ -60,6 +60,29 @@ export const worksheetOptionsSchema = z.object({
 
 export type WorksheetOptions = z.infer<typeof worksheetOptionsSchema>;
 
+// Image options schema (for Educational Images)
+export const imageOptionsSchema = z.object({
+  style: z.enum(["animation", "reallife"]).optional(),
+  quality: z.enum(["2d", "3d", "hd", "4k"]).optional(),
+  layout: z.enum(["single", "grid"]).optional(),
+});
+
+export type ImageOptions = z.infer<typeof imageOptionsSchema>;
+
+// Text options schema
+export const textOptionsSchema = z.object({
+  style: z.enum(["story", "explanation", "poem", "dialogue"]).optional(),
+});
+
+export type TextOptions = z.infer<typeof textOptionsSchema>;
+
+// Activity options schema
+export const activityOptionsSchema = z.object({
+  style: z.enum(["quiz", "matching", "flashcards", "wordSearch"]).optional(),
+});
+
+export type ActivityOptions = z.infer<typeof activityOptionsSchema>;
+
 // Content generation request schema
 export const generateContentSchema = z.object({
   type: z.enum(contentTypes),
@@ -71,6 +94,10 @@ export const generateContentSchema = z.object({
   presentationOptions: presentationOptionsSchema.optional(),
   worksheetOptions: worksheetOptionsSchema.optional(),
   referenceImage: z.string().optional(), // Base64 image for reference
+  imageOptions: imageOptionsSchema.optional(),
+  textOptions: textOptionsSchema.optional(),
+  activityOptions: activityOptionsSchema.optional(),
+  includeLogo: z.boolean().optional(),
 });
 
 export type GenerateContentRequest = z.infer<typeof generateContentSchema>;

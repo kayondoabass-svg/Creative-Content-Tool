@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions } from "@shared/schema";
+import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions, type ImageOptions, type TextOptions, type ActivityOptions } from "@shared/schema";
 import OpenAI from "openai";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import sharp from "sharp";
@@ -1142,7 +1142,7 @@ This should look like it was designed by a world-class branding agency. Make it 
   app.post("/api/generate", async (req, res) => {
     try {
       const validatedData = generateContentSchema.parse(req.body);
-      let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage } = validatedData;
+      let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, includeLogo } = validatedData;
       
       // Get user info - require authentication (custom session auth)
       const sessionUserId = (req as any).session?.userId;
@@ -1193,11 +1193,12 @@ This should look like it was designed by a world-class branding agency. Make it 
       const premiumQualities = ['hd', '4k'];
       const hasPremiumVideoQuality = videoOptions?.quality && premiumQualities.includes(videoOptions.quality);
       const hasPremiumPresentationQuality = presentationOptions?.imageQuality && premiumQualities.includes(presentationOptions.imageQuality);
+      const hasPremiumImageQuality = imageOptions?.quality && premiumQualities.includes(imageOptions.quality);
       const hasPremiumTransitions = presentationOptions?.transition && presentationOptions.transition !== 'none';
       const hasPremiumDelay = presentationOptions?.transitionDelay && presentationOptions.transitionDelay > 0;
       const hasPremiumTapToReveal = presentationOptions?.tapToReveal;
       
-      const usesPremiumFeatures = hasPremiumVideoQuality || hasPremiumPresentationQuality || 
+      const usesPremiumFeatures = hasPremiumVideoQuality || hasPremiumPresentationQuality || hasPremiumImageQuality ||
         hasPremiumTransitions || hasPremiumDelay || hasPremiumTapToReveal;
       
       if (usesPremiumFeatures && !isPremium) {
@@ -1210,6 +1211,9 @@ This should look like it was designed by a world-class branding agency. Make it 
           presentationOptions.transition = 'none';
           presentationOptions.transitionDelay = 0;
           presentationOptions.tapToReveal = false;
+        }
+        if (imageOptions) {
+          imageOptions.quality = '2d';
         }
       }
       
@@ -1231,7 +1235,7 @@ This should look like it was designed by a world-class branding agency. Make it 
 
       switch (type) {
         case "image":
-          const imageResult = await generateImage(prompt, gradeLevel, subject);
+          const imageResult = await generateImage(prompt, gradeLevel, subject, imageOptions);
           generatedContent = JSON.stringify(imageResult);
           title = imageResult.title;
           break;
@@ -1243,13 +1247,13 @@ This should look like it was designed by a world-class branding agency. Make it 
           break;
 
         case "text":
-          const textResult = await generateText(prompt, gradeLevel, subject);
+          const textResult = await generateText(prompt, gradeLevel, subject, textOptions);
           generatedContent = JSON.stringify(textResult);
           title = textResult.title;
           break;
 
         case "activity":
-          const activityResult = await generateActivity(prompt, gradeLevel, subject);
+          const activityResult = await generateActivity(prompt, gradeLevel, subject, activityOptions);
           generatedContent = JSON.stringify(activityResult);
           title = activityResult.title;
           break;
@@ -1435,28 +1439,67 @@ This should look like it was designed by a world-class branding agency. Make it 
 }
 
 // Image generation
-async function generateImage(prompt: string, gradeLevel?: string, subject?: string) {
+async function generateImage(prompt: string, gradeLevel?: string, subject?: string, options?: ImageOptions) {
   const context = buildContext(gradeLevel, subject);
-  const enhancedPrompt = `Create a colorful, child-friendly educational illustration: ${prompt}. ${context} Style: bright colors, simple shapes, cartoon-like, engaging for children, no text in the image.`;
+  const style = options?.style || "animation";
+  const quality = options?.quality || "2d";
+  const layout = options?.layout || "single";
+  
+  const styleDesc = style === "animation" ? "cartoon-like, animated style" : "realistic, photorealistic style";
+  const qualityDesc = quality === "4k" ? "ultra high quality, 4K resolution" : 
+                      quality === "hd" ? "high definition, crisp details" :
+                      quality === "3d" ? "3D rendered, dimensional" : "2D flat illustration";
+  
+  const enhancedPrompt = `Create a colorful, child-friendly educational illustration: ${prompt}. ${context} Style: bright colors, simple shapes, ${styleDesc}, ${qualityDesc}, engaging for children, no text in the image.`;
 
-  const response = await openai.images.generate({
-    model: "gpt-image-1",
-    prompt: enhancedPrompt,
-    size: "1024x1024",
-    n: 1,
-  });
+  // For grid layout, generate 4 images
+  const numImages = layout === "grid" ? 4 : 1;
+  
+  if (numImages === 1) {
+    const response = await openai.images.generate({
+      model: "gpt-image-1",
+      prompt: enhancedPrompt,
+      size: "1024x1024",
+      n: 1,
+    });
 
-  const imageData = response.data?.[0];
-  if (!imageData) {
-    throw new Error("Failed to generate image");
+    const imageData = response.data?.[0];
+    if (!imageData) {
+      throw new Error("Failed to generate image");
+    }
+
+    return {
+      title: extractTitle(prompt),
+      description: prompt,
+      imageUrl: imageData.url || undefined,
+      b64_json: imageData.b64_json || undefined,
+      options: { style, quality, layout },
+    };
+  } else {
+    // Generate 4 images for grid layout
+    const images: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const response = await openai.images.generate({
+        model: "gpt-image-1",
+        prompt: `${enhancedPrompt} (variation ${i + 1})`,
+        size: "1024x1024",
+        n: 1,
+      });
+      const imageData = response.data?.[0];
+      if (imageData?.b64_json) {
+        images.push(imageData.b64_json);
+      } else if (imageData?.url) {
+        images.push(imageData.url);
+      }
+    }
+    
+    return {
+      title: extractTitle(prompt),
+      description: prompt,
+      images,
+      options: { style, quality, layout },
+    };
   }
-
-  return {
-    title: extractTitle(prompt),
-    description: prompt,
-    imageUrl: imageData.url || undefined,
-    b64_json: imageData.b64_json || undefined,
-  };
 }
 
 // Presentation generation
@@ -1619,8 +1662,16 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
 }
 
 // Text content generation
-async function generateText(prompt: string, gradeLevel?: string, subject?: string) {
+async function generateText(prompt: string, gradeLevel?: string, subject?: string, options?: TextOptions) {
   const context = buildContext(gradeLevel, subject);
+  const textStyle = options?.style || "story";
+  
+  const styleInstructions: Record<string, string> = {
+    story: "Write an engaging narrative story with characters, plot, and moral/lesson.",
+    explanation: "Write a clear, educational explanation that breaks down concepts step-by-step.",
+    poem: "Write a fun, memorable poem with rhyme and rhythm that teaches the concept.",
+    dialogue: "Write an engaging dialogue/conversation between characters that teaches the concept.",
+  };
   
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -1629,17 +1680,20 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
         role: "system",
         content: `You are an expert educational content writer specializing in creating engaging, age-appropriate learning materials for teachers to use in their classrooms. ${context}
         
+        Format: ${styleInstructions[textStyle] || styleInstructions.story}
+        
         Return a JSON object with this structure:
         {
           "title": "Content Title",
           "content": "The full educational content text",
+          "format": "${textStyle}",
           "vocabulary": ["key", "vocabulary", "words"],
           "discussionQuestions": ["Question 1?", "Question 2?"]
         }`
       },
       {
         role: "user",
-        content: `Create educational content about: ${prompt}. Make it engaging, clear, and appropriate for the classroom.`
+        content: `Create educational content about: ${prompt}. Make it engaging, clear, and appropriate for the classroom. Use the ${textStyle} format.`
       }
     ],
     response_format: { type: "json_object" },
@@ -1647,12 +1701,23 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  const result = JSON.parse(content);
+  result.options = { style: textStyle };
+  return result;
 }
 
 // Activity/Game generation - Enhanced for all subjects
-async function generateActivity(prompt: string, gradeLevel?: string, subject?: string) {
+async function generateActivity(prompt: string, gradeLevel?: string, subject?: string, options?: ActivityOptions) {
   const context = buildContext(gradeLevel, subject);
+  const activityStyle = options?.style || "quiz";
+  
+  // Map activity style to preferred types
+  const styleTypeMap: Record<string, string[]> = {
+    quiz: ["quiz", "fillInBlank", "multiple-choice"],
+    matching: ["matching", "pairs", "memory-game"],
+    flashcards: ["flashcards", "flip-cards", "study-cards"],
+    wordSearch: ["word-search", "crossword", "word-puzzle"],
+  };
   
   // Subject-specific game types
   const gameTypesBySubject: Record<string, string[]> = {
@@ -1667,7 +1732,8 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
   };
   
   const subjectKey = subject?.toLowerCase().replace(/\s+/g, "-") || "default";
-  const availableTypes = gameTypesBySubject[subjectKey] || gameTypesBySubject.default;
+  const preferredTypes = styleTypeMap[activityStyle] || styleTypeMap.quiz;
+  const availableTypes = [...preferredTypes, ...(gameTypesBySubject[subjectKey] || gameTypesBySubject.default)];
   
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -1676,14 +1742,15 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
         role: "system",
         content: `You are an expert educational game designer who creates FUN, INTERACTIVE, HANDS-ON learning activities for classrooms. ${context}
 
-IMPORTANT: Create activities that are ACTIVE and ENGAGING - not just worksheets! Think of games kids would LOVE to play.
+IMPORTANT: Create a ${activityStyle.toUpperCase()} style activity that is ACTIVE and ENGAGING - not just worksheets! Think of games kids would LOVE to play.
 
+Preferred activity type: ${activityStyle}
 Available activity types for this subject: ${availableTypes.join(", ")}
 
 Return a JSON object with this structure:
 {
   "title": "Creative, Fun Activity Title",
-  "type": "One of: ${availableTypes.join(" | ")}",
+  "type": "${activityStyle}",
   "gameStyle": "classroom" | "group" | "pairs" | "individual",
   "duration": "5-10 minutes" | "10-15 minutes" | "15-20 minutes",
   "materials": ["List of materials needed, if any"],
@@ -1705,7 +1772,7 @@ Create 8-10 engaging items. For physical games like relay races or scavenger hun
       },
       {
         role: "user",
-        content: `Create a super fun, interactive classroom game or activity about: ${prompt}
+        content: `Create a super fun, interactive ${activityStyle} classroom game or activity about: ${prompt}
 
 Make it something students will be EXCITED to play! Include movement, competition, or creative elements when appropriate. The activity should actively engage students, not just be a passive exercise.`
       }
@@ -1715,7 +1782,9 @@ Make it something students will be EXCITED to play! Include movement, competitio
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  const result = JSON.parse(content);
+  result.options = { style: activityStyle };
+  return result;
 }
 
 // Storyboard generation (for animated videos)
