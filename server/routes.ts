@@ -561,7 +561,7 @@ This should look like it was designed by a world-class branding agency. Make it 
   async function checkPremiumStatus(userId: string | undefined): Promise<boolean> {
     if (!userId) return false;
     try {
-      const user = await storage.getUser(userId);
+      const user = await stripeService.getUser(userId);
       if (!user?.email) return false;
       
       // Check Paddle subscription
@@ -1769,72 +1769,118 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
 // Activity/Game generation - Enhanced for all subjects
 async function generateActivity(prompt: string, gradeLevel?: string, subject?: string, options?: ActivityOptions) {
   const context = buildContext(gradeLevel, subject);
-  const activityStyle = options?.style || "quiz";
+  const gameType = options?.gameType || "luckySpinner";
   
-  // Map activity style to preferred types
-  const styleTypeMap: Record<string, string[]> = {
-    quiz: ["quiz", "fillInBlank", "multiple-choice"],
-    matching: ["matching", "pairs", "memory-game"],
-    flashcards: ["flashcards", "flip-cards", "study-cards"],
-    wordSearch: ["word-search", "crossword", "word-puzzle"],
+  // Game type descriptions for AI
+  const gameTypeDescriptions: Record<string, { name: string; description: string; itemCount: number; structure: string }> = {
+    luckySpinner: {
+      name: "Lucky Spinner",
+      description: "A colorful spinning wheel game where students spin to randomly select questions, vocabulary words, or topics. Great for warm-ups and review!",
+      itemCount: 8,
+      structure: `"wheelSegments": [{ "text": "Segment text", "color": "#HEX", "question": "Question when landed on", "answer": "Correct answer" }]`
+    },
+    mysteryBox: {
+      name: "Mystery Box",
+      description: "A grid of numbered boxes (like Baamboozle) that students tap to reveal hidden questions or challenges. Perfect for team competitions!",
+      itemCount: 16,
+      structure: `"boxes": [{ "number": 1, "question": "Question text", "answer": "Correct answer", "points": 10, "type": "question" | "bonus" | "lose-points" }]`
+    },
+    memoryMatch: {
+      name: "Memory Match",
+      description: "Flip cards to find matching pairs (word-definition, image-word, question-answer). Tests memory and knowledge!",
+      itemCount: 8,
+      structure: `"pairs": [{ "card1": "Front text (question/word)", "card2": "Back text (answer/definition)", "matchId": 1 }]`
+    },
+    quickCatch: {
+      name: "Quick Catch",
+      description: "Whack-a-mole style game where correct answers pop up and students must quickly tap them. Fast-paced and exciting!",
+      itemCount: 12,
+      structure: `"targets": [{ "text": "Answer text", "isCorrect": true/false, "points": 10 }], "question": "What is the main question?"`
+    },
+    factOrFib: {
+      name: "Fact or Fib",
+      description: "Students decide if statements are TRUE or FALSE. Simple but engaging! Great for testing understanding.",
+      itemCount: 10,
+      structure: `"statements": [{ "statement": "Statement text", "isTrue": true/false, "explanation": "Why it's true/false" }]`
+    },
+    wordHunt: {
+      name: "Word Hunt",
+      description: "Classic word search puzzle where students find hidden vocabulary words in a letter grid. Calming and focused!",
+      itemCount: 10,
+      structure: `"words": ["WORD1", "WORD2"], "gridSize": 12, "hints": [{ "word": "WORD1", "hint": "Clue for this word" }]`
+    },
+    letterRescue: {
+      name: "Letter Rescue",
+      description: "Hangman-style game where students guess letters to reveal hidden words before running out of tries!",
+      itemCount: 8,
+      structure: `"words": [{ "word": "ANSWER", "hint": "Clue to help guess", "category": "Category name" }]`
+    },
+    treasureChest: {
+      name: "Treasure Chest",
+      description: "Open mystery boxes to reveal questions or challenges. Element of surprise with points and bonuses!",
+      itemCount: 12,
+      structure: `"chests": [{ "number": 1, "content": "Question or challenge", "answer": "Correct answer", "reward": "points" | "bonus" | "skip" }]`
+    },
+    letterScramble: {
+      name: "Letter Scramble",
+      description: "Anagram game where students unscramble jumbled letters to form the correct vocabulary word!",
+      itemCount: 10,
+      structure: `"scrambles": [{ "scrambled": "DLROW", "answer": "WORLD", "hint": "The planet we live on" }]`
+    },
+    popAndLearn: {
+      name: "Pop & Learn",
+      description: "Balloon pop game where students pop balloons to reveal and answer questions. Fun and colorful!",
+      itemCount: 10,
+      structure: `"balloons": [{ "color": "#HEX", "question": "Question text", "answer": "Correct answer", "points": 10 }]`
+    },
+    brainBattle: {
+      name: "Brain Battle",
+      description: "Classic quiz format with points, teams, and competition. Questions with multiple choice answers!",
+      itemCount: 10,
+      structure: `"questions": [{ "question": "Question text", "options": ["A", "B", "C", "D"], "correctIndex": 0, "points": 10, "timeLimit": 30 }]`
+    },
+    missingPiece: {
+      name: "Missing Piece",
+      description: "Fill-in-the-blank challenges where students complete sentences by finding the missing words!",
+      itemCount: 10,
+      structure: `"sentences": [{ "sentence": "The ___ is the largest planet.", "answer": "Jupiter", "hint": "It has a big red spot" }]`
+    },
   };
   
-  // Subject-specific game types
-  const gameTypesBySubject: Record<string, string[]> = {
-    math: ["number-bingo", "math-relay", "dice-game", "matching", "quiz", "sorting", "sequencing", "puzzle"],
-    language: ["word-bingo", "spelling-bee", "story-chain", "rhyme-time", "matching", "fillInBlank", "quiz"],
-    science: ["scavenger-hunt", "experiment-steps", "classification", "life-cycle", "matching", "quiz", "sorting"],
-    "social-studies": ["map-hunt", "timeline", "matching", "quiz", "sorting", "roleplay"],
-    art: ["color-mixing", "art-style-match", "creative-challenge", "matching", "quiz"],
-    music: ["rhythm-pattern", "instrument-match", "song-lyrics", "matching", "quiz"],
-    stem: ["coding-puzzle", "engineering-challenge", "experiment-steps", "sorting", "sequencing", "quiz"],
-    default: ["matching", "quiz", "fillInBlank", "sorting", "sequencing", "bingo", "relay-race", "scavenger-hunt"]
-  };
-  
-  const subjectKey = subject?.toLowerCase().replace(/\s+/g, "-") || "default";
-  const preferredTypes = styleTypeMap[activityStyle] || styleTypeMap.quiz;
-  const availableTypes = [...preferredTypes, ...(gameTypesBySubject[subjectKey] || gameTypesBySubject.default)];
+  const gameInfo = gameTypeDescriptions[gameType] || gameTypeDescriptions.luckySpinner;
   
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
         role: "system",
-        content: `You are an expert educational game designer who creates FUN, INTERACTIVE, HANDS-ON learning activities for classrooms. ${context}
+        content: `You are an expert educational game designer creating ONLINE INTERACTIVE games for teachers like those on Wordwall and Baamboozle. ${context}
 
-IMPORTANT: Create a ${activityStyle.toUpperCase()} style activity that is ACTIVE and ENGAGING - not just worksheets! Think of games kids would LOVE to play.
+GAME TYPE: ${gameInfo.name}
+DESCRIPTION: ${gameInfo.description}
 
-Preferred activity type: ${activityStyle}
-Available activity types for this subject: ${availableTypes.join(", ")}
+Create an engaging ${gameInfo.name} game with ${gameInfo.itemCount} items.
 
 Return a JSON object with this structure:
 {
-  "title": "Creative, Fun Activity Title",
-  "type": "${activityStyle}",
-  "gameStyle": "classroom" | "group" | "pairs" | "individual",
-  "duration": "5-10 minutes" | "10-15 minutes" | "15-20 minutes",
-  "materials": ["List of materials needed, if any"],
-  "instructions": "Step-by-step instructions for how to play/complete the activity. Make it exciting!",
+  "title": "Creative, Fun Game Title",
+  "gameType": "${gameType}",
+  "gameName": "${gameInfo.name}",
+  "instructions": "How to play this game with your class",
+  "teamMode": "individual" | "teams" | "class",
+  "estimatedTime": "5-10 min",
   "learningObjectives": ["What students will learn"],
-  "items": [
-    {
-      "question": "Question, prompt, or challenge",
-      "answer": "Correct answer",
-      "options": ["Option A", "Option B", "Option C", "Correct Answer"],
-      "hint": "Optional helpful hint"
-    }
-  ],
-  "bonusChallenge": "Optional bonus activity for fast finishers",
-  "adaptations": "How to make it easier or harder"
+  ${gameInfo.structure},
+  "tips": ["Teacher tips for running this game"]
 }
 
-Create 8-10 engaging items. For physical games like relay races or scavenger hunts, include movement instructions.`
+Make the content age-appropriate, educational, and FUN! Use colorful descriptions and engaging language.`
       },
       {
         role: "user",
-        content: `Create a super fun, interactive ${activityStyle} classroom game or activity about: ${prompt}
+        content: `Create a ${gameInfo.name} game about: ${prompt}
 
-Make it something students will be EXCITED to play! Include movement, competition, or creative elements when appropriate. The activity should actively engage students, not just be a passive exercise.`
+Make it exciting and educational! Teachers should want to use this in their classroom repeatedly.`
       }
     ],
     response_format: { type: "json_object" },
@@ -1843,7 +1889,7 @@ Make it something students will be EXCITED to play! Include movement, competitio
 
   const content = response.choices[0]?.message?.content || "{}";
   const result = JSON.parse(content);
-  result.options = { style: activityStyle };
+  result.options = { gameType };
   return result;
 }
 

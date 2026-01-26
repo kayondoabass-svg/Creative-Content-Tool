@@ -31,6 +31,12 @@ MVP complete with all core features:
 - Unlimited content generations
 
 ## Recent Changes
+- January 26, 2026: Redesigned Online Games feature with 12 game types
+  - Replaced old Activities section with new Online Games
+  - 12 teacher-friendly game types: Lucky Spinner, Mystery Box, Memory Match, Quick Catch, Fact or Fib, Word Hunt, Letter Rescue, Treasure Chest, Letter Scramble, Pop & Learn, Brain Battle, Missing Piece
+  - Each game type has unique structure and display
+  - Game-specific rendering in GeneratedContentDisplay component
+  - Dropdown selector with descriptions for each game type
 - January 26, 2026: Added multi-language internationalization (i18n)
   - 11 supported languages: English, Vietnamese, Arabic, Hindi, Swahili, Zulu, Mandarin, French, Spanish, Portuguese, Luganda
   - Language selector with flag icons in header and auth pages

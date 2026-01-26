@@ -15,7 +15,7 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { style?: string }, includeLogo?: boolean) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean) => void;
   isGenerating: boolean;
 }
 
@@ -106,7 +106,7 @@ const placeholders: Record<ContentType, string> = {
   image: "Describe the educational image you want to create... e.g., 'A colorful illustration showing the water cycle with friendly cartoon clouds and raindrops'",
   presentation: "Describe your presentation topic... e.g., 'An engaging presentation about dinosaurs for 2nd graders, including fun facts and interactive questions'",
   text: "Describe the educational content you need... e.g., 'A short story about sharing and friendship for pre-K students with simple vocabulary'",
-  activity: "Describe the learning activity or game... e.g., 'A matching game to help 1st graders learn sight words with pictures'",
+  activity: "Describe your online game topic... e.g., 'A fun game about multiplication tables for 3rd graders' or 'Animals and their habitats for kindergarten'",
   storyboard: "Describe your animated video concept... e.g., 'A fun animated video teaching the ABC song with dancing letters like Cocomelon style'",
   worksheet: "Describe the worksheet you want to create... e.g., 'A math worksheet with addition problems for 2nd graders' or 'A vocabulary worksheet about animals'",
 };
@@ -137,12 +137,20 @@ const textStyles = [
   { value: "dialogue", label: "Dialogue" },
 ];
 
-// Activity styles
-const activityStyles = [
-  { value: "quiz", label: "Quiz" },
-  { value: "matching", label: "Matching Game" },
-  { value: "flashcards", label: "Flashcards" },
-  { value: "wordSearch", label: "Word Search" },
+// Online game types for teachers
+const gameTypes = [
+  { value: "luckySpinner", label: "Lucky Spinner", description: "Spin the wheel for random selection" },
+  { value: "mysteryBox", label: "Mystery Box", description: "Tap to reveal numbered boxes" },
+  { value: "memoryMatch", label: "Memory Match", description: "Flip cards to find matching pairs" },
+  { value: "quickCatch", label: "Quick Catch", description: "Tap correct answers as they appear" },
+  { value: "factOrFib", label: "Fact or Fib", description: "True or false questions" },
+  { value: "wordHunt", label: "Word Hunt", description: "Find hidden words in a grid" },
+  { value: "letterRescue", label: "Letter Rescue", description: "Guess letters to reveal the word" },
+  { value: "treasureChest", label: "Treasure Chest", description: "Open boxes for surprises" },
+  { value: "letterScramble", label: "Letter Scramble", description: "Unscramble jumbled letters" },
+  { value: "popAndLearn", label: "Pop & Learn", description: "Pop balloons to answer" },
+  { value: "brainBattle", label: "Brain Battle", description: "Quiz with points for teams" },
+  { value: "missingPiece", label: "Missing Piece", description: "Fill in the blank" },
 ];
 
 const formSchema = z.object({
@@ -156,8 +164,8 @@ const formSchema = z.object({
   imageLayout: z.string().optional(),
   // Text options
   textStyle: z.string().optional(),
-  // Activity options
-  activityStyle: z.string().optional(),
+  // Game type options
+  gameType: z.string().optional(),
   // Video options
   videoLength: z.string().optional(),
   videoStyle: z.string().optional(),
@@ -220,8 +228,8 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       imageLayout: "single",
       // Text options
       textStyle: "story",
-      // Activity options
-      activityStyle: "quiz",
+      // Game type options
+      gameType: "luckySpinner",
       // Video options
       videoLength: "5min",
       videoStyle: "animation",
@@ -302,7 +310,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       style: values.textStyle,
     } : undefined;
     const activityOptions = selectedType === "activity" ? {
-      style: values.activityStyle,
+      gameType: values.gameType,
     } : undefined;
     
     onGenerate(
@@ -542,25 +550,27 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
             </div>
           )}
 
-          {/* Activity options */}
+          {/* Online Game Type options */}
           {selectedType === "activity" && (
             <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
               <FormField
                 control={form.control}
-                name="activityStyle"
+                name="gameType"
                 render={({ field }) => (
                   <FormItem className="flex items-center gap-2">
-                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Type:</FormLabel>
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Game:</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="w-[150px]" data-testid="select-activity-style">
-                          <SelectValue placeholder="Activity Type" />
+                        <SelectTrigger className="w-[180px]" data-testid="select-game-type">
+                          <SelectValue placeholder="Select Game Type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {activityStyles.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>
-                            {s.label}
+                        {gameTypes.map((g) => (
+                          <SelectItem key={g.value} value={g.value}>
+                            <div className="flex flex-col">
+                              <span>{g.label}</span>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -568,6 +578,11 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
                   </FormItem>
                 )}
               />
+              {form.watch("gameType") && (
+                <span className="text-xs text-muted-foreground">
+                  {gameTypes.find(g => g.value === form.watch("gameType"))?.description}
+                </span>
+              )}
             </div>
           )}
 

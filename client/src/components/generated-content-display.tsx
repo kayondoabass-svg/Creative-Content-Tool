@@ -558,91 +558,219 @@ function TextContent({ content }: { content: string }) {
 function ActivityContent({ content }: { content: string }) {
   try {
     const data = JSON.parse(content);
-    const activity = data;
+    const game = data;
+    const gameType = game.gameType || game.options?.gameType || "brainBattle";
+
+    const gameTypeLabels: Record<string, string> = {
+      luckySpinner: "Lucky Spinner",
+      mysteryBox: "Mystery Box",
+      memoryMatch: "Memory Match",
+      quickCatch: "Quick Catch",
+      factOrFib: "Fact or Fib",
+      wordHunt: "Word Hunt",
+      letterRescue: "Letter Rescue",
+      treasureChest: "Treasure Chest",
+      letterScramble: "Letter Scramble",
+      popAndLearn: "Pop & Learn",
+      brainBattle: "Brain Battle",
+      missingPiece: "Missing Piece",
+    };
+
+    const renderGameContent = () => {
+      switch (gameType) {
+        case "luckySpinner":
+          return game.wheelSegments?.map((seg: any, i: number) => (
+            <Card key={i} className="p-3 bg-muted/30">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs text-white" style={{ backgroundColor: seg.color || "#8B5CF6" }}>
+                  {i + 1}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">{seg.text}</p>
+                  {seg.question && <p className="text-sm text-muted-foreground mt-1">Q: {seg.question}</p>}
+                  {seg.answer && <p className="text-sm text-accent mt-1">A: {seg.answer}</p>}
+                </div>
+              </div>
+            </Card>
+          ));
+
+        case "mysteryBox":
+        case "treasureChest":
+          const boxes = game.boxes || game.chests || [];
+          return (
+            <div className="grid grid-cols-4 gap-2">
+              {boxes.map((box: any, i: number) => (
+                <Card key={i} className="p-2 text-center bg-gradient-to-br from-primary/20 to-accent/20 hover-elevate cursor-pointer">
+                  <div className="font-bold text-lg">{box.number || i + 1}</div>
+                  <p className="text-xs text-muted-foreground truncate">{box.question || box.content}</p>
+                  <p className="text-xs text-accent mt-1">{box.points || box.reward}</p>
+                </Card>
+              ))}
+            </div>
+          );
+
+        case "memoryMatch":
+          return game.pairs?.map((pair: any, i: number) => (
+            <div key={i} className="flex gap-2">
+              <Card className="flex-1 p-3 bg-primary/10 text-center">
+                <p className="font-medium">{pair.card1}</p>
+              </Card>
+              <div className="flex items-center text-muted-foreground">↔</div>
+              <Card className="flex-1 p-3 bg-accent/10 text-center">
+                <p className="font-medium">{pair.card2}</p>
+              </Card>
+            </div>
+          ));
+
+        case "factOrFib":
+          return game.statements?.map((stmt: any, i: number) => (
+            <Card key={i} className="p-3 bg-muted/30">
+              <div className="flex items-start gap-3">
+                <Badge variant={stmt.isTrue ? "default" : "destructive"} className="flex-shrink-0">
+                  {stmt.isTrue ? "FACT" : "FIB"}
+                </Badge>
+                <div>
+                  <p className="font-medium">{stmt.statement}</p>
+                  {stmt.explanation && <p className="text-sm text-muted-foreground mt-1">{stmt.explanation}</p>}
+                </div>
+              </div>
+            </Card>
+          ));
+
+        case "wordHunt":
+          return (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Find these {game.words?.length} words in the grid:</p>
+              <div className="flex flex-wrap gap-2">
+                {game.words?.map((word: string, i: number) => (
+                  <Badge key={i} variant="outline" className="text-sm">{word}</Badge>
+                ))}
+              </div>
+              {game.hints?.length > 0 && (
+                <div className="mt-3">
+                  <p className="font-medium text-sm mb-2">Hints:</p>
+                  {game.hints.map((h: any, i: number) => (
+                    <p key={i} className="text-sm text-muted-foreground">{h.word}: {h.hint}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+
+        case "letterRescue":
+          return game.words?.map((item: any, i: number) => (
+            <Card key={i} className="p-3 bg-muted/30">
+              <p className="font-mono text-lg tracking-widest">{item.word?.split('').map(() => '_ ').join('')}</p>
+              <p className="text-sm text-muted-foreground mt-1">Category: {item.category}</p>
+              <p className="text-sm text-accent mt-1">Hint: {item.hint}</p>
+              <p className="text-xs text-primary mt-2">Answer: {item.word}</p>
+            </Card>
+          ));
+
+        case "letterScramble":
+          return game.scrambles?.map((item: any, i: number) => (
+            <Card key={i} className="p-3 bg-muted/30">
+              <p className="font-mono text-xl tracking-widest text-center">{item.scrambled}</p>
+              <p className="text-sm text-muted-foreground text-center mt-1">{item.hint}</p>
+              <p className="text-sm text-accent text-center mt-2">Answer: {item.answer}</p>
+            </Card>
+          ));
+
+        case "quickCatch":
+        case "popAndLearn":
+          const items = game.targets || game.balloons || [];
+          return (
+            <>
+              {game.question && <p className="font-medium text-lg mb-3">{game.question}</p>}
+              <div className="grid grid-cols-3 gap-2">
+                {items.map((item: any, i: number) => (
+                  <Card key={i} className={`p-3 text-center ${item.isCorrect ? 'bg-green-500/20 border-green-500' : 'bg-muted/30'}`} style={item.color ? { backgroundColor: item.color + '20' } : {}}>
+                    <p className="font-medium">{item.text}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{item.points} pts</p>
+                  </Card>
+                ))}
+              </div>
+            </>
+          );
+
+        case "brainBattle":
+          return game.questions?.map((q: any, i: number) => (
+            <Card key={i} className="p-3 bg-muted/30">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
+                  {i + 1}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">{q.question}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {q.options?.map((opt: string, j: number) => (
+                      <Badge key={j} variant={j === q.correctIndex ? "default" : "secondary"} className="text-xs">
+                        {opt}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">{q.points} pts | {q.timeLimit}s</p>
+                </div>
+              </div>
+            </Card>
+          ));
+
+        case "missingPiece":
+          return game.sentences?.map((item: any, i: number) => (
+            <Card key={i} className="p-3 bg-muted/30">
+              <p className="font-medium">{item.sentence}</p>
+              <p className="text-sm text-accent mt-1">Answer: {item.answer}</p>
+              {item.hint && <p className="text-xs text-muted-foreground mt-1">Hint: {item.hint}</p>}
+            </Card>
+          ));
+
+        default:
+          return game.items?.map((item: any, i: number) => (
+            <Card key={i} className="p-3 bg-muted/30">
+              <p className="font-medium">{item.question}</p>
+              <p className="text-sm text-accent mt-1">Answer: {item.answer}</p>
+            </Card>
+          ));
+      }
+    };
 
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <h3 className="font-bold text-xl">{activity.title}</h3>
-          <Badge variant="outline" className="capitalize">{activity.type?.replace(/-/g, ' ')}</Badge>
-          {activity.gameStyle && (
-            <Badge variant="secondary" className="capitalize">{activity.gameStyle}</Badge>
-          )}
-          {activity.duration && (
-            <Badge variant="secondary">{activity.duration}</Badge>
-          )}
+          <h3 className="font-bold text-xl">{game.title}</h3>
+          <Badge variant="outline" className="capitalize">{gameTypeLabels[gameType] || game.gameName || gameType}</Badge>
+          {game.teamMode && <Badge variant="secondary" className="capitalize">{game.teamMode}</Badge>}
+          {game.estimatedTime && <Badge variant="secondary">{game.estimatedTime}</Badge>}
         </div>
         
-        {activity.learningObjectives && activity.learningObjectives.length > 0 && (
+        {game.learningObjectives?.length > 0 && (
           <div className="bg-primary/10 rounded-lg p-3">
             <p className="font-medium text-sm mb-1">Learning Objectives:</p>
             <ul className="text-sm text-muted-foreground list-disc list-inside">
-              {activity.learningObjectives.map((obj: string, i: number) => (
+              {game.learningObjectives.map((obj: string, i: number) => (
                 <li key={i}>{obj}</li>
               ))}
             </ul>
           </div>
         )}
         
-        {activity.materials && activity.materials.length > 0 && (
-          <div className="flex items-start gap-2">
-            <span className="font-medium text-sm">Materials:</span>
-            <div className="flex flex-wrap gap-1">
-              {activity.materials.map((mat: string, i: number) => (
-                <Badge key={i} variant="outline" className="text-xs">{mat}</Badge>
-              ))}
-            </div>
-          </div>
-        )}
-        
         <div className="bg-muted/30 rounded-lg p-4">
           <p className="font-medium mb-2">How to Play:</p>
-          <p className="text-muted-foreground whitespace-pre-line">{activity.instructions}</p>
+          <p className="text-muted-foreground whitespace-pre-line">{game.instructions}</p>
         </div>
         
         <div className="grid gap-3 mt-4">
-          {activity.items?.map((item: any, index: number) => (
-            <Card key={index} className="p-3 bg-muted/30">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-xs">
-                  {index + 1}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium">{item.question}</p>
-                  <p className="text-sm text-accent mt-1">Answer: {item.answer}</p>
-                  {item.hint && (
-                    <p className="text-xs text-muted-foreground mt-1 italic">Hint: {item.hint}</p>
-                  )}
-                  {item.options && item.options.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {item.options.map((opt: string, i: number) => (
-                        <Badge
-                          key={i}
-                          variant={opt === item.answer ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {opt}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
+          {renderGameContent()}
         </div>
         
-        {activity.bonusChallenge && (
+        {game.tips?.length > 0 && (
           <div className="bg-amber-500/10 rounded-lg p-3 border border-amber-500/20">
-            <p className="font-medium text-sm text-amber-600 dark:text-amber-400">Bonus Challenge:</p>
-            <p className="text-sm text-muted-foreground">{activity.bonusChallenge}</p>
-          </div>
-        )}
-        
-        {activity.adaptations && (
-          <div className="bg-blue-500/10 rounded-lg p-3 border border-blue-500/20">
-            <p className="font-medium text-sm text-blue-600 dark:text-blue-400">Adaptations:</p>
-            <p className="text-sm text-muted-foreground">{activity.adaptations}</p>
+            <p className="font-medium text-sm text-amber-600 dark:text-amber-400 mb-1">Teacher Tips:</p>
+            <ul className="text-sm text-muted-foreground list-disc list-inside">
+              {game.tips.map((tip: string, i: number) => (
+                <li key={i}>{tip}</li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

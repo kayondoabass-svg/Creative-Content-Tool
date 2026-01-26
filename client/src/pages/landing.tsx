@@ -21,8 +21,8 @@ const showcaseSlides = [
     color: "from-blue-500 to-cyan-500",
   },
   {
-    title: "Create Engaging Activities",
-    description: "Quizzes, matching games, and interactive exercises for your classroom",
+    title: "Create Online Games",
+    description: "Spin wheels, mystery boxes, memory games & more for your classroom",
     icon: Gamepad2,
     color: "from-green-500 to-emerald-500",
   },

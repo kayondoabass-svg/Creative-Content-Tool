@@ -76,9 +76,27 @@ export const textOptionsSchema = z.object({
 
 export type TextOptions = z.infer<typeof textOptionsSchema>;
 
+// Game type options for online interactive games
+export const gameTypes = [
+  "luckySpinner",      // Spin the wheel - random selection
+  "mysteryBox",        // Tap to reveal grid - numbered boxes
+  "memoryMatch",       // Matching pairs - flip cards
+  "quickCatch",        // Whack-a-mole style - tap correct answers
+  "factOrFib",         // True or false questions
+  "wordHunt",          // Word search puzzle
+  "letterRescue",      // Hangman style - guess letters
+  "treasureChest",     // Open boxes to reveal challenges
+  "letterScramble",    // Anagram - unscramble letters
+  "popAndLearn",       // Balloon pop - pop to answer
+  "brainBattle",       // Quiz with points and teams
+  "missingPiece",      // Fill in the blank
+] as const;
+
+export type GameType = typeof gameTypes[number];
+
 // Activity options schema
 export const activityOptionsSchema = z.object({
-  style: z.enum(["quiz", "matching", "flashcards", "wordSearch"]).optional(),
+  gameType: z.enum(gameTypes).optional(),
 });
 
 export type ActivityOptions = z.infer<typeof activityOptionsSchema>;
@@ -115,16 +133,32 @@ export const slideSchema = z.object({
 
 export type Slide = z.infer<typeof slideSchema>;
 
-// Activity/game schema
+// Online game schema - supports all 12 game types
 export const activitySchema = z.object({
   title: z.string(),
+  gameType: z.enum(gameTypes),
+  gameName: z.string().optional(),
   instructions: z.string(),
-  type: z.enum(["matching", "quiz", "fillInBlank", "sorting", "sequencing"]),
-  items: z.array(z.object({
-    question: z.string(),
-    answer: z.string(),
-    options: z.array(z.string()).optional(),
-  })),
+  teamMode: z.enum(["individual", "teams", "class"]).optional(),
+  estimatedTime: z.string().optional(),
+  learningObjectives: z.array(z.string()).optional(),
+  tips: z.array(z.string()).optional(),
+  // Game-specific content fields (varies by gameType)
+  wheelSegments: z.array(z.any()).optional(),
+  boxes: z.array(z.any()).optional(),
+  chests: z.array(z.any()).optional(),
+  pairs: z.array(z.any()).optional(),
+  targets: z.array(z.any()).optional(),
+  statements: z.array(z.any()).optional(),
+  words: z.union([z.array(z.string()), z.array(z.any())]).optional(),
+  scrambles: z.array(z.any()).optional(),
+  balloons: z.array(z.any()).optional(),
+  questions: z.array(z.any()).optional(),
+  sentences: z.array(z.any()).optional(),
+  hints: z.array(z.any()).optional(),
+  gridSize: z.number().optional(),
+  question: z.string().optional(),
+  options: z.object({ gameType: z.string() }).optional(),
 });
 
 export type Activity = z.infer<typeof activitySchema>;
