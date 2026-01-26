@@ -147,7 +147,15 @@ export async function registerRoutes(
   // Get current user
   app.get("/api/auth/me", async (req, res) => {
     try {
-      const userId = (req as any).session?.userId;
+      const session = (req as any).session;
+      const userId = session?.userId;
+      
+      // Debug log for troubleshooting CEO access
+      if (req.query.debug === "ceo") {
+        console.log("[Auth/Me Debug] Session keys:", Object.keys(session || {}));
+        console.log("[Auth/Me Debug] userId:", userId);
+        console.log("[Auth/Me Debug] session.user:", session?.user?.email);
+      }
       
       if (!userId) {
         return res.json({ user: null });
@@ -1504,6 +1512,13 @@ This should look like it was designed by a world-class branding agency. Make it 
     try {
       const session = req.session as any;
       const userId = session?.userId;
+      const debug = req.query.debug === "true";
+      
+      const debugInfo: any = {
+        hasSession: !!session,
+        hasUserId: !!userId,
+        sessionKeys: session ? Object.keys(session) : [],
+      };
       
       console.log("[CEO Check] Session data:", { 
         hasSession: !!session, 
@@ -1515,29 +1530,32 @@ This should look like it was designed by a world-class branding agency. Make it 
       // If we have a userId, fetch the user from database to get email
       if (userId) {
         const user = await customAuth.getUserById(userId);
+        debugInfo.dbUserEmail = user?.email ? user.email.substring(0, 3) + "***" : null;
         console.log("[CEO Check] DB User:", user?.email);
         if (user && user.email?.toLowerCase() === CEO_EMAIL.toLowerCase()) {
           console.log("[CEO Check] SUCCESS - matched via DB lookup");
-          return res.json({ isCEO: true });
+          return res.json({ isCEO: true, ...(debug ? { debug: debugInfo, method: "db_lookup" } : {}) });
         }
       }
       
       // Also check session user directly (backup)
       const sessionEmail = session?.user?.email;
+      debugInfo.sessionEmail = sessionEmail ? sessionEmail.substring(0, 3) + "***" : null;
       if (sessionEmail?.toLowerCase() === CEO_EMAIL.toLowerCase()) {
         console.log("[CEO Check] SUCCESS - matched via session.user.email");
-        return res.json({ isCEO: true });
+        return res.json({ isCEO: true, ...(debug ? { debug: debugInfo, method: "session_user" } : {}) });
       }
       
       // Check Replit auth format
       const replitEmail = (req as any).user?.claims?.email;
+      debugInfo.replitEmail = replitEmail ? replitEmail.substring(0, 3) + "***" : null;
       if (replitEmail?.toLowerCase() === CEO_EMAIL.toLowerCase()) {
         console.log("[CEO Check] SUCCESS - matched via Replit auth");
-        return res.json({ isCEO: true });
+        return res.json({ isCEO: true, ...(debug ? { debug: debugInfo, method: "replit_auth" } : {}) });
       }
       
       console.log("[CEO Check] FAILED - no matching email found");
-      res.json({ isCEO: false });
+      res.json({ isCEO: false, ...(debug ? { debug: debugInfo } : {}) });
     } catch (error) {
       console.error("[CEO Check] Error:", error);
       res.json({ isCEO: false });
