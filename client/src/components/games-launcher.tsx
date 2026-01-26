@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Gamepad2 } from "lucide-react";
+import { Gamepad2, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 
@@ -44,8 +44,17 @@ export function GamesLauncher() {
           <Gamepad2 className="h-5 w-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl" hideCloseButton>
+        <DialogHeader className="relative">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="absolute right-0 top-0" 
+            onClick={() => setOpen(false)}
+            data-testid="button-close-games-launcher"
+          >
+            <X className="h-4 w-4" />
+          </Button>
           <DialogTitle className="flex items-center gap-2">
             <Gamepad2 className="h-5 w-5" />
             {t("contentTypes.activity", "Online Games")}
