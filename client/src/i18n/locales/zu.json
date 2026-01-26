@@ -1,0 +1,103 @@
+{
+  "common": {
+    "signIn": "Ngena ngemvume",
+    "signUp": "Bhalisa",
+    "signOut": "Phuma",
+    "getStarted": "Qala Mahhala",
+    "features": "Izici",
+    "fileTools": "Amathuluzi Wefayela",
+    "pricing": "Amanani",
+    "loading": "Iyalayisha...",
+    "save": "Londoloza",
+    "cancel": "Khansela",
+    "download": "Landa",
+    "copy": "Kopisha",
+    "delete": "Susa",
+    "generate": "Dala",
+    "premium": "Premium",
+    "free": "Mahhala",
+    "upgrade": "Thuthukisela ku-Premium",
+    "manageSubscription": "Phatha Ukubhalisela"
+  },
+  "landing": {
+    "heroTitle": "Izwi noma Umbhalo ube Yiqiniso",
+    "heroSubtitle": "Okuqukethwe Kothisha Abamatasatasa",
+    "heroDescription": "Dala izithombe zemfundo ezinhle, izethulo, imisebenzi, amaphepha okusebenza nama-storyboards evidiyo ngomzuzwana. Vumela i-AI yenze umsebenzi onzima ukuze ugxile entweni ebaluleke kakhulu - abafundi bakho.",
+    "featuresTitle": "Konke Okudingayo Ukuze Udale Okuqukethwe Okumangalisayo"
+  },
+  "contentTypes": {
+    "image": "Izithombe Zemfundo",
+    "imageDesc": "Dala imidwebo emihle, elungele ikilasi eyenza imiqondo iphile",
+    "presentation": "Izethulo",
+    "presentationDesc": "Dala amasethi amaslayidi aphelele anemifanekiso namanothi omkhulumi ngemizuzu",
+    "text": "Okuqukethwe Kombhalo",
+    "textDesc": "Dala izindaba, izincazelo nezinsizakufunda ezilungiselwe nanoma yiliphi izinga lebanga",
+    "activity": "Imisebenzi Nemidlalo",
+    "activityDesc": "Klama imibuzo exhumana nabantu, imidlalo yokuhambisana nemisebenzi yekilasi ekhangayo",
+    "storyboard": "Ama-Storyboard Evidiyo",
+    "storyboardDesc": "Hlela amavidiyo emfundo anokunyakaza ngeziqondiso zokubona ufreyimu ngofreyimu",
+    "worksheet": "Amaphepha Okusebenza",
+    "worksheetDesc": "Dala amaphepha okusebenza angaprintwa anemibuzo, ukugcwalisa izikhala nokunye"
+  },
+  "auth": {
+    "email": "I-imeyili",
+    "password": "Iphasiwedi",
+    "firstName": "Igama Lokuqala",
+    "lastName": "Isibongo",
+    "confirmPassword": "Qinisekisa Iphasiwedi",
+    "forgotPassword": "Ukhohlwe Iphasiwedi?",
+    "noAccount": "Awunayo i-akhawunti?",
+    "hasAccount": "Usunayo i-akhawunti?",
+    "verifyEmail": "Qinisekisa I-imeyili Yakho",
+    "verificationCode": "Ikhodi Yokuqinisekisa",
+    "resendCode": "Thumela Kabusha Ikhodi",
+    "loginTitle": "Siyakwamukela Futhi",
+    "loginSubtitle": "Ngena ngemvume ukuze uqhubeke udala okuqukethwe okumangalisayo",
+    "signupTitle": "Dala I-akhawunti Yakho",
+    "signupSubtitle": "Qala ukudala okuqukethwe kwemfundo ngomzuzwana"
+  },
+  "home": {
+    "whatCreate": "Ungathanda ukudalani?",
+    "promptPlaceholder": "Chaza okuqukethwe kwemfundo ofuna ukukudala...",
+    "gradeLevel": "Izinga Lebanga",
+    "subject": "Isifundo",
+    "history": "Umlando",
+    "clearHistory": "Sula Umlando"
+  },
+  "grades": {
+    "preschool": "Ngaphambi Kwesikole",
+    "kindergarten": "I-Kindergarten",
+    "grade1": "Ibanga 1",
+    "grade2": "Ibanga 2",
+    "grade3": "Ibanga 3",
+    "grade4": "Ibanga 4",
+    "grade5": "Ibanga 5",
+    "middle": "Isikole Saphakathi",
+    "high": "Isikole Esiphakeme"
+  },
+  "subjects": {
+    "math": "Izibalo",
+    "science": "Isayensi",
+    "english": "IsiNgisi",
+    "history": "Umlando",
+    "art": "Ubuciko",
+    "music": "Umculo",
+    "pe": "Imfundo Yomzimba",
+    "social": "Izifundo Zomphakathi"
+  },
+  "footer": {
+    "product": "Umkhiqizo",
+    "legal": "Okusemthethweni",
+    "earn": "Zuza",
+    "terms": "Imigomo Nemibandela",
+    "privacy": "Inqubomgomo Yobumfihlo",
+    "refund": "Inqubomgomo Yokubuyiselwa Imali",
+    "affiliate": "Uhlelo Lwabaxhumanisi",
+    "contact": "Xhumana Nathi",
+    "description": "Ipulatifomu yokudala okuqukethwe eqhutshwa yi-AI yothisha abamatasatasa. Dala izithombe zemfundo, izethulo, imisebenzi, amaphepha okusebenza nama-storyboards evidiyo ngomzuzwana."
+  },
+  "language": {
+    "selectLanguage": "Khetha Ulimi",
+    "languageChanged": "Ulimi lushintshwe ngempumelelo"
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "common": {
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "signOut": "Cerrar sesión",
+    "getStarted": "Comenzar gratis",
+    "features": "Características",
+    "fileTools": "Herramientas de archivos",
+    "pricing": "Precios",
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "download": "Descargar",
+    "copy": "Copiar",
+    "delete": "Eliminar",
+    "generate": "Generar",
+    "premium": "Premium",
+    "free": "Gratis",
+    "upgrade": "Actualizar a Premium",
+    "manageSubscription": "Gestionar suscripción"
+  },
+  "landing": {
+    "heroTitle": "De voz o texto a realidad",
+    "heroSubtitle": "Contenido para maestros ocupados",
+    "heroDescription": "Crea impresionantes imágenes educativas, presentaciones, actividades, hojas de trabajo y guiones gráficos de video en segundos. Deja que la IA haga el trabajo pesado para que puedas concentrarte en lo más importante: tus estudiantes.",
+    "featuresTitle": "Todo lo que necesitas para crear contenido increíble"
+  },
+  "contentTypes": {
+    "image": "Imágenes educativas",
+    "imageDesc": "Crea hermosas ilustraciones listas para el aula que dan vida a los conceptos",
+    "presentation": "Presentaciones",
+    "presentationDesc": "Crea diapositivas completas con imágenes y notas del orador en minutos",
+    "text": "Contenido de texto",
+    "textDesc": "Genera historias, explicaciones y materiales de aprendizaje adaptados a cualquier nivel",
+    "activity": "Actividades y juegos",
+    "activityDesc": "Diseña cuestionarios interactivos, juegos de emparejamiento y actividades de clase atractivas",
+    "storyboard": "Guiones gráficos de video",
+    "storyboardDesc": "Planifica videos educativos animados con guías visuales cuadro por cuadro",
+    "worksheet": "Hojas de trabajo",
+    "worksheetDesc": "Genera hojas de trabajo imprimibles con preguntas, espacios en blanco y más"
+  },
+  "auth": {
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "confirmPassword": "Confirmar contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "noAccount": "¿No tienes una cuenta?",
+    "hasAccount": "¿Ya tienes una cuenta?",
+    "verifyEmail": "Verifica tu correo electrónico",
+    "verificationCode": "Código de verificación",
+    "resendCode": "Reenviar código",
+    "loginTitle": "Bienvenido de nuevo",
+    "loginSubtitle": "Inicia sesión para continuar creando contenido increíble",
+    "signupTitle": "Crea tu cuenta",
+    "signupSubtitle": "Comienza a crear contenido educativo en segundos"
+  },
+  "home": {
+    "whatCreate": "¿Qué te gustaría crear?",
+    "promptPlaceholder": "Describe el contenido educativo que quieres crear...",
+    "gradeLevel": "Nivel escolar",
+    "subject": "Materia",
+    "history": "Historial",
+    "clearHistory": "Borrar historial"
+  },
+  "grades": {
+    "preschool": "Preescolar",
+    "kindergarten": "Jardín de infantes",
+    "grade1": "1° Grado",
+    "grade2": "2° Grado",
+    "grade3": "3° Grado",
+    "grade4": "4° Grado",
+    "grade5": "5° Grado",
+    "middle": "Secundaria",
+    "high": "Preparatoria"
+  },
+  "subjects": {
+    "math": "Matemáticas",
+    "science": "Ciencias",
+    "english": "Inglés",
+    "history": "Historia",
+    "art": "Arte",
+    "music": "Música",
+    "pe": "Educación física",
+    "social": "Estudios sociales"
+  },
+  "footer": {
+    "product": "Producto",
+    "legal": "Legal",
+    "earn": "Ganar",
+    "terms": "Términos y condiciones",
+    "privacy": "Política de privacidad",
+    "refund": "Política de reembolso",
+    "affiliate": "Programa de afiliados",
+    "contact": "Contacto",
+    "description": "Plataforma de creación de contenido impulsada por IA para maestros ocupados. Crea imágenes educativas, presentaciones, actividades, hojas de trabajo y guiones gráficos de video en segundos."
+  },
+  "language": {
+    "selectLanguage": "Seleccionar idioma",
+    "languageChanged": "Idioma cambiado con éxito"
+  }
+}

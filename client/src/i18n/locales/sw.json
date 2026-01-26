@@ -1,0 +1,103 @@
+{
+  "common": {
+    "signIn": "Ingia",
+    "signUp": "Jisajili",
+    "signOut": "Ondoka",
+    "getStarted": "Anza Bure",
+    "features": "Vipengele",
+    "fileTools": "Zana za Faili",
+    "pricing": "Bei",
+    "loading": "Inapakia...",
+    "save": "Hifadhi",
+    "cancel": "Ghairi",
+    "download": "Pakua",
+    "copy": "Nakili",
+    "delete": "Futa",
+    "generate": "Tengeneza",
+    "premium": "Premium",
+    "free": "Bure",
+    "upgrade": "Panda daraja hadi Premium",
+    "manageSubscription": "Simamia Usajili"
+  },
+  "landing": {
+    "heroTitle": "Sauti au Maandishi hadi Ukweli",
+    "heroSubtitle": "Maudhui kwa Walimu Wenye Shughuli",
+    "heroDescription": "Tengeneza picha za kielimu, mawasilisho, shughuli, karatasi za kazi na storyboards za video kwa sekunde. Acha AI ifanye kazi ngumu ili uweze kuzingatia jambo muhimu zaidi - wanafunzi wako.",
+    "featuresTitle": "Kila Kitu Unachohitaji Kuunda Maudhui ya Ajabu"
+  },
+  "contentTypes": {
+    "image": "Picha za Kielimu",
+    "imageDesc": "Tengeneza michoro nzuri, tayari kwa darasani inayofanya dhana ziwe hai",
+    "presentation": "Mawasilisho",
+    "presentationDesc": "Unda seti kamili za slaidi zenye picha na maelezo ya mzungumzaji kwa dakika",
+    "text": "Maudhui ya Maandishi",
+    "textDesc": "Tengeneza hadithi, maelezo na nyenzo za kujifunza zilizoandaliwa kwa kiwango chochote cha darasa",
+    "activity": "Shughuli na Michezo",
+    "activityDesc": "Buni maswali ya mwingiliano, michezo ya kuoana na shughuli za kuvutia za darasani",
+    "storyboard": "Storyboards za Video",
+    "storyboardDesc": "Panga video za kielimu zenye uhuishaji na mwongozo wa picha fremu kwa fremu",
+    "worksheet": "Karatasi za Kazi",
+    "worksheetDesc": "Tengeneza karatasi za kazi zinazoweza kuchapishwa zenye maswali, jaza nafasi na zaidi"
+  },
+  "auth": {
+    "email": "Barua pepe",
+    "password": "Nenosiri",
+    "firstName": "Jina la Kwanza",
+    "lastName": "Jina la Mwisho",
+    "confirmPassword": "Thibitisha Nenosiri",
+    "forgotPassword": "Umesahau Nenosiri?",
+    "noAccount": "Huna akaunti?",
+    "hasAccount": "Tayari una akaunti?",
+    "verifyEmail": "Thibitisha Barua pepe Yako",
+    "verificationCode": "Nambari ya Uthibitisho",
+    "resendCode": "Tuma Tena Nambari",
+    "loginTitle": "Karibu Tena",
+    "loginSubtitle": "Ingia kuendelea kuunda maudhui ya ajabu",
+    "signupTitle": "Unda Akaunti Yako",
+    "signupSubtitle": "Anza kuunda maudhui ya kielimu kwa sekunde"
+  },
+  "home": {
+    "whatCreate": "Ungependa kuunda nini?",
+    "promptPlaceholder": "Eleza maudhui ya kielimu unayotaka kuunda...",
+    "gradeLevel": "Kiwango cha Darasa",
+    "subject": "Somo",
+    "history": "Historia",
+    "clearHistory": "Futa Historia"
+  },
+  "grades": {
+    "preschool": "Kabla ya Shule",
+    "kindergarten": "Chekechea",
+    "grade1": "Darasa la 1",
+    "grade2": "Darasa la 2",
+    "grade3": "Darasa la 3",
+    "grade4": "Darasa la 4",
+    "grade5": "Darasa la 5",
+    "middle": "Sekondari",
+    "high": "Kidato"
+  },
+  "subjects": {
+    "math": "Hisabati",
+    "science": "Sayansi",
+    "english": "Kiingereza",
+    "history": "Historia",
+    "art": "Sanaa",
+    "music": "Muziki",
+    "pe": "Elimu ya Viungo",
+    "social": "Masomo ya Jamii"
+  },
+  "footer": {
+    "product": "Bidhaa",
+    "legal": "Kisheria",
+    "earn": "Pata",
+    "terms": "Masharti & Vigezo",
+    "privacy": "Sera ya Faragha",
+    "refund": "Sera ya Kurudishiwa Pesa",
+    "affiliate": "Mpango wa Washirika",
+    "contact": "Wasiliana",
+    "description": "Jukwaa la uundaji maudhui linaloendeshwa na AI kwa walimu wenye shughuli. Unda picha za kielimu, mawasilisho, shughuli, karatasi za kazi na storyboards za video kwa sekunde."
+  },
+  "language": {
+    "selectLanguage": "Chagua Lugha",
+    "languageChanged": "Lugha imebadilishwa kwa mafanikio"
+  }
+}

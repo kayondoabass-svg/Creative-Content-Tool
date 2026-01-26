@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, Image, FileText, Presentation, Gamepad2, Video, FileSpreadsheet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, Image, FileText, Presentation, Gamepad2, Video, FileSpreadsheet, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import { Footer } from "@/components/footer";
+import { LanguageSelector } from "@/components/language-selector";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const showcaseSlides = [
   {
@@ -44,6 +47,7 @@ const showcaseSlides = [
 ];
 
 export default function LandingPage() {
+  const { t } = useTranslation();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
@@ -67,11 +71,13 @@ export default function LandingPage() {
             </div>
             <span className="font-bold text-xl">BrightBoard</span>
           </div>
-          <div className="flex items-center gap-4">
-            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
-            <a href="/file-tools" className="text-sm text-muted-foreground hover:text-foreground transition-colors">File Tools</a>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <a href="#features" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">{t('common.features')}</a>
+            <a href="/file-tools" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors">{t('common.fileTools')}</a>
+            <LanguageSelector />
+            <ThemeToggle />
             <Button asChild data-testid="button-login">
-              <a href="/login">Sign In</a>
+              <a href="/login">{t('common.signIn')}</a>
             </Button>
           </div>
         </div>
@@ -81,15 +87,15 @@ export default function LandingPage() {
         <section className="container mx-auto px-4 py-12">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-primary via-purple-500 to-teal-500 bg-clip-text text-transparent">Voice or Text to Reality</span>
-              <span className="block text-2xl md:text-4xl mt-2 text-foreground/80">Content for Busy Teachers</span>
+              <span className="bg-gradient-to-r from-primary via-purple-500 to-teal-500 bg-clip-text text-transparent">{t('landing.heroTitle')}</span>
+              <span className="block text-2xl md:text-4xl mt-2 text-foreground/80">{t('landing.heroSubtitle')}</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Create stunning educational images, presentations, activities, worksheets, and video storyboards in seconds. Let AI do the heavy lifting so you can focus on what matters most - your students.
+              {t('landing.heroDescription')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild data-testid="button-get-started">
-                <a href="/signup">Get Started Free</a>
+                <a href="/signup">{t('common.getStarted')}</a>
               </Button>
             </div>
           </div>
@@ -159,37 +165,37 @@ export default function LandingPage() {
         </section>
 
         <section id="features" className="container mx-auto px-4 py-16">
-          <h2 className="text-3xl font-bold text-center mb-12">Everything You Need to Create Amazing Content</h2>
+          <h2 className="text-3xl font-bold text-center mb-12">{t('landing.featuresTitle')}</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureCard 
               icon={<Image className="w-6 h-6" />}
-              title="Educational Images"
-              description="Generate beautiful, classroom-ready illustrations that bring concepts to life"
+              title={t('contentTypes.image')}
+              description={t('contentTypes.imageDesc')}
             />
             <FeatureCard 
               icon={<Presentation className="w-6 h-6" />}
-              title="Presentations"
-              description="Create complete slide decks with images and speaker notes in minutes"
+              title={t('contentTypes.presentation')}
+              description={t('contentTypes.presentationDesc')}
             />
             <FeatureCard 
               icon={<FileText className="w-6 h-6" />}
-              title="Text Content"
-              description="Generate stories, explanations, and learning materials tailored to any grade level"
+              title={t('contentTypes.text')}
+              description={t('contentTypes.textDesc')}
             />
             <FeatureCard 
               icon={<Gamepad2 className="w-6 h-6" />}
-              title="Activities & Games"
-              description="Design interactive quizzes, matching games, and engaging classroom activities"
+              title={t('contentTypes.activity')}
+              description={t('contentTypes.activityDesc')}
             />
             <FeatureCard 
               icon={<Video className="w-6 h-6" />}
-              title="Video Storyboards"
-              description="Plan animated educational videos with frame-by-frame visual guides"
+              title={t('contentTypes.storyboard')}
+              description={t('contentTypes.storyboardDesc')}
             />
             <FeatureCard 
               icon={<FileSpreadsheet className="w-6 h-6" />}
-              title="Worksheets"
-              description="Generate printable worksheets with questions, fill-in-blanks, and more"
+              title={t('contentTypes.worksheet')}
+              description={t('contentTypes.worksheetDesc')}
             />
           </div>
         </section>

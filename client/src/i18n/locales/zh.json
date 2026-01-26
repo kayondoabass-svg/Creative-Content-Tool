@@ -1,0 +1,103 @@
+{
+  "common": {
+    "signIn": "登录",
+    "signUp": "注册",
+    "signOut": "退出",
+    "getStarted": "免费开始",
+    "features": "功能",
+    "fileTools": "文件工具",
+    "pricing": "价格",
+    "loading": "加载中...",
+    "save": "保存",
+    "cancel": "取消",
+    "download": "下载",
+    "copy": "复制",
+    "delete": "删除",
+    "generate": "生成",
+    "premium": "高级版",
+    "free": "免费",
+    "upgrade": "升级到高级版",
+    "manageSubscription": "管理订阅"
+  },
+  "landing": {
+    "heroTitle": "语音或文字变为现实",
+    "heroSubtitle": "为忙碌的教师创作内容",
+    "heroDescription": "在几秒钟内创建精美的教育图片、演示文稿、活动、工作表和视频故事板。让AI完成繁重的工作，这样您就可以专注于最重要的事情——您的学生。",
+    "featuresTitle": "创建出色内容所需的一切"
+  },
+  "contentTypes": {
+    "image": "教育图片",
+    "imageDesc": "创建美丽的、可供课堂使用的插图，让概念栩栩如生",
+    "presentation": "演示文稿",
+    "presentationDesc": "在几分钟内创建包含图像和演讲者备注的完整幻灯片",
+    "text": "文本内容",
+    "textDesc": "为任何年级生成故事、解释和学习材料",
+    "activity": "活动与游戏",
+    "activityDesc": "设计互动测验、配对游戏和引人入胜的课堂活动",
+    "storyboard": "视频故事板",
+    "storyboardDesc": "通过逐帧视觉指南规划动画教育视频",
+    "worksheet": "工作表",
+    "worksheetDesc": "生成包含问题、填空等内容的可打印工作表"
+  },
+  "auth": {
+    "email": "电子邮件",
+    "password": "密码",
+    "firstName": "名字",
+    "lastName": "姓氏",
+    "confirmPassword": "确认密码",
+    "forgotPassword": "忘记密码？",
+    "noAccount": "没有账户？",
+    "hasAccount": "已有账户？",
+    "verifyEmail": "验证您的电子邮件",
+    "verificationCode": "验证码",
+    "resendCode": "重新发送验证码",
+    "loginTitle": "欢迎回来",
+    "loginSubtitle": "登录以继续创建精彩内容",
+    "signupTitle": "创建您的账户",
+    "signupSubtitle": "几秒钟内开始创建教育内容"
+  },
+  "home": {
+    "whatCreate": "您想创建什么？",
+    "promptPlaceholder": "描述您想创建的教育内容...",
+    "gradeLevel": "年级",
+    "subject": "科目",
+    "history": "历史记录",
+    "clearHistory": "清除历史记录"
+  },
+  "grades": {
+    "preschool": "学前班",
+    "kindergarten": "幼儿园",
+    "grade1": "一年级",
+    "grade2": "二年级",
+    "grade3": "三年级",
+    "grade4": "四年级",
+    "grade5": "五年级",
+    "middle": "初中",
+    "high": "高中"
+  },
+  "subjects": {
+    "math": "数学",
+    "science": "科学",
+    "english": "英语",
+    "history": "历史",
+    "art": "美术",
+    "music": "音乐",
+    "pe": "体育",
+    "social": "社会研究"
+  },
+  "footer": {
+    "product": "产品",
+    "legal": "法律",
+    "earn": "赚钱",
+    "terms": "条款和条件",
+    "privacy": "隐私政策",
+    "refund": "退款政策",
+    "affiliate": "联盟计划",
+    "contact": "联系我们",
+    "description": "为忙碌教师打造的AI内容创作平台。在几秒钟内创建教育图片、演示文稿、活动、工作表和视频故事板。"
+  },
+  "language": {
+    "selectLanguage": "选择语言",
+    "languageChanged": "语言更改成功"
+  }
+}

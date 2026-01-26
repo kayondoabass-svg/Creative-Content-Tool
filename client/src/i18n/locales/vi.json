@@ -1,0 +1,103 @@
+{
+  "common": {
+    "signIn": "Đăng nhập",
+    "signUp": "Đăng ký",
+    "signOut": "Đăng xuất",
+    "getStarted": "Bắt đầu miễn phí",
+    "features": "Tính năng",
+    "fileTools": "Công cụ tệp",
+    "pricing": "Bảng giá",
+    "loading": "Đang tải...",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "download": "Tải xuống",
+    "copy": "Sao chép",
+    "delete": "Xóa",
+    "generate": "Tạo",
+    "premium": "Cao cấp",
+    "free": "Miễn phí",
+    "upgrade": "Nâng cấp lên Cao cấp",
+    "manageSubscription": "Quản lý đăng ký"
+  },
+  "landing": {
+    "heroTitle": "Giọng nói hoặc Văn bản thành Hiện thực",
+    "heroSubtitle": "Nội dung cho Giáo viên Bận rộn",
+    "heroDescription": "Tạo hình ảnh giáo dục, bài thuyết trình, hoạt động, bài tập và kịch bản video tuyệt đẹp trong vài giây. Để AI làm công việc nặng nhọc để bạn có thể tập trung vào điều quan trọng nhất - học sinh của bạn.",
+    "featuresTitle": "Mọi thứ bạn cần để tạo nội dung tuyệt vời"
+  },
+  "contentTypes": {
+    "image": "Hình ảnh Giáo dục",
+    "imageDesc": "Tạo các minh họa đẹp, sẵn sàng cho lớp học giúp các khái niệm trở nên sống động",
+    "presentation": "Bài thuyết trình",
+    "presentationDesc": "Tạo bộ slide hoàn chỉnh với hình ảnh và ghi chú diễn giả trong vài phút",
+    "text": "Nội dung Văn bản",
+    "textDesc": "Tạo câu chuyện, giải thích và tài liệu học tập phù hợp với mọi cấp độ",
+    "activity": "Hoạt động & Trò chơi",
+    "activityDesc": "Thiết kế câu đố tương tác, trò chơi ghép cặp và hoạt động lớp học hấp dẫn",
+    "storyboard": "Kịch bản Video",
+    "storyboardDesc": "Lập kế hoạch video giáo dục hoạt hình với hướng dẫn trực quan từng khung hình",
+    "worksheet": "Bài tập",
+    "worksheetDesc": "Tạo bài tập có thể in với câu hỏi, điền vào chỗ trống và nhiều hơn nữa"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Mật khẩu",
+    "firstName": "Tên",
+    "lastName": "Họ",
+    "confirmPassword": "Xác nhận mật khẩu",
+    "forgotPassword": "Quên mật khẩu?",
+    "noAccount": "Chưa có tài khoản?",
+    "hasAccount": "Đã có tài khoản?",
+    "verifyEmail": "Xác minh Email của bạn",
+    "verificationCode": "Mã xác minh",
+    "resendCode": "Gửi lại mã",
+    "loginTitle": "Chào mừng trở lại",
+    "loginSubtitle": "Đăng nhập để tiếp tục tạo nội dung tuyệt vời",
+    "signupTitle": "Tạo tài khoản của bạn",
+    "signupSubtitle": "Bắt đầu tạo nội dung giáo dục trong vài giây"
+  },
+  "home": {
+    "whatCreate": "Bạn muốn tạo gì?",
+    "promptPlaceholder": "Mô tả nội dung giáo dục bạn muốn tạo...",
+    "gradeLevel": "Cấp lớp",
+    "subject": "Môn học",
+    "history": "Lịch sử",
+    "clearHistory": "Xóa lịch sử"
+  },
+  "grades": {
+    "preschool": "Mầm non",
+    "kindergarten": "Mẫu giáo",
+    "grade1": "Lớp 1",
+    "grade2": "Lớp 2",
+    "grade3": "Lớp 3",
+    "grade4": "Lớp 4",
+    "grade5": "Lớp 5",
+    "middle": "Trung học cơ sở",
+    "high": "Trung học phổ thông"
+  },
+  "subjects": {
+    "math": "Toán",
+    "science": "Khoa học",
+    "english": "Tiếng Anh",
+    "history": "Lịch sử",
+    "art": "Mỹ thuật",
+    "music": "Âm nhạc",
+    "pe": "Giáo dục thể chất",
+    "social": "Khoa học xã hội"
+  },
+  "footer": {
+    "product": "Sản phẩm",
+    "legal": "Pháp lý",
+    "earn": "Kiếm tiền",
+    "terms": "Điều khoản & Điều kiện",
+    "privacy": "Chính sách bảo mật",
+    "refund": "Chính sách hoàn tiền",
+    "affiliate": "Chương trình liên kết",
+    "contact": "Liên hệ",
+    "description": "Nền tảng tạo nội dung bằng AI cho giáo viên bận rộn. Tạo hình ảnh giáo dục, bài thuyết trình, hoạt động, bài tập và kịch bản video trong vài giây."
+  },
+  "language": {
+    "selectLanguage": "Chọn ngôn ngữ",
+    "languageChanged": "Đã thay đổi ngôn ngữ thành công"
+  }
+}

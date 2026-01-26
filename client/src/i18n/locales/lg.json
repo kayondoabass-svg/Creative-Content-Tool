@@ -1,0 +1,103 @@
+{
+  "common": {
+    "signIn": "Yingira",
+    "signUp": "Wandiika",
+    "signOut": "Fuluma",
+    "getStarted": "Tandika Bwereere",
+    "features": "Ebintu Ebikola",
+    "fileTools": "Ebikozesebwa by'Efayiro",
+    "pricing": "Bbeeyi",
+    "loading": "Kiloada...",
+    "save": "Tereka",
+    "cancel": "Sazaamu",
+    "download": "Tikula",
+    "copy": "Koppa",
+    "delete": "Sazaamu",
+    "generate": "Kolamu",
+    "premium": "Premium",
+    "free": "Bwereere",
+    "upgrade": "Yongera okutuuka ku Premium",
+    "manageSubscription": "Ddukanya Okuwandiika"
+  },
+  "landing": {
+    "heroTitle": "Eddoboozi oba Ebiwandiiko okufuuka Amazima",
+    "heroSubtitle": "Ebirimu by'Abasomesa Abalina Emirimu Emingi",
+    "heroDescription": "Kola ebifaananyi by'okusoma ebirungi, ebibiino, emirimu, empapula z'okukola n'ebifo by'evidiyo mu sikonda. Leka AI ekole omulimu omuzito olyoke obeere n'ekisinga obukulu - abayizi bo.",
+    "featuresTitle": "Byonna By'weetaaga Okukola Ebirimu Ebirungi Ennyo"
+  },
+  "contentTypes": {
+    "image": "Ebifaananyi by'Okusoma",
+    "imageDesc": "Kola ebifaananyi ebirungi, ebisigade mu kibiina ebikola ebirowoozo bifuuke eby'amaanyi",
+    "presentation": "Ebibiino",
+    "presentationDesc": "Kola ebibiino ebiramba n'ebifaananyi n'ebiwandiiko by'omwogezi mu budde butono",
+    "text": "Ebirimu by'Ebiwandiiko",
+    "textDesc": "Kola engero, ebinnyonnyola n'ebikozesebwa mu kusoma ebyenkanaankana n'omutindo gwonna",
+    "activity": "Emirimu n'Emizannyo",
+    "activityDesc": "Tegeka ebibuuzo eby'okukwatagana, emizannyo gy'okugatta n'emirimu gy'ekibiina esanyusa",
+    "storyboard": "Ebifo by'Evidiyo",
+    "storyboardDesc": "Tegekeraho evidiyo ez'okusoma ez'okuvuga n'emikutu gy'okulaba ekifaananyi ku kifaananyi",
+    "worksheet": "Empapula z'Okukola",
+    "worksheetDesc": "Kola empapula z'okukola ezisobiika n'ebibuuzo, ojjuzeewo ebifo n'ebirala"
+  },
+  "auth": {
+    "email": "Yimeeri",
+    "password": "Ekigambo ekyama",
+    "firstName": "Erinnya Eryasooka",
+    "lastName": "Erinnya Erisembayo",
+    "confirmPassword": "Kakasa Ekigambo Ekyama",
+    "forgotPassword": "Weerabidde Ekigambo Ekyama?",
+    "noAccount": "Tolina akaawunta?",
+    "hasAccount": "Olinawo dda akaawunta?",
+    "verifyEmail": "Kakasa Yimeeri Yo",
+    "verificationCode": "Koodi y'Okukakasa",
+    "resendCode": "Ddamu Okusindika Koodi",
+    "loginTitle": "Tukwaniriza Okukomawo",
+    "loginSubtitle": "Yingira okwongera okukola ebirimu ebirungi ennyo",
+    "signupTitle": "Kolamu Akaawunta Yo",
+    "signupSubtitle": "Tandika okukola ebirimu by'okusoma mu sikonda"
+  },
+  "home": {
+    "whatCreate": "Oyagala kukola ki?",
+    "promptPlaceholder": "Nnyonnyola ebirimu by'okusoma by'oyagala okukola...",
+    "gradeLevel": "Omutindo gw'Ekibiina",
+    "subject": "Essomo",
+    "history": "Ebyafaayo",
+    "clearHistory": "Sanyawo Ebyafaayo"
+  },
+  "grades": {
+    "preschool": "Emyaka egy'Okusoma",
+    "kindergarten": "Kindergateni",
+    "grade1": "Ekibiina 1",
+    "grade2": "Ekibiina 2",
+    "grade3": "Ekibiina 3",
+    "grade4": "Ekibiina 4",
+    "grade5": "Ekibiina 5",
+    "middle": "Essomero Awakati",
+    "high": "Essomero Ery'Waggulu"
+  },
+  "subjects": {
+    "math": "Okubala",
+    "science": "Ssaayansi",
+    "english": "Olungereza",
+    "history": "Ebyafaayo",
+    "art": "Obukalabanda",
+    "music": "Ennyimba",
+    "pe": "Okusomesebwa kw'Omubiri",
+    "social": "Essomo ly'Abantu"
+  },
+  "footer": {
+    "product": "Ekintu",
+    "legal": "Eby'Amateeka",
+    "earn": "Funa",
+    "terms": "Obukwakulizo n'Embeera",
+    "privacy": "Enkola y'Ebyama",
+    "refund": "Enkola y'Okuzzaayo Ssente",
+    "affiliate": "Pulogulamu y'Abakozi",
+    "contact": "Tuukirira",
+    "description": "Ekifo ky'okukola ebirimu ekikozesebwa AI ky'abasomesa abalina emirimu emingi. Kola ebifaananyi by'okusoma, ebibiino, emirimu, empapula z'okukola n'ebifo by'evidiyo mu sikonda."
+  },
+  "language": {
+    "selectLanguage": "Londa Olulimi",
+    "languageChanged": "Olulimi lukyusiddwa bulungi"
+  }
+}

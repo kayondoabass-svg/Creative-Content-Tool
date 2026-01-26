@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSelector } from "@/components/language-selector";
 import { LogoSettings } from "@/components/logo-settings";
 import { FileConverter } from "@/components/file-converter";
 import { Sparkles, GraduationCap, LogOut, Crown, User, LayoutDashboard } from "lucide-react";
@@ -190,6 +191,7 @@ function HeaderWithLogo() {
         )}
         <FileConverter />
         <LogoSettings />
+        <LanguageSelector />
         <ThemeToggle />
         <UserMenu />
       </div>

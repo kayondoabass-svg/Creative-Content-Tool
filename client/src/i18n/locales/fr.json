@@ -1,0 +1,103 @@
+{
+  "common": {
+    "signIn": "Se connecter",
+    "signUp": "S'inscrire",
+    "signOut": "Se déconnecter",
+    "getStarted": "Commencer gratuitement",
+    "features": "Fonctionnalités",
+    "fileTools": "Outils de fichiers",
+    "pricing": "Tarifs",
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "download": "Télécharger",
+    "copy": "Copier",
+    "delete": "Supprimer",
+    "generate": "Générer",
+    "premium": "Premium",
+    "free": "Gratuit",
+    "upgrade": "Passer à Premium",
+    "manageSubscription": "Gérer l'abonnement"
+  },
+  "landing": {
+    "heroTitle": "De la voix ou du texte à la réalité",
+    "heroSubtitle": "Du contenu pour les enseignants débordés",
+    "heroDescription": "Créez de superbes images éducatives, présentations, activités, fiches de travail et storyboards vidéo en quelques secondes. Laissez l'IA faire le travail difficile pour que vous puissiez vous concentrer sur l'essentiel - vos élèves.",
+    "featuresTitle": "Tout ce dont vous avez besoin pour créer un contenu incroyable"
+  },
+  "contentTypes": {
+    "image": "Images éducatives",
+    "imageDesc": "Créez de belles illustrations prêtes pour la classe qui donnent vie aux concepts",
+    "presentation": "Présentations",
+    "presentationDesc": "Créez des diaporamas complets avec images et notes de l'intervenant en quelques minutes",
+    "text": "Contenu textuel",
+    "textDesc": "Générez des histoires, des explications et du matériel pédagogique adapté à tout niveau",
+    "activity": "Activités et jeux",
+    "activityDesc": "Concevez des quiz interactifs, des jeux d'association et des activités de classe engageantes",
+    "storyboard": "Storyboards vidéo",
+    "storyboardDesc": "Planifiez des vidéos éducatives animées avec des guides visuels image par image",
+    "worksheet": "Fiches de travail",
+    "worksheetDesc": "Générez des fiches imprimables avec des questions, des textes à trous et plus encore"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Mot de passe",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "confirmPassword": "Confirmer le mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "noAccount": "Vous n'avez pas de compte ?",
+    "hasAccount": "Vous avez déjà un compte ?",
+    "verifyEmail": "Vérifiez votre email",
+    "verificationCode": "Code de vérification",
+    "resendCode": "Renvoyer le code",
+    "loginTitle": "Bon retour",
+    "loginSubtitle": "Connectez-vous pour continuer à créer du contenu incroyable",
+    "signupTitle": "Créez votre compte",
+    "signupSubtitle": "Commencez à créer du contenu éducatif en quelques secondes"
+  },
+  "home": {
+    "whatCreate": "Que souhaitez-vous créer ?",
+    "promptPlaceholder": "Décrivez le contenu éducatif que vous souhaitez créer...",
+    "gradeLevel": "Niveau scolaire",
+    "subject": "Matière",
+    "history": "Historique",
+    "clearHistory": "Effacer l'historique"
+  },
+  "grades": {
+    "preschool": "Maternelle",
+    "kindergarten": "Grande section",
+    "grade1": "CP",
+    "grade2": "CE1",
+    "grade3": "CE2",
+    "grade4": "CM1",
+    "grade5": "CM2",
+    "middle": "Collège",
+    "high": "Lycée"
+  },
+  "subjects": {
+    "math": "Mathématiques",
+    "science": "Sciences",
+    "english": "Anglais",
+    "history": "Histoire",
+    "art": "Arts plastiques",
+    "music": "Musique",
+    "pe": "Éducation physique",
+    "social": "Sciences sociales"
+  },
+  "footer": {
+    "product": "Produit",
+    "legal": "Mentions légales",
+    "earn": "Gagner",
+    "terms": "Conditions générales",
+    "privacy": "Politique de confidentialité",
+    "refund": "Politique de remboursement",
+    "affiliate": "Programme d'affiliation",
+    "contact": "Contact",
+    "description": "Plateforme de création de contenu propulsée par l'IA pour les enseignants débordés. Créez des images éducatives, des présentations, des activités, des fiches de travail et des storyboards vidéo en quelques secondes."
+  },
+  "language": {
+    "selectLanguage": "Choisir la langue",
+    "languageChanged": "Langue modifiée avec succès"
+  }
+}

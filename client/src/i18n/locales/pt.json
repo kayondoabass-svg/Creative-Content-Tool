@@ -1,0 +1,103 @@
+{
+  "common": {
+    "signIn": "Entrar",
+    "signUp": "Cadastrar",
+    "signOut": "Sair",
+    "getStarted": "Começar grátis",
+    "features": "Recursos",
+    "fileTools": "Ferramentas de arquivo",
+    "pricing": "Preços",
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "download": "Baixar",
+    "copy": "Copiar",
+    "delete": "Excluir",
+    "generate": "Gerar",
+    "premium": "Premium",
+    "free": "Grátis",
+    "upgrade": "Atualizar para Premium",
+    "manageSubscription": "Gerenciar assinatura"
+  },
+  "landing": {
+    "heroTitle": "Da voz ou texto para a realidade",
+    "heroSubtitle": "Conteúdo para professores ocupados",
+    "heroDescription": "Crie imagens educacionais impressionantes, apresentações, atividades, fichas de trabalho e storyboards de vídeo em segundos. Deixe a IA fazer o trabalho pesado para que você possa se concentrar no que mais importa - seus alunos.",
+    "featuresTitle": "Tudo o que você precisa para criar conteúdo incrível"
+  },
+  "contentTypes": {
+    "image": "Imagens educacionais",
+    "imageDesc": "Crie belas ilustrações prontas para a sala de aula que dão vida aos conceitos",
+    "presentation": "Apresentações",
+    "presentationDesc": "Crie apresentações completas com imagens e notas do palestrante em minutos",
+    "text": "Conteúdo de texto",
+    "textDesc": "Gere histórias, explicações e materiais de aprendizagem adequados para qualquer nível",
+    "activity": "Atividades e jogos",
+    "activityDesc": "Projete questionários interativos, jogos de combinação e atividades de sala de aula envolventes",
+    "storyboard": "Storyboards de vídeo",
+    "storyboardDesc": "Planeje vídeos educacionais animados com guias visuais quadro a quadro",
+    "worksheet": "Fichas de trabalho",
+    "worksheetDesc": "Gere fichas imprimíveis com perguntas, lacunas para preencher e mais"
+  },
+  "auth": {
+    "email": "E-mail",
+    "password": "Senha",
+    "firstName": "Nome",
+    "lastName": "Sobrenome",
+    "confirmPassword": "Confirmar senha",
+    "forgotPassword": "Esqueceu a senha?",
+    "noAccount": "Não tem uma conta?",
+    "hasAccount": "Já tem uma conta?",
+    "verifyEmail": "Verifique seu e-mail",
+    "verificationCode": "Código de verificação",
+    "resendCode": "Reenviar código",
+    "loginTitle": "Bem-vindo de volta",
+    "loginSubtitle": "Entre para continuar criando conteúdo incrível",
+    "signupTitle": "Crie sua conta",
+    "signupSubtitle": "Comece a criar conteúdo educacional em segundos"
+  },
+  "home": {
+    "whatCreate": "O que você gostaria de criar?",
+    "promptPlaceholder": "Descreva o conteúdo educacional que você quer criar...",
+    "gradeLevel": "Nível escolar",
+    "subject": "Matéria",
+    "history": "Histórico",
+    "clearHistory": "Limpar histórico"
+  },
+  "grades": {
+    "preschool": "Pré-escola",
+    "kindergarten": "Jardim de infância",
+    "grade1": "1º Ano",
+    "grade2": "2º Ano",
+    "grade3": "3º Ano",
+    "grade4": "4º Ano",
+    "grade5": "5º Ano",
+    "middle": "Ensino Fundamental II",
+    "high": "Ensino Médio"
+  },
+  "subjects": {
+    "math": "Matemática",
+    "science": "Ciências",
+    "english": "Inglês",
+    "history": "História",
+    "art": "Arte",
+    "music": "Música",
+    "pe": "Educação Física",
+    "social": "Estudos Sociais"
+  },
+  "footer": {
+    "product": "Produto",
+    "legal": "Legal",
+    "earn": "Ganhar",
+    "terms": "Termos e Condições",
+    "privacy": "Política de Privacidade",
+    "refund": "Política de Reembolso",
+    "affiliate": "Programa de Afiliados",
+    "contact": "Contato",
+    "description": "Plataforma de criação de conteúdo alimentada por IA para professores ocupados. Crie imagens educacionais, apresentações, atividades, fichas de trabalho e storyboards de vídeo em segundos."
+  },
+  "language": {
+    "selectLanguage": "Selecionar idioma",
+    "languageChanged": "Idioma alterado com sucesso"
+  }
+}
