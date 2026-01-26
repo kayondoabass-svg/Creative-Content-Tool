@@ -358,17 +358,25 @@ export async function registerRoutes(
       
       // Check authentication - premium feature only
       const sessionUserId = (req as any).session?.userId;
+      const sessionUser = (req as any).session?.user;
       if (!sessionUserId) {
         return res.status(401).json({ error: "Please sign in to generate logos" });
       }
       
-      // Check subscription status - premium feature
-      const subscriptionStatus = await stripeService.getSubscriptionStatus(sessionUserId);
-      if (!subscriptionStatus.isPremium) {
-        return res.status(403).json({ 
-          error: "Logo generation is a premium feature. Upgrade to access this feature!",
-          requiresPremium: true
-        });
+      // CEO bypass - founder always gets premium access
+      const CEO_EMAILS = ["kayondoabass@gmail.com"];
+      const userEmail = sessionUser?.email;
+      const isCEO = userEmail && CEO_EMAILS.includes(userEmail.toLowerCase());
+      
+      // Check subscription status - premium feature (CEO gets bypass)
+      if (!isCEO) {
+        const subscriptionStatus = await stripeService.getSubscriptionStatus(sessionUserId);
+        if (!subscriptionStatus.isPremium) {
+          return res.status(403).json({ 
+            error: "Logo generation is a premium feature. Upgrade to access this feature!",
+            requiresPremium: true
+          });
+        }
       }
       
       if (!name || typeof name !== "string") {
@@ -872,7 +880,16 @@ This should look like it was designed by a world-class branding agency. Make it 
       
       let isPremium = false;
       const userId = (req.session as any)?.userId;
-      if (userId) {
+      const sessionUser = (req.session as any)?.user;
+      
+      // CEO bypass - founder always gets premium access
+      const CEO_EMAILS = ["kayondoabass@gmail.com"];
+      const userEmail = sessionUser?.email;
+      const isCEO = userEmail && CEO_EMAILS.includes(userEmail.toLowerCase());
+      
+      if (isCEO) {
+        isPremium = true;
+      } else if (userId) {
         try {
           const { getSubscriptionStatus } = await import('./paddleService');
           const subscriptionStatus = await getSubscriptionStatus(userId);
@@ -1160,7 +1177,12 @@ This should look like it was designed by a world-class branding agency. Make it 
       
       // Check subscription status
       const subscriptionStatus = await stripeService.getSubscriptionStatus(userId);
-      const isPremium = subscriptionStatus.isPremium;
+      
+      // CEO bypass - founder always gets premium access
+      const CEO_EMAILS = ["kayondoabass@gmail.com"];
+      const userEmail = sessionUser?.email || legacyUser?.claims?.email;
+      const isCEO = userEmail && CEO_EMAILS.includes(userEmail.toLowerCase());
+      const isPremium = isCEO || subscriptionStatus.isPremium;
       
       // Check free tier usage limits for non-premium users
       if (!isPremium) {
@@ -2060,6 +2082,21 @@ export function registerSubscriptionRoutes(app: any) {
       const userId = req.user?.claims?.sub;
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      // CEO bypass - founder always gets premium access
+      const CEO_EMAILS = ["kayondoabass@gmail.com"];
+      const userEmail = req.user?.claims?.email;
+      const isCEO = userEmail && CEO_EMAILS.includes(userEmail.toLowerCase());
+      
+      if (isCEO) {
+        return res.json({
+          tier: "yearly",
+          status: "active",
+          isPremium: true,
+          isCEO: true,
+          subscriptionEndsAt: null
+        });
       }
 
       const user = await stripeService.getUser(userId);
