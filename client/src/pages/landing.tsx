@@ -58,7 +58,7 @@ export default function LandingPage() {
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % showcaseSlides.length);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-background to-muted/30">
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <main className="pt-24 pb-16">
+      <main className="flex-1 pt-24 pb-16">
         <section className="container mx-auto px-4 py-12">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
