@@ -205,7 +205,7 @@ function App() {
           <div className="flex flex-col h-screen w-full bg-background">
             <HeaderWithLogo />
             
-            <main className="flex-1 overflow-hidden">
+            <main className="flex-1 overflow-y-auto">
               <Router />
             </main>
           </div>
