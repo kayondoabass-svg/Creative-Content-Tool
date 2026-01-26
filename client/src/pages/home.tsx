@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearch } from "wouter";
 import { Image, Presentation, FileText, Gamepad2, Film, ClipboardList } from "lucide-react";
 import { ContentTypeCard } from "@/components/content-type-card";
 import { PromptInput } from "@/components/prompt-input";
@@ -55,12 +56,27 @@ const contentTypes = [
 ];
 
 export default function Home() {
+  const searchString = useSearch();
   const [selectedType, setSelectedType] = useState<ContentType>("image");
+  const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<GeneratedContent | null>(null);
   const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }; worksheetOptions?: { colorMode?: string }; referenceImage?: string; imageOptions?: { style?: string; quality?: string; layout?: string }; textOptions?: { style?: string }; activityOptions?: { gameType?: string }; includeLogo?: boolean } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const type = params.get("type");
+    const game = params.get("game");
+    
+    if (type && contentTypes.some(ct => ct.type === type)) {
+      setSelectedType(type as ContentType);
+    }
+    if (game) {
+      setSelectedGameType(game);
+    }
+  }, [searchString]);
 
   const { data: history = [] } = useQuery<GeneratedContent[]>({
     queryKey: ["/api/content"],
@@ -162,6 +178,7 @@ export default function Home() {
             selectedType={selectedType}
             onGenerate={handleGenerate}
             isGenerating={generateMutation.isPending}
+            defaultGameType={selectedGameType}
           />
 
           {/* Generated Content */}

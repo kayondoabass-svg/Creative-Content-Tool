@@ -34,7 +34,7 @@ export function GamesLauncher() {
 
   const handleSelectGame = (gameId: string) => {
     setOpen(false);
-    setLocation(`/home?type=activity&game=${gameId}`);
+    setLocation(`/?type=activity&game=${gameId}`);
   };
 
   return (

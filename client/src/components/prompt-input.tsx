@@ -17,6 +17,7 @@ interface PromptInputProps {
   selectedType: ContentType;
   onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean) => void;
   isGenerating: boolean;
+  defaultGameType?: string | null;
 }
 
 const worksheetColorModes = [
@@ -185,7 +186,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptInputProps) {
+export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGameType }: PromptInputProps) {
   const { isPremium } = useSubscription();
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -256,6 +257,12 @@ export function PromptInput({ selectedType, onGenerate, isGenerating }: PromptIn
       resetTranscript();
     }
   }, [transcript, form, resetTranscript]);
+
+  useEffect(() => {
+    if (defaultGameType && selectedType === "activity") {
+      form.setValue("gameType", defaultGameType);
+    }
+  }, [defaultGameType, selectedType, form]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
