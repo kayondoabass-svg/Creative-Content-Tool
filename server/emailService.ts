@@ -47,7 +47,11 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     const { client, fromEmail } = await getResendClient();
     
     // Use the from email from connection or fallback to verified domain
-    const sender = fromEmail || 'BrightBoard <noreply@brightboardapp.com>';
+    // Ensure proper format with name
+    let sender = fromEmail || 'noreply@brightboardapp.com';
+    if (sender && !sender.includes('<')) {
+      sender = `BrightBoard <${sender}>`;
+    }
     console.log('Attempting to send verification email to:', email, 'from:', sender, 'connection fromEmail:', fromEmail);
     
     const result = await client.emails.send({
@@ -103,7 +107,11 @@ export async function sendPasswordResetEmail(email: string, code: string): Promi
     const { client, fromEmail } = await getResendClient();
     
     // Use the from email from connection or fallback to verified domain
-    const sender = fromEmail || 'BrightBoard <noreply@brightboardapp.com>';
+    // Ensure proper format with name
+    let sender = fromEmail || 'noreply@brightboardapp.com';
+    if (sender && !sender.includes('<')) {
+      sender = `BrightBoard <${sender}>`;
+    }
     console.log('Attempting to send password reset email to:', email, 'from:', sender, 'connection fromEmail:', fromEmail);
     
     const result = await client.emails.send({
