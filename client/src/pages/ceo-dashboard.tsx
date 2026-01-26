@@ -96,8 +96,9 @@ export default function CEODashboard() {
   });
 
   // Check CEO access first
-  const { data: ceoCheck, isLoading: ceoLoading } = useQuery<{ isCEO: boolean }>({
+  const { data: ceoCheck, isLoading: ceoLoading, error: ceoError } = useQuery<{ isCEO: boolean }>({
     queryKey: ["/api/ceo/check"],
+    retry: 1,
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery<UserStats>({
@@ -128,8 +129,28 @@ export default function CEODashboard() {
   // Show loading state
   if (ceoLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Checking access...</p>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (ceoError) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-8">
+        <ShieldX className="h-16 w-16 text-destructive" />
+        <h1 className="text-2xl font-bold">Error Loading Dashboard</h1>
+        <p className="text-muted-foreground text-center">There was a problem checking your access. Please try again.</p>
+        <div className="flex gap-4">
+          <Button onClick={() => window.location.reload()} data-testid="button-retry">
+            Retry
+          </Button>
+          <Button variant="outline" onClick={() => setLocation("/")} data-testid="button-go-home">
+            Go to Home
+          </Button>
+        </div>
       </div>
     );
   }
