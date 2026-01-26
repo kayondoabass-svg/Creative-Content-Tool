@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSelector } from "@/components/language-selector";
 import { LogoSettings } from "@/components/logo-settings";
 import { FileConverter } from "@/components/file-converter";
+import { GamesLauncher } from "@/components/games-launcher";
 import { Sparkles, GraduationCap, LogOut, Crown, User, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -193,6 +194,7 @@ function HeaderWithLogo() {
           />
         )}
         <FileConverter />
+        <GamesLauncher />
         <LogoSettings />
         <LanguageSelector />
         <ThemeToggle />
