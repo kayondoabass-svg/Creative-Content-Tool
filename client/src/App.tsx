@@ -9,7 +9,7 @@ import { LanguageSelector } from "@/components/language-selector";
 import { LogoSettings } from "@/components/logo-settings";
 import { FileConverter } from "@/components/file-converter";
 import { GamesLauncher } from "@/components/games-launcher";
-import { Sparkles, GraduationCap, LogOut, Crown, User, LayoutDashboard } from "lucide-react";
+import { Sparkles, GraduationCap, LogOut, Crown, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -19,7 +19,6 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import LandingPage from "@/pages/landing";
 import PricingPage from "@/pages/pricing";
-import CEODashboard from "@/pages/ceo-dashboard";
 import Terms from "@/pages/terms";
 import Privacy from "@/pages/privacy";
 import Refund from "@/pages/refund";
@@ -60,7 +59,6 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
-          <Route path="/ceo" component={CEODashboard} />
           <Route component={NotFound} />
         </>
       )}
@@ -74,11 +72,7 @@ function UserMenu() {
     queryKey: ["/api/subscription/status"],
     enabled: isAuthenticated,
   });
-  const { data: ceoCheck } = useQuery<{ isCEO: boolean }>({
-    queryKey: ["/api/ceo/check"],
-    enabled: isAuthenticated,
-  });
-
+  
   if (isLoading) {
     return <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />;
   }
@@ -92,7 +86,6 @@ function UserMenu() {
   }
 
   const isPremium = (subscriptionStatus as any)?.isPremium;
-  const isCEO = ceoCheck?.isCEO;
   const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U";
 
   return (
@@ -131,17 +124,6 @@ function UserMenu() {
             )}
           </a>
         </DropdownMenuItem>
-        {isCEO && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" asChild>
-              <a href="/ceo" className="flex items-center gap-2">
-                <LayoutDashboard className="w-4 h-4" />
-                <span>CEO Dashboard</span>
-              </a>
-            </DropdownMenuItem>
-          </>
-        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem 
           className="cursor-pointer flex items-center gap-2 text-destructive" 
