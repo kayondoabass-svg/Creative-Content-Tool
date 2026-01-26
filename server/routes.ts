@@ -1449,6 +1449,44 @@ This should look like it was designed by a world-class branding agency. Make it 
     }
   });
 
+  // Toggle user premium status (CEO only)
+  app.post("/api/ceo/users/:userId/toggle-premium", async (req, res) => {
+    if (!isCEO(req)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    try {
+      const { userId } = req.params;
+      const user = await stripeService.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Toggle between premium (yearly) and free
+      const currentTier = user.subscriptionTier || "free";
+      const newTier = currentTier === "free" ? "yearly" : "free";
+      const newStatus = newTier === "free" ? "inactive" : "active";
+      
+      // Update user subscription using stripeService
+      await stripeService.updateUserStripeInfo(userId, {
+        subscriptionTier: newTier,
+        subscriptionStatus: newStatus
+      });
+      
+      res.json({ 
+        success: true, 
+        userId,
+        previousTier: currentTier,
+        newTier,
+        newStatus,
+        message: `User ${newTier === "free" ? "downgraded to free" : "upgraded to premium"}`
+      });
+    } catch (error) {
+      console.error("Error toggling user premium:", error);
+      res.status(500).json({ error: "Failed to toggle premium status" });
+    }
+  });
+
   // Check if user is CEO
   app.get("/api/ceo/check", async (req, res) => {
     res.json({ isCEO: isCEO(req) });

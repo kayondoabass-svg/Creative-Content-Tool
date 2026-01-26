@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, TrendingUp, Globe, BarChart3, Briefcase, Plus, Pencil, Trash2, Crown, Image, Presentation, FileText, Gamepad2, Video, FileSpreadsheet, Loader2, ShieldX } from "lucide-react";
+import { Users, TrendingUp, Globe, BarChart3, Briefcase, Plus, Pencil, Trash2, Crown, Image, Presentation, FileText, Gamepad2, Video, FileSpreadsheet, Loader2, ShieldX, Gift, ToggleLeft, ToggleRight } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -195,6 +196,24 @@ export default function CEODashboard() {
     },
     onError: () => {
       toast({ title: "Failed to delete job posting", variant: "destructive" });
+    },
+  });
+
+  // Toggle user premium status
+  const togglePremiumMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest("POST", `/api/ceo/users/${userId}/toggle-premium`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ceo/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ceo/stats"] });
+      toast({ 
+        title: data.newTier === "free" ? "Premium Revoked" : "Premium Granted",
+        description: data.message
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to toggle premium status", variant: "destructive" });
     },
   });
 
@@ -555,11 +574,11 @@ export default function CEODashboard() {
         </Card>
       </section>
 
-      {/* Recent Users */}
+      {/* Recent Users with Premium Toggle */}
       <section>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Recent Users
+          <Gift className="h-5 w-5 text-purple-500" />
+          User Management - Grant Premium Access
         </h2>
         <Card>
           <CardContent className="p-0">
@@ -572,33 +591,51 @@ export default function CEODashboard() {
                   <TableHead>Subscription</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead>Last Active</TableHead>
+                  <TableHead className="text-center">Premium Access</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.slice(0, 20).map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">
-                      {user.firstName || ""} {user.lastName || ""}
-                      {!user.firstName && !user.lastName && <span className="text-muted-foreground">Unknown</span>}
-                    </TableCell>
-                    <TableCell>{user.email || "-"}</TableCell>
-                    <TableCell>{user.country || "Unknown"}</TableCell>
-                    <TableCell>
-                      <Badge variant={user.subscriptionTier === "free" || !user.subscriptionTier ? "secondary" : "default"}>
-                        {user.subscriptionTier || "free"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {users?.slice(0, 50).map((user) => {
+                  const isPremium = !!(user.subscriptionTier && user.subscriptionTier !== "free");
+                  return (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">
+                        {user.firstName || ""} {user.lastName || ""}
+                        {!user.firstName && !user.lastName && <span className="text-muted-foreground">Unknown</span>}
+                      </TableCell>
+                      <TableCell>{user.email || "-"}</TableCell>
+                      <TableCell>{user.country || "Unknown"}</TableCell>
+                      <TableCell>
+                        <Badge variant={isPremium ? "default" : "secondary"} className={isPremium ? "bg-gradient-to-r from-purple-500 to-pink-500" : ""}>
+                          {isPremium && <Crown className="h-3 w-3 mr-1" />}
+                          {user.subscriptionTier || "free"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : "-"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Switch
+                            checked={isPremium}
+                            onCheckedChange={() => togglePremiumMutation.mutate(user.id)}
+                            disabled={togglePremiumMutation.isPending}
+                            data-testid={`toggle-premium-${user.id}`}
+                          />
+                          <span className={`text-xs ${isPremium ? "text-green-500" : "text-muted-foreground"}`}>
+                            {isPremium ? "ON" : "OFF"}
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {(!users || users.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No users yet.
                     </TableCell>
                   </TableRow>
