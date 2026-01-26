@@ -1505,10 +1505,19 @@ This should look like it was designed by a world-class branding agency. Make it 
       const session = req.session as any;
       const userId = session?.userId;
       
+      console.log("[CEO Check] Session data:", { 
+        hasSession: !!session, 
+        userId, 
+        sessionUser: session?.user?.email,
+        targetEmail: CEO_EMAIL 
+      });
+      
       // If we have a userId, fetch the user from database to get email
       if (userId) {
         const user = await customAuth.getUserById(userId);
+        console.log("[CEO Check] DB User:", user?.email);
         if (user && user.email?.toLowerCase() === CEO_EMAIL.toLowerCase()) {
+          console.log("[CEO Check] SUCCESS - matched via DB lookup");
           return res.json({ isCEO: true });
         }
       }
@@ -1516,15 +1525,18 @@ This should look like it was designed by a world-class branding agency. Make it 
       // Also check session user directly (backup)
       const sessionEmail = session?.user?.email;
       if (sessionEmail?.toLowerCase() === CEO_EMAIL.toLowerCase()) {
+        console.log("[CEO Check] SUCCESS - matched via session.user.email");
         return res.json({ isCEO: true });
       }
       
       // Check Replit auth format
       const replitEmail = (req as any).user?.claims?.email;
       if (replitEmail?.toLowerCase() === CEO_EMAIL.toLowerCase()) {
+        console.log("[CEO Check] SUCCESS - matched via Replit auth");
         return res.json({ isCEO: true });
       }
       
+      console.log("[CEO Check] FAILED - no matching email found");
       res.json({ isCEO: false });
     } catch (error) {
       console.error("[CEO Check] Error:", error);
