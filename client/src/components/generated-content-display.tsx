@@ -558,18 +558,50 @@ function TextContent({ content }: { content: string }) {
 function ActivityContent({ content }: { content: string }) {
   try {
     const data = JSON.parse(content);
-    const activity: Activity = data;
+    const activity = data;
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <h3 className="font-bold text-xl">{activity.title}</h3>
-          <Badge variant="outline" className="capitalize">{activity.type}</Badge>
+          <Badge variant="outline" className="capitalize">{activity.type?.replace(/-/g, ' ')}</Badge>
+          {activity.gameStyle && (
+            <Badge variant="secondary" className="capitalize">{activity.gameStyle}</Badge>
+          )}
+          {activity.duration && (
+            <Badge variant="secondary">{activity.duration}</Badge>
+          )}
         </div>
-        <p className="text-muted-foreground">{activity.instructions}</p>
+        
+        {activity.learningObjectives && activity.learningObjectives.length > 0 && (
+          <div className="bg-primary/10 rounded-lg p-3">
+            <p className="font-medium text-sm mb-1">Learning Objectives:</p>
+            <ul className="text-sm text-muted-foreground list-disc list-inside">
+              {activity.learningObjectives.map((obj: string, i: number) => (
+                <li key={i}>{obj}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {activity.materials && activity.materials.length > 0 && (
+          <div className="flex items-start gap-2">
+            <span className="font-medium text-sm">Materials:</span>
+            <div className="flex flex-wrap gap-1">
+              {activity.materials.map((mat: string, i: number) => (
+                <Badge key={i} variant="outline" className="text-xs">{mat}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        <div className="bg-muted/30 rounded-lg p-4">
+          <p className="font-medium mb-2">How to Play:</p>
+          <p className="text-muted-foreground whitespace-pre-line">{activity.instructions}</p>
+        </div>
         
         <div className="grid gap-3 mt-4">
-          {activity.items?.map((item, index) => (
+          {activity.items?.map((item: any, index: number) => (
             <Card key={index} className="p-3 bg-muted/30">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-7 h-7 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-xs">
@@ -578,9 +610,12 @@ function ActivityContent({ content }: { content: string }) {
                 <div className="flex-1">
                   <p className="font-medium">{item.question}</p>
                   <p className="text-sm text-accent mt-1">Answer: {item.answer}</p>
+                  {item.hint && (
+                    <p className="text-xs text-muted-foreground mt-1 italic">Hint: {item.hint}</p>
+                  )}
                   {item.options && item.options.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      {item.options.map((opt, i) => (
+                      {item.options.map((opt: string, i: number) => (
                         <Badge
                           key={i}
                           variant={opt === item.answer ? "default" : "secondary"}
@@ -596,6 +631,20 @@ function ActivityContent({ content }: { content: string }) {
             </Card>
           ))}
         </div>
+        
+        {activity.bonusChallenge && (
+          <div className="bg-amber-500/10 rounded-lg p-3 border border-amber-500/20">
+            <p className="font-medium text-sm text-amber-600 dark:text-amber-400">Bonus Challenge:</p>
+            <p className="text-sm text-muted-foreground">{activity.bonusChallenge}</p>
+          </div>
+        )}
+        
+        {activity.adaptations && (
+          <div className="bg-blue-500/10 rounded-lg p-3 border border-blue-500/20">
+            <p className="font-medium text-sm text-blue-600 dark:text-blue-400">Adaptations:</p>
+            <p className="text-sm text-muted-foreground">{activity.adaptations}</p>
+          </div>
+        )}
       </div>
     );
   } catch {

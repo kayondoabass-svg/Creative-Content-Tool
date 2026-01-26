@@ -785,9 +785,15 @@ export async function registerRoutes(
       const validatedData = generateContentSchema.parse(req.body);
       let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage } = validatedData;
       
-      // Get user info - require authentication
-      const user = (req as any).user;
-      const userId = user?.claims?.sub;
+      // Get user info - require authentication (custom session auth)
+      const sessionUserId = (req as any).session?.userId;
+      const sessionUser = (req as any).session?.user;
+      
+      // Also check for legacy Replit Auth format
+      const legacyUser = (req as any).user;
+      const legacyUserId = legacyUser?.claims?.sub;
+      
+      const userId = sessionUserId || legacyUserId;
       
       if (!userId) {
         return res.status(401).json({ error: "Please sign in to generate content" });
@@ -1285,40 +1291,68 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
   return JSON.parse(content);
 }
 
-// Activity/Game generation
+// Activity/Game generation - Enhanced for all subjects
 async function generateActivity(prompt: string, gradeLevel?: string, subject?: string) {
   const context = buildContext(gradeLevel, subject);
+  
+  // Subject-specific game types
+  const gameTypesBySubject: Record<string, string[]> = {
+    math: ["number-bingo", "math-relay", "dice-game", "matching", "quiz", "sorting", "sequencing", "puzzle"],
+    language: ["word-bingo", "spelling-bee", "story-chain", "rhyme-time", "matching", "fillInBlank", "quiz"],
+    science: ["scavenger-hunt", "experiment-steps", "classification", "life-cycle", "matching", "quiz", "sorting"],
+    "social-studies": ["map-hunt", "timeline", "matching", "quiz", "sorting", "roleplay"],
+    art: ["color-mixing", "art-style-match", "creative-challenge", "matching", "quiz"],
+    music: ["rhythm-pattern", "instrument-match", "song-lyrics", "matching", "quiz"],
+    stem: ["coding-puzzle", "engineering-challenge", "experiment-steps", "sorting", "sequencing", "quiz"],
+    default: ["matching", "quiz", "fillInBlank", "sorting", "sequencing", "bingo", "relay-race", "scavenger-hunt"]
+  };
+  
+  const subjectKey = subject?.toLowerCase().replace(/\s+/g, "-") || "default";
+  const availableTypes = gameTypesBySubject[subjectKey] || gameTypesBySubject.default;
   
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
         role: "system",
-        content: `You are an expert educational game designer specializing in creating fun, interactive learning activities for classrooms. ${context}
-        
-        Return a JSON object with this structure:
-        {
-          "title": "Activity Title",
-          "type": "matching" | "quiz" | "fillInBlank" | "sorting" | "sequencing",
-          "instructions": "Clear instructions for how to play/complete the activity",
-          "items": [
-            {
-              "question": "Question or prompt",
-              "answer": "Correct answer",
-              "options": ["Option A", "Option B", "Option C", "Correct Answer"]
-            }
-          ]
-        }
-        
-        Create 8-10 items for the activity.`
+        content: `You are an expert educational game designer who creates FUN, INTERACTIVE, HANDS-ON learning activities for classrooms. ${context}
+
+IMPORTANT: Create activities that are ACTIVE and ENGAGING - not just worksheets! Think of games kids would LOVE to play.
+
+Available activity types for this subject: ${availableTypes.join(", ")}
+
+Return a JSON object with this structure:
+{
+  "title": "Creative, Fun Activity Title",
+  "type": "One of: ${availableTypes.join(" | ")}",
+  "gameStyle": "classroom" | "group" | "pairs" | "individual",
+  "duration": "5-10 minutes" | "10-15 minutes" | "15-20 minutes",
+  "materials": ["List of materials needed, if any"],
+  "instructions": "Step-by-step instructions for how to play/complete the activity. Make it exciting!",
+  "learningObjectives": ["What students will learn"],
+  "items": [
+    {
+      "question": "Question, prompt, or challenge",
+      "answer": "Correct answer",
+      "options": ["Option A", "Option B", "Option C", "Correct Answer"],
+      "hint": "Optional helpful hint"
+    }
+  ],
+  "bonusChallenge": "Optional bonus activity for fast finishers",
+  "adaptations": "How to make it easier or harder"
+}
+
+Create 8-10 engaging items. For physical games like relay races or scavenger hunts, include movement instructions.`
       },
       {
         role: "user",
-        content: `Create a fun educational activity about: ${prompt}. Make it interactive and engaging for students.`
+        content: `Create a super fun, interactive classroom game or activity about: ${prompt}
+
+Make it something students will be EXCITED to play! Include movement, competition, or creative elements when appropriate. The activity should actively engage students, not just be a passive exercise.`
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 2048,
+    max_completion_tokens: 3000,
   });
 
   const content = response.choices[0]?.message?.content || "{}";
