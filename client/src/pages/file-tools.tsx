@@ -14,6 +14,7 @@ import {
   Scissors, Minimize2, Crown, Sparkles, ArrowLeft
 } from "lucide-react";
 import { Link } from "wouter";
+import { Footer } from "@/components/footer";
 
 const conversionOptions = [
   { from: "jpg", to: "pdf", label: "JPG to PDF", fromIcon: Image, toIcon: FileText },
@@ -489,6 +490,7 @@ export default function FileToolsPage() {
           </TabsContent>
         </Tabs>
       </main>
+      <Footer />
     </div>
   );
 }
