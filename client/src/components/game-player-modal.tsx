@@ -152,7 +152,7 @@ export function GamePlayerModal({ isOpen, onClose, gameType, gameData, title }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 overflow-hidden" hideCloseButton>
+      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0" hideCloseButton>
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-primary/5 to-accent/5">
             <h2 className="text-lg font-bold truncate">{title}</h2>
