@@ -18,7 +18,10 @@ export default function Terms() {
         <Card>
           <CardHeader>
             <CardTitle className="text-3xl">Terms of Service</CardTitle>
-            <p className="text-muted-foreground">Last updated: January 24, 2026</p>
+            <p className="text-muted-foreground">Last updated: January 26, 2026</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              BrightBoard is operated by <strong>Kayondo Abass</strong> (Sole Proprietor)
+            </p>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-6">
             <section>
