@@ -169,9 +169,12 @@ function HeaderWithLogo() {
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-accent">
-          <Sparkles className="h-5 w-5 text-white" />
-        </div>
+        <img 
+          src="/favicon.png" 
+          alt="BrightBoard" 
+          className="h-10 w-10 rounded-lg object-cover"
+          data-testid="img-brightboard-logo"
+        />
         <div>
           <h1 className="font-bold text-lg tracking-tight flex items-center gap-2">
             BrightBoard

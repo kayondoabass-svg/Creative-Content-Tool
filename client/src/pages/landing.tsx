@@ -66,9 +66,11 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <img 
+              src="/favicon.png" 
+              alt="BrightBoard" 
+              className="w-10 h-10 rounded-xl object-cover"
+            />
             <span className="font-bold text-xl">BrightBoard</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
