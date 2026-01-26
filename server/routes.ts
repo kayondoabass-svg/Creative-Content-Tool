@@ -356,28 +356,63 @@ export async function registerRoutes(
     try {
       const { name, style } = req.body;
       
+      // Check authentication - premium feature only
+      const sessionUserId = (req as any).session?.userId;
+      if (!sessionUserId) {
+        return res.status(401).json({ error: "Please sign in to generate logos" });
+      }
+      
+      // Check subscription status - premium feature
+      const subscriptionStatus = await stripeService.getSubscriptionStatus(sessionUserId);
+      if (!subscriptionStatus.isPremium) {
+        return res.status(403).json({ 
+          error: "Logo generation is a premium feature. Upgrade to access this feature!",
+          requiresPremium: true
+        });
+      }
+      
       if (!name || typeof name !== "string") {
         return res.status(400).json({ error: "Please provide an organization name" });
       }
       
       const stylePrompt = style || "modern, professional";
       
-      const response = await openai.images.generate({
-        model: "gpt-image-1",
-        prompt: `Create a simple, clean logo for "${name}". Style: ${stylePrompt}. The logo should be suitable for an educational institution or school. Use a clean white or transparent background. Make it minimalist and memorable.`,
-        n: 1,
-        size: "1024x1024",
-      });
+      // Generate 5 different logo variations
+      const logoPromises = [];
+      const variations = [
+        "minimalist with clean lines",
+        "playful and colorful for children",
+        "academic and traditional",
+        "modern with geometric shapes",
+        "creative with educational symbols"
+      ];
       
-      const imageData = response.data?.[0]?.b64_json;
-      if (!imageData) {
-        return res.status(500).json({ error: "Failed to generate logo" });
+      for (let i = 0; i < 5; i++) {
+        const variationStyle = `${stylePrompt}, ${variations[i]}`;
+        logoPromises.push(
+          openai.images.generate({
+            model: "gpt-image-1",
+            prompt: `Create a simple, clean logo for "${name}". Style: ${variationStyle}. The logo should be suitable for an educational institution or school. Use a clean white background. Make it unique and memorable. Variation ${i + 1} of 5.`,
+            n: 1,
+            size: "1024x1024",
+          })
+        );
       }
       
-      res.json({ logo: `data:image/png;base64,${imageData}` });
+      const responses = await Promise.all(logoPromises);
+      const logos = responses
+        .map(r => r.data?.[0]?.b64_json)
+        .filter(Boolean)
+        .map(data => `data:image/png;base64,${data}`);
+      
+      if (logos.length === 0) {
+        return res.status(500).json({ error: "Failed to generate logos" });
+      }
+      
+      res.json({ logos, variations });
     } catch (error) {
-      console.error("Error generating logo:", error);
-      res.status(500).json({ error: "Failed to generate logo" });
+      console.error("Error generating logos:", error);
+      res.status(500).json({ error: "Failed to generate logos" });
     }
   });
 
