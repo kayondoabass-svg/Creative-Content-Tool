@@ -174,3 +174,30 @@ MVP complete with all core features:
 
 ## Running the Project
 The app runs on port 5000 via `npm run dev`. The Express server serves both the API and the Vite-built frontend.
+
+## Resend Email Setup Guide
+To enable email sending (verification codes, password resets), follow these steps:
+
+### Step 1: Set up Resend Domain
+1. Go to https://resend.com/domains
+2. Click "Add Domain" and enter your domain (e.g., `brightboardapp.com`)
+3. Add the DNS records Resend provides to your domain provider (Cloudflare, etc.)
+4. Wait for verification (check mark shows "Verified")
+
+### Step 2: Create API Key for Your Domain
+1. Go to https://resend.com/api-keys
+2. Click "+ Create API key"
+3. Name it (e.g., `BrightBoard`)
+4. Permission: "Sending access"
+5. **Important**: Under "Domain", select your verified domain
+6. Click Create and **copy the API key** (shown only once)
+
+### Step 3: Configure Resend in Replit
+1. Open your Replit project
+2. Find the Resend connection in Tools/Connectors section
+3. Update the **API Key** with the key from Step 2
+4. Set **From Email** to an address on your verified domain (e.g., `noreply@brightboardapp.com`)
+5. Save
+
+### Step 4: Publish
+After configuring, republish your app for changes to take effect on the live site.
