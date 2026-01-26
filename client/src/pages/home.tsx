@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "wouter";
-import { Image, Presentation, FileText, Gamepad2, Film, ClipboardList } from "lucide-react";
+import { Image, Presentation, FileText, Film, ClipboardList } from "lucide-react";
 import { ContentTypeCard } from "@/components/content-type-card";
 import { PromptInput } from "@/components/prompt-input";
 import { GeneratedContentDisplay } from "@/components/generated-content-display";
@@ -31,13 +31,6 @@ const contentTypes = [
     title: "Educational Text",
     description: "Create stories, worksheets, explanations, and learning materials",
     color: "bg-chart-2",
-  },
-  {
-    type: "activity" as ContentType,
-    icon: Gamepad2,
-    title: "Online Games",
-    description: "Create fun spin wheels, mystery boxes, memory games & more for your classroom",
-    color: "bg-chart-3",
   },
   {
     type: "storyboard" as ContentType,

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, Image, FileText, Presentation, Gamepad2, Video, FileSpreadsheet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, Image, FileText, Presentation, Video, FileSpreadsheet, ChevronLeft, ChevronRight } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { LanguageSelector } from "@/components/language-selector";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -19,12 +19,6 @@ const showcaseSlides = [
     description: "Full slide decks with images and speaker notes, ready to teach",
     icon: Presentation,
     color: "from-blue-500 to-cyan-500",
-  },
-  {
-    title: "Create Online Games",
-    description: "Spin wheels, mystery boxes, memory games & more for your classroom",
-    icon: Gamepad2,
-    color: "from-green-500 to-emerald-500",
   },
   {
     title: "Design Printable Worksheets",
@@ -183,11 +177,6 @@ export default function LandingPage() {
               icon={<FileText className="w-6 h-6" />}
               title={t('contentTypes.text')}
               description={t('contentTypes.textDesc')}
-            />
-            <FeatureCard 
-              icon={<Gamepad2 className="w-6 h-6" />}
-              title={t('contentTypes.activity')}
-              description={t('contentTypes.activityDesc')}
             />
             <FeatureCard 
               icon={<Video className="w-6 h-6" />}
