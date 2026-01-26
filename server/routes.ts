@@ -1336,10 +1336,19 @@ This should look like it was designed by a world-class branding agency. Make it 
   const CEO_EMAIL = "kayondoabass@gmail.com";
 
   const isCEO = (req: any) => {
-    // Support both custom auth (session.user) and Replit auth (req.user.claims)
-    const sessionUser = req.session?.user;
+    // Support custom email/password auth via session
+    const session = req.session as any;
+    const sessionUser = session?.user;
+    const sessionEmail = sessionUser?.email;
+    
+    // Also check Replit auth format
     const replitUser = req.user;
-    const email = sessionUser?.email || replitUser?.claims?.email;
+    const replitEmail = replitUser?.claims?.email;
+    
+    const email = sessionEmail || replitEmail;
+    
+    console.log("[CEO Check] Session user:", sessionUser?.email, "Replit user:", replitEmail, "Result:", email?.toLowerCase() === CEO_EMAIL.toLowerCase());
+    
     return email?.toLowerCase() === CEO_EMAIL.toLowerCase();
   };
 
@@ -1492,7 +1501,35 @@ This should look like it was designed by a world-class branding agency. Make it 
 
   // Check if user is CEO
   app.get("/api/ceo/check", async (req, res) => {
-    res.json({ isCEO: isCEO(req) });
+    try {
+      const session = req.session as any;
+      const userId = session?.userId;
+      
+      // If we have a userId, fetch the user from database to get email
+      if (userId) {
+        const user = await customAuth.getUserById(userId);
+        if (user && user.email?.toLowerCase() === CEO_EMAIL.toLowerCase()) {
+          return res.json({ isCEO: true });
+        }
+      }
+      
+      // Also check session user directly (backup)
+      const sessionEmail = session?.user?.email;
+      if (sessionEmail?.toLowerCase() === CEO_EMAIL.toLowerCase()) {
+        return res.json({ isCEO: true });
+      }
+      
+      // Check Replit auth format
+      const replitEmail = (req as any).user?.claims?.email;
+      if (replitEmail?.toLowerCase() === CEO_EMAIL.toLowerCase()) {
+        return res.json({ isCEO: true });
+      }
+      
+      res.json({ isCEO: false });
+    } catch (error) {
+      console.error("[CEO Check] Error:", error);
+      res.json({ isCEO: false });
+    }
   });
 
   // Register subscription routes
