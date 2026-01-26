@@ -127,7 +127,7 @@ export default function CEODashboard() {
   // Show loading state
   if (ceoLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -136,13 +136,18 @@ export default function CEODashboard() {
   // Access denied for non-CEO users
   if (!ceoCheck?.isCEO) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-8">
         <ShieldX className="h-16 w-16 text-destructive" />
         <h1 className="text-2xl font-bold">Access Denied</h1>
-        <p className="text-muted-foreground">You don't have permission to view this page.</p>
-        <Button onClick={() => setLocation("/")} data-testid="button-go-home">
-          Go to Home
-        </Button>
+        <p className="text-muted-foreground text-center">You need to be logged in as the CEO to view this page.</p>
+        <div className="flex gap-4">
+          <Button onClick={() => setLocation("/login")} data-testid="button-login">
+            Log In
+          </Button>
+          <Button variant="outline" onClick={() => setLocation("/")} data-testid="button-go-home">
+            Go to Home
+          </Button>
+        </div>
       </div>
     );
   }
