@@ -69,6 +69,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-4">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
+            <a href="/file-tools" className="text-sm text-muted-foreground hover:text-foreground transition-colors">File Tools</a>
             <Button asChild data-testid="button-login">
               <a href="/login">Sign In</a>
             </Button>

@@ -36,6 +36,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/file-tools" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-file-tools">
+                  File Tools
+                </Link>
+              </li>
+              <li>
                 <Link href="/signup" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-get-started">
                   Get Started
                 </Link>

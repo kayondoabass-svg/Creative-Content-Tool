@@ -547,6 +547,312 @@ This should look like it was designed by a world-class branding agency. Make it 
     }
   });
 
+  // ========== FILE TOOLS ENDPOINTS ==========
+  
+  // Helper to check if user has premium subscription
+  async function checkPremiumStatus(userId: string | undefined): Promise<boolean> {
+    if (!userId) return false;
+    try {
+      const user = await storage.getUser(userId);
+      if (!user?.email) return false;
+      
+      // Check Paddle subscription
+      const paddleApiKey = process.env.PADDLE_API_KEY;
+      if (paddleApiKey) {
+        const response = await fetch("https://api.paddle.com/subscriptions", {
+          headers: {
+            "Authorization": `Bearer ${paddleApiKey}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const activeSubscription = data.data?.find((sub: any) => 
+            sub.status === "active" && 
+            sub.custom_data?.user_id === userId
+          );
+          if (activeSubscription) return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking premium status:", error);
+      return false;
+    }
+  }
+  
+  // File conversion with watermark support
+  app.post("/api/file-tools/convert", async (req, res) => {
+    try {
+      const { file, fileName, fromFormat, toFormat } = req.body;
+      
+      if (!file || !fileName) {
+        return res.status(400).json({ error: "File and filename are required" });
+      }
+      
+      // Server-side subscription check for watermark
+      const userId = (req.session as any)?.userId;
+      const isPremium = await checkPremiumStatus(userId);
+      const addWatermark = !isPremium;
+      
+      const base64Match = file.match(/^data:([^;]+);base64,(.+)$/);
+      if (!base64Match) {
+        return res.status(400).json({ error: "Invalid file format" });
+      }
+      
+      const mimeType = base64Match[1];
+      const base64Data = base64Match[2];
+      let buffer = Buffer.from(base64Data, "base64");
+      
+      let outputBuffer: Buffer;
+      let outputMimeType: string;
+      let outputExtension: string;
+      
+      if (toFormat === "pdf") {
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage([595, 842]);
+        
+        if (mimeType.startsWith("image/")) {
+          let image;
+          if (mimeType === "image/png") {
+            image = await pdfDoc.embedPng(buffer);
+          } else {
+            const pngBuffer = await sharp(buffer).png().toBuffer();
+            image = await pdfDoc.embedPng(pngBuffer);
+          }
+          
+          const { width, height } = image.scale(1);
+          const scale = Math.min(page.getWidth() / width, page.getHeight() / height) * 0.9;
+          page.drawImage(image, {
+            x: (page.getWidth() - width * scale) / 2,
+            y: (page.getHeight() - height * scale) / 2,
+            width: width * scale,
+            height: height * scale,
+          });
+        }
+        
+        // Add watermark for free users
+        if (addWatermark) {
+          const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+          page.drawText("Made with BrightBoard", {
+            x: 20,
+            y: 20,
+            size: 10,
+            font,
+            color: rgb(0.6, 0.6, 0.6),
+          });
+        }
+        
+        outputBuffer = Buffer.from(await pdfDoc.save());
+        outputMimeType = "application/pdf";
+        outputExtension = "pdf";
+      } else if (toFormat === "jpg" || toFormat === "jpeg") {
+        // Only support image-to-image conversion (PDF to image not supported without additional libraries)
+        if (mimeType === "application/pdf") {
+          return res.status(400).json({ error: "PDF to image conversion is not supported. Please use an online PDF converter for this feature." });
+        }
+        
+        let sharpInstance = sharp(buffer).jpeg({ quality: 85 });
+        
+        if (addWatermark) {
+          const metadata = await sharp(buffer).metadata();
+          const watermarkSvg = Buffer.from(`
+            <svg width="${metadata.width}" height="${metadata.height}">
+              <text x="20" y="${(metadata.height || 100) - 20}" font-family="Arial" font-size="16" fill="rgba(128,128,128,0.7)">Made with BrightBoard</text>
+            </svg>
+          `);
+          sharpInstance = sharpInstance.composite([{ input: watermarkSvg, gravity: 'southwest' }]);
+        }
+        
+        outputBuffer = await sharpInstance.toBuffer();
+        outputMimeType = "image/jpeg";
+        outputExtension = "jpg";
+      } else if (toFormat === "png") {
+        // Only support image-to-image conversion
+        if (mimeType === "application/pdf") {
+          return res.status(400).json({ error: "PDF to image conversion is not supported. Please use an online PDF converter for this feature." });
+        }
+        
+        let sharpInstance = sharp(buffer).png();
+        
+        if (addWatermark) {
+          const metadata = await sharp(buffer).metadata();
+          const watermarkSvg = Buffer.from(`
+            <svg width="${metadata.width}" height="${metadata.height}">
+              <text x="20" y="${(metadata.height || 100) - 20}" font-family="Arial" font-size="16" fill="rgba(128,128,128,0.7)">Made with BrightBoard</text>
+            </svg>
+          `);
+          sharpInstance = sharpInstance.composite([{ input: watermarkSvg, gravity: 'southwest' }]);
+        }
+        
+        outputBuffer = await sharpInstance.toBuffer();
+        outputMimeType = "image/png";
+        outputExtension = "png";
+      } else {
+        return res.status(400).json({ error: "Unsupported output format" });
+      }
+      
+      res.setHeader("Content-Type", outputMimeType);
+      res.setHeader("Content-Disposition", `attachment; filename="converted.${outputExtension}"`);
+      res.send(outputBuffer);
+    } catch (error) {
+      console.error("Error converting file:", error);
+      res.status(500).json({ error: "Failed to convert file" });
+    }
+  });
+
+  // Merge PDFs
+  app.post("/api/file-tools/merge", async (req, res) => {
+    try {
+      const { files } = req.body;
+      
+      if (!files || files.length < 2) {
+        return res.status(400).json({ error: "At least 2 files are required" });
+      }
+      
+      // Server-side subscription check for watermark
+      const userId = (req.session as any)?.userId;
+      const isPremium = await checkPremiumStatus(userId);
+      const addWatermark = !isPremium;
+      
+      const mergedPdf = await PDFDocument.create();
+      
+      for (const fileData of files) {
+        const base64Match = fileData.data.match(/^data:([^;]+);base64,(.+)$/);
+        if (!base64Match) continue;
+        
+        const buffer = Buffer.from(base64Match[2], "base64");
+        
+        try {
+          const sourcePdf = await PDFDocument.load(buffer);
+          const pages = await mergedPdf.copyPages(sourcePdf, sourcePdf.getPageIndices());
+          pages.forEach(page => mergedPdf.addPage(page));
+        } catch (e) {
+          // If it's an image, convert to PDF page
+          try {
+            const page = mergedPdf.addPage([595, 842]);
+            const pngBuffer = await sharp(buffer).png().toBuffer();
+            const image = await mergedPdf.embedPng(pngBuffer);
+            const { width, height } = image.scale(1);
+            const scale = Math.min(page.getWidth() / width, page.getHeight() / height) * 0.9;
+            page.drawImage(image, {
+              x: (page.getWidth() - width * scale) / 2,
+              y: (page.getHeight() - height * scale) / 2,
+              width: width * scale,
+              height: height * scale,
+            });
+          } catch (imageError) {
+            console.error("Could not process file:", fileData.name);
+          }
+        }
+      }
+      
+      // Add watermark to first page for free users
+      if (addWatermark && mergedPdf.getPageCount() > 0) {
+        const font = await mergedPdf.embedFont(StandardFonts.Helvetica);
+        const firstPage = mergedPdf.getPage(0);
+        firstPage.drawText("Merged with BrightBoard", {
+          x: 20,
+          y: 20,
+          size: 10,
+          font,
+          color: rgb(0.6, 0.6, 0.6),
+        });
+      }
+      
+      const outputBuffer = Buffer.from(await mergedPdf.save());
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", 'attachment; filename="merged.pdf"');
+      res.send(outputBuffer);
+    } catch (error) {
+      console.error("Error merging files:", error);
+      res.status(500).json({ error: "Failed to merge files" });
+    }
+  });
+
+  // Compress files
+  app.post("/api/file-tools/compress", async (req, res) => {
+    try {
+      const { file, fileName, level } = req.body;
+      
+      if (!file || !fileName) {
+        return res.status(400).json({ error: "File and filename are required" });
+      }
+      
+      // Server-side subscription check for watermark
+      const userId = (req.session as any)?.userId;
+      const isPremium = await checkPremiumStatus(userId);
+      const addWatermark = !isPremium;
+      
+      const base64Match = file.match(/^data:([^;]+);base64,(.+)$/);
+      if (!base64Match) {
+        return res.status(400).json({ error: "Invalid file format" });
+      }
+      
+      const mimeType = base64Match[1];
+      const base64Data = base64Match[2];
+      const buffer = Buffer.from(base64Data, "base64");
+      
+      let outputBuffer: Buffer;
+      let outputMimeType: string;
+      
+      const qualityMap = { low: 90, medium: 70, high: 40 };
+      const quality = qualityMap[level as keyof typeof qualityMap] || 70;
+      
+      if (mimeType.startsWith("image/")) {
+        let sharpInstance = sharp(buffer);
+        
+        if (mimeType === "image/png") {
+          sharpInstance = sharpInstance.png({ quality, compressionLevel: level === "high" ? 9 : level === "medium" ? 6 : 3 });
+        } else {
+          sharpInstance = sharpInstance.jpeg({ quality });
+        }
+        
+        if (addWatermark) {
+          const metadata = await sharp(buffer).metadata();
+          const watermarkSvg = Buffer.from(`
+            <svg width="${metadata.width}" height="${metadata.height}">
+              <text x="20" y="${(metadata.height || 100) - 20}" font-family="Arial" font-size="16" fill="rgba(128,128,128,0.7)">Made with BrightBoard</text>
+            </svg>
+          `);
+          sharpInstance = sharpInstance.composite([{ input: watermarkSvg, gravity: 'southwest' }]);
+        }
+        
+        outputBuffer = await sharpInstance.toBuffer();
+        outputMimeType = mimeType;
+      } else if (mimeType === "application/pdf") {
+        // For PDFs, we just return as-is with watermark if needed
+        const pdfDoc = await PDFDocument.load(buffer);
+        
+        if (addWatermark && pdfDoc.getPageCount() > 0) {
+          const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+          const firstPage = pdfDoc.getPage(0);
+          firstPage.drawText("Compressed with BrightBoard", {
+            x: 20,
+            y: 20,
+            size: 10,
+            font,
+            color: rgb(0.6, 0.6, 0.6),
+          });
+        }
+        
+        outputBuffer = Buffer.from(await pdfDoc.save());
+        outputMimeType = "application/pdf";
+      } else {
+        return res.status(400).json({ error: "Unsupported file type for compression" });
+      }
+      
+      const extension = fileName.split('.').pop() || 'file';
+      res.setHeader("Content-Type", outputMimeType);
+      res.setHeader("Content-Disposition", `attachment; filename="compressed.${extension}"`);
+      res.send(outputBuffer);
+    } catch (error) {
+      console.error("Error compressing file:", error);
+      res.status(500).json({ error: "Failed to compress file" });
+    }
+  });
+
   // Export storyboard as MP4 video
   app.post("/api/storyboard-to-video", async (req, res) => {
     try {
