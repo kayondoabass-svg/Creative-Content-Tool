@@ -19,7 +19,7 @@ import {
 import { languages, changeLanguage, getCurrentLanguage } from "@/i18n";
 
 export function LanguageSelector() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [showWelcome, setShowWelcome] = useState(false);
   const currentLang = getCurrentLanguage();
 
@@ -34,8 +34,6 @@ export function LanguageSelector() {
     changeLanguage(langCode);
     setShowWelcome(false);
   };
-
-  const currentLanguage = languages.find(l => l.code === currentLang) || languages[0];
 
   return (
     <>
@@ -58,7 +56,7 @@ export function LanguageSelector() {
               data-testid={`menu-item-lang-${lang.code}`}
             >
               <div className="flex items-center gap-2">
-                <span className="text-lg">{lang.flag}</span>
+                <span className="text-xs font-mono uppercase bg-muted px-1.5 py-0.5 rounded">{lang.countryCode}</span>
                 <div className="flex flex-col">
                   <span>{lang.nativeName}</span>
                   <span className="text-xs text-muted-foreground">{lang.name}</span>
@@ -77,10 +75,10 @@ export function LanguageSelector() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Globe className="h-5 w-5" />
-              Select Your Language
+              {t('language.selectLanguage')}
             </DialogTitle>
             <DialogDescription>
-              Choose your preferred language for BrightBoard
+              {t('language.choosePreferred')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto py-4">
@@ -92,7 +90,7 @@ export function LanguageSelector() {
                 onClick={() => handleLanguageChange(lang.code)}
                 data-testid={`button-welcome-lang-${lang.code}`}
               >
-                <span className="text-lg">{lang.flag}</span>
+                <span className="text-xs font-mono uppercase bg-muted/50 px-1.5 py-0.5 rounded">{lang.countryCode}</span>
                 <div className="flex flex-col items-start">
                   <span className="text-sm">{lang.nativeName}</span>
                   <span className="text-xs text-muted-foreground">{lang.name}</span>

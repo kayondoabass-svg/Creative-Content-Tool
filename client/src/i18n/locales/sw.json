@@ -98,6 +98,7 @@
   },
   "language": {
     "selectLanguage": "Chagua Lugha",
+    "choosePreferred": "Chagua lugha unayopendelea kwa BrightBoard",
     "languageChanged": "Lugha imebadilishwa kwa mafanikio"
   }
 }

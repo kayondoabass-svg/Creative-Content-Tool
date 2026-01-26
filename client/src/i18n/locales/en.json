@@ -98,6 +98,7 @@
   },
   "language": {
     "selectLanguage": "Select Language",
+    "choosePreferred": "Choose your preferred language for BrightBoard",
     "languageChanged": "Language changed successfully"
   }
 }

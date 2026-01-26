@@ -15,17 +15,17 @@ import pt from './locales/pt.json';
 import lg from './locales/lg.json';
 
 export const languages = [
-  { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
-  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt', flag: '🇻🇳' },
-  { code: 'ar', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦', rtl: true },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳' },
-  { code: 'sw', name: 'Swahili', nativeName: 'Kiswahili', flag: '🇰🇪' },
-  { code: 'zu', name: 'Zulu', nativeName: 'isiZulu', flag: '🇿🇦' },
-  { code: 'zh', name: 'Mandarin', nativeName: '中文', flag: '🇨🇳' },
-  { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-  { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-  { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇧🇷' },
-  { code: 'lg', name: 'Luganda', nativeName: 'Luganda', flag: '🇺🇬' },
+  { code: 'en', name: 'English', nativeName: 'English', countryCode: 'GB' },
+  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt', countryCode: 'VN' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', countryCode: 'SA', rtl: true },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', countryCode: 'IN' },
+  { code: 'sw', name: 'Swahili', nativeName: 'Kiswahili', countryCode: 'KE' },
+  { code: 'zu', name: 'Zulu', nativeName: 'isiZulu', countryCode: 'ZA' },
+  { code: 'zh', name: 'Mandarin', nativeName: '中文', countryCode: 'CN' },
+  { code: 'fr', name: 'French', nativeName: 'Français', countryCode: 'FR' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español', countryCode: 'ES' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Português', countryCode: 'BR' },
+  { code: 'lg', name: 'Luganda', nativeName: 'Luganda', countryCode: 'UG' },
 ];
 
 const resources = {
@@ -58,12 +58,20 @@ i18n
     },
   });
 
+const applyRTL = (lang: string) => {
+  const isRTL = languages.find(l => l.code === lang)?.rtl;
+  document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+};
+
+applyRTL(i18n.language);
+
+i18n.on('languageChanged', (lang) => {
+  applyRTL(lang);
+});
+
 export const changeLanguage = (lang: string) => {
   i18n.changeLanguage(lang);
   localStorage.setItem('brightboard-language', lang);
-  
-  const isRTL = languages.find(l => l.code === lang)?.rtl;
-  document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
 };
 
 export const getCurrentLanguage = () => {

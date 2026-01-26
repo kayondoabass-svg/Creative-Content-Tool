@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ArrowLeft, Mail } from "lucide-react";
+import { LanguageSelector } from "@/components/language-selector";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const { login, isLoggingIn, forgotPassword, resetPassword, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -241,19 +244,22 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+      <div className="absolute top-4 right-4">
+        <LanguageSelector />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-teal-500 bg-clip-text text-transparent">
             BrightBoard
           </CardTitle>
           <CardDescription>
-            Sign in to your account
+            {t('auth.loginSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('auth.email')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -266,7 +272,7 @@ export default function LoginPage() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('auth.password')}</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -297,7 +303,7 @@ export default function LoginPage() {
                 onClick={() => setStep("forgot")}
                 data-testid="link-forgot-password"
               >
-                Forgot password?
+                {t('auth.forgotPassword')}
               </button>
             </div>
             
@@ -310,22 +316,22 @@ export default function LoginPage() {
               {isLoggingIn ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Signing In...
+                  {t('common.loading')}
                 </>
               ) : (
-                "Sign In"
+                t('common.signIn')
               )}
             </Button>
             
             <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
+              {t('auth.noAccount')}{" "}
               <button 
                 type="button" 
                 className="text-primary underline hover:text-primary/80"
                 onClick={() => setLocation("/signup")}
                 data-testid="link-signup"
               >
-                Sign Up
+                {t('common.signUp')}
               </button>
             </p>
           </form>

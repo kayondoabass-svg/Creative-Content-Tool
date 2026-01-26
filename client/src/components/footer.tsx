@@ -1,7 +1,9 @@
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import { Mail, Sparkles } from "lucide-react";
 
 export function Footer() {
+  const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -18,70 +20,70 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-sm text-muted-foreground mb-4">
-              AI-powered content creation for busy teachers. Create engaging educational materials in seconds.
+              {t('footer.description')}
             </p>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4">Product</h4>
+            <h4 className="font-semibold mb-4">{t('footer.product')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-pricing">
-                  Pricing
+                  {t('common.pricing')}
                 </Link>
               </li>
               <li>
                 <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">
-                  Features
+                  {t('common.features')}
                 </Link>
               </li>
               <li>
                 <Link href="/file-tools" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-file-tools">
-                  File Tools
+                  {t('common.fileTools')}
                 </Link>
               </li>
               <li>
                 <Link href="/signup" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-get-started">
-                  Get Started
+                  {t('common.getStarted')}
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4">Legal</h4>
+            <h4 className="font-semibold mb-4">{t('footer.legal')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-terms">
-                  Terms & Conditions
+                  {t('footer.terms')}
                 </Link>
               </li>
               <li>
                 <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-privacy">
-                  Privacy Policy
+                  {t('footer.privacy')}
                 </Link>
               </li>
               <li>
                 <Link href="/refund" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-refund">
-                  Refund Policy
+                  {t('footer.refund')}
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4">Earn</h4>
+            <h4 className="font-semibold mb-4">{t('footer.earn')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/affiliate" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-affiliate">
-                  Affiliate Program
+                  {t('footer.affiliate')}
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4">Contact</h4>
+            <h4 className="font-semibold mb-4">{t('footer.contact')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <a 

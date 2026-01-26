@@ -98,6 +98,7 @@
   },
   "language": {
     "selectLanguage": "Khetha Ulimi",
+    "choosePreferred": "Khetha ulimi oluthanda kakhulu ku-BrightBoard",
     "languageChanged": "Ulimi lushintshwe ngempumelelo"
   }
 }

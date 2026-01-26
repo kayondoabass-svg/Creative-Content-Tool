@@ -31,6 +31,14 @@ MVP complete with all core features:
 - Unlimited content generations
 
 ## Recent Changes
+- January 26, 2026: Added multi-language internationalization (i18n)
+  - 11 supported languages: English, Vietnamese, Arabic, Hindi, Swahili, Zulu, Mandarin, French, Spanish, Portuguese, Luganda
+  - Language selector with flag icons in header and auth pages
+  - Welcome dialog prompts first-time visitors to select language
+  - Language preference saved to localStorage
+  - RTL (right-to-left) support for Arabic
+  - Translations for landing page, footer, auth pages, and content types
+  - i18n files located in client/src/i18n/locales/
 - January 25, 2026: Added comprehensive footer to all public pages
   - BrightBoard logo and description
   - Product links: Pricing, Features, Get Started

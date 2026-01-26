@@ -98,6 +98,7 @@
   },
   "language": {
     "selectLanguage": "Chọn ngôn ngữ",
+    "choosePreferred": "Chọn ngôn ngữ ưa thích của bạn cho BrightBoard",
     "languageChanged": "Đã thay đổi ngôn ngữ thành công"
   }
 }

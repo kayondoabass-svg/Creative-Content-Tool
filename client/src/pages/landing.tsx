@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, Image, FileText, Presentation, Gamepad2, Video, FileSpreadsheet, ChevronLeft, ChevronRight, Globe } from "lucide-react";
+import { Sparkles, Image, FileText, Presentation, Gamepad2, Video, FileSpreadsheet, ChevronLeft, ChevronRight } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { LanguageSelector } from "@/components/language-selector";
 import { ThemeToggle } from "@/components/theme-toggle";

@@ -98,6 +98,7 @@
   },
   "language": {
     "selectLanguage": "Londa Olulimi",
+    "choosePreferred": "Londa olulimi lwo olw'okwagala ku BrightBoard",
     "languageChanged": "Olulimi lukyusiddwa bulungi"
   }
 }
