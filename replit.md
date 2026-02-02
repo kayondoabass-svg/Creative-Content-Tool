@@ -1,271 +1,36 @@
 # BrightBoard - AI Content for Teachers
 
 ## Overview
-BrightBoard is an AI-powered content creation platform designed for busy teachers. It allows teachers to instantly generate educational content including images, presentations, activities/games, text content, and animated video storyboards - similar to content from Cocomelon, Super Simple Songs, or Smile and Learn.
-
-## Current State
-MVP complete with all core features:
-- 6 content generation types (images, presentations, text, activities, storyboards, worksheets)
-- Beautiful, playful UI with purple/teal educational theme
-- Dark mode support
-- Content history sidebar
-- Download and copy functionality
-- PowerPoint (.pptx) download for presentations
-- Slideshow presentation mode with keyboard navigation
-- Adjustable slide count (3-20 slides)
-- Worksheet generator with color mode options and multiple download formats
-- Custom email/password authentication with email verification
-- Subscription-based premium features via Stripe/Paddle
-
-## Subscription Tiers
-- **Free**: 5 generations/day, basic 2D/3D quality
-- **Weekly** ($4.99/week): Unlimited generations, HD/4K quality, premium animations
-- **Monthly** ($14.99/month): Same as weekly, 25% savings
-- **Yearly** ($99.99/year): Same as weekly, 60% savings (best value)
-
-## Premium Features (requires subscription)
-- HD and 4K image quality for presentations and storyboards
-- Slide transitions (Fade, Slide, Zoom, Flip)
-- Transition delays (0.5s - 3s)
-- Tap-to-reveal animations
-- Unlimited content generations
-
-## Owner & Founder
-- **Kayondo Abass** (kayondoabass@gmail.com) - Sole founder and owner
-- Owner account automatically gets:
-  - isOwner flag set to true on signup
-  - Free permanent premium access (yearly tier)
-  - Access to Owner Dashboard at /owner-dashboard
-  - Access to Owner Expenses at /owner-expenses
-- Plans to hire CEO later as app grows
-
-## Recent Changes
-- February 2, 2026: Enhanced Video Storyboard Features
-  - 8 video length options: 30sec, 1min, 2min, 3min, 4min, 5min, 10min, 30min
-  - Frame counts scale with video length (3-50 frames)
-  - 11 language options for audio/subtitles: English, Spanish, French, Portuguese, Mandarin Chinese, Hindi, Arabic, Swahili, Zulu, Luganda, Vietnamese
-  - Language selection generates dialogue/narration in the chosen language
-  - Language selector dropdown in storyboard options
-- February 2, 2026: Owner Video Branding Settings
-  - Control watermark visibility for free user videos
-  - 4 watermark position options (top-left, top-right, bottom-left, bottom-right)
-  - Mandatory BrightBoard end logo toggle (like TikTok branding)
-  - Video settings panel on Owner Dashboard
-  - GET/PATCH endpoints at /api/owner/video-settings (owner protected)
-  - Public endpoint at /api/video-settings for video export service
-- February 2, 2026: Added Owner Expenses Tracking System
-  - Comprehensive expenses management for app owner
-  - 11 cost categories: OpenAI, Resend, Replit, Cloudflare, Amazon, Paddle, TikTok Ads, Meta Ads, Google Ads, Domain, Other
-  - Automatic cost tracking for OpenAI API usage on content generation
-  - Automatic cost tracking for Resend email delivery
-  - Manual expense entry for other costs (Replit subscription, ads, etc.)
-  - Category summaries with totals and visual charts
-  - Filter by date range and category
-  - Expenses page at /owner-expenses (owner only)
-  - Expenses button on Owner Dashboard header
-  - All endpoints protected by isOwnerMiddleware
-- February 2, 2026: Added Owner Dashboard
-  - Real-time statistics for app owner only
-  - User metrics: total users, new today/week/month, premium vs free
-  - Content metrics: total generations, breakdown by type
-  - Subscription breakdown by tier (weekly/monthly/yearly)
-  - Recent signups list with user details
-  - 30-day trend charts for signups and generations
-  - Owner dashboard link in user menu (only visible to owner)
-  - Protected by isOwnerMiddleware on all /api/owner/* routes
-  - Page at client/src/pages/owner-dashboard.tsx
-- February 2, 2026: Added PowerPoint conversion to File Tools
-  - JPG to PowerPoint, PNG to PowerPoint, PDF to PowerPoint
-  - Free users get watermark, premium users get clean files
-- January 26, 2026: Interactive Online Games (like Bamboozle/Wordwall)
-  - Complete redesign: Games are now playable directly in the browser
-  - 12 interactive game types with full game logic:
-    - Lucky Spinner: Spin the wheel to select questions
-    - Mystery Box: Tap numbered boxes to reveal questions
-    - Memory Match: Flip cards to find matching pairs
-    - Quick Catch: Whack-a-mole style tapping game
-    - Fact or Fib: True/false quiz game
-    - Word Hunt: Find hidden words in letter grid
-    - Letter Rescue: Hangman-style letter guessing
-    - Treasure Chest: Open chests for challenges
-    - Letter Scramble: Unscramble anagram words
-    - Pop & Learn: Pop balloons with correct answers
-    - Brain Battle: Multiple choice quiz with points
-    - Missing Piece: Fill in the blank sentences
-  - "Play Game" button opens fullscreen game modal
-  - Games include scoring, progress tracking, animations
-  - Game components located in client/src/components/games/
-- January 26, 2026: Previous Online Games design (replaced)
-  - Dropdown selector with descriptions for each game type
-- January 26, 2026: Added multi-language internationalization (i18n)
-  - 11 supported languages: English, Vietnamese, Arabic, Hindi, Swahili, Zulu, Mandarin, French, Spanish, Portuguese, Luganda
-  - Language selector with flag icons in header and auth pages
-  - Welcome dialog prompts first-time visitors to select language
-  - Language preference saved to localStorage
-  - RTL (right-to-left) support for Arabic
-  - Translations for landing page, footer, auth pages, and content types
-  - i18n files located in client/src/i18n/locales/
-- January 25, 2026: Added comprehensive footer to all public pages
-  - BrightBoard logo and description
-  - Product links: Pricing, Features, Get Started
-  - Legal links: Terms & Conditions, Privacy Policy, Refund Policy
-  - Earn section: Affiliate Program
-  - Contact email: support@brightboardapp.com
-  - Copyright notice with current year
-  - Footer component at client/src/components/footer.tsx
-- January 25, 2026: Added Affiliate Program page (/affiliate)
-  - 30% recurring commission structure
-  - Program details: 90-day cookie, monthly payouts, $50 minimum
-  - How it works guide with 4 steps
-  - Target audience: teachers, education bloggers, influencers
-  - Apply via affiliates@brightboardapp.com
-- January 25, 2026: Added tiered MP4 video export for storyboards
-  - **Free tier**: Video slideshow with images + "Made with BrightBoard" watermark
-  - **Premium tier**: Full video with AI narration, background music, subtitles, no watermark
-  - Text-to-speech narration using OpenAI gpt-audio model
-  - Voice selection: Nova, Alloy, Echo, Fable, Onyx, Shimmer
-  - Burned-in subtitles with styled text overlay
-  - Background music with synthesized chord progression
-  - Paddle subscription status check for premium gating
-  - Zod validation for video export requests
-- January 25, 2026: Replaced Replit Auth with custom email/password authentication
-  - Custom signup page with first name, last name, email, password fields
-  - Email verification with 6-digit codes sent via Resend
-  - Password reset flow with email codes
-  - reCAPTCHA support for signup protection (optional, requires RECAPTCHA_SITE_KEY and RECAPTCHA_SECRET_KEY)
-  - Session-based authentication using express-session
-  - No Replit branding on authentication pages
-- January 23, 2026: Added voice-to-text input feature
-  - "Voice or Text to Reality" tagline updated on landing page
-  - Voice recorder button in prompt input using Web Speech API
-  - Real-time speech-to-text transcription
-  - Transcribed text automatically appends to prompt field
-  - Visual recording indicator and error handling
-- January 23, 2026: Added user authentication and subscription payments
-  - Integrated Replit Auth for sign up/sign in (supports OAuth providers)
-  - Set up Stripe for subscription management with stripe-replit-sync
-  - Created landing page for logged-out users with features and pricing
-  - Added pricing page for managing subscriptions
-  - Implemented user profile dropdown with subscription status
-  - Premium features gated behind subscription (client and server-side validation)
-- January 23, 2026: Added enhanced presentation options with premium features
-  - Photo style options: Animation or Real Life
-  - Photo quality options: 2D, 3D, HD, 4K
-  - Premium animation features (marked with PREMIUM badge):
-    - Slide transitions: None, Fade, Slide, Zoom, Flip
-    - Transition delays: 0-3 seconds
-    - Tap to Reveal option
-  - All options shown as badges in generated output
-- January 23, 2026: Added worksheet generator
-  - Generate printable worksheets with various section types
-  - Color mode selection: Colored (for screen) or Black & White (for printing)
-  - Section types: questions, fill-in-blank, matching, multiple choice, writing prompts, drawing areas
-  - Download formats: PDF, JPEG, and Text
-  - Answer key included with each section
-- January 23, 2026: Added organization logo feature
-  - Upload custom logo or generate one using AI
-  - Logo displays in top-right corner of header
-  - Settings stored in memory storage
-- January 23, 2026: Added file converter tool
-  - Convert between PDF, JPEG, PNG formats
-  - Supports images and text files up to 20MB
-  - Automatic download after conversion
-- January 23, 2026: Added reference image upload for presentations
-  - Teachers can upload a photo of existing lesson material
-  - AI analyzes the image and creates a matching presentation
-  - Uses GPT-4o vision to understand lesson content and style
-- January 23, 2026: Added presentation customization options
-  - Content style: Text + Images, Images Only, or Text Only
-  - Layout options: Single image per slide or Image Grid (4 images)
-  - Badges show selected options in output
-- January 23, 2026: Added image generation for presentations and storyboards
-  - Presentations now include AI-generated illustrations for each slide
-  - Storyboard frames include generated images (first 6 frames)
-  - Images styled based on video options (Animation vs Real Life)
-- January 23, 2026: Added video storyboard options
-  - Video length selector (1min, 5min, 10min, 30min)
-  - Video style selector (Animation or Real Life)
-  - Video quality selector (2D, 3D, HD, 4K)
-  - Frame count scales with video length
-- January 23, 2026: Added presentation features
-  - Slideshow "Present" mode with fullscreen view
-  - Keyboard navigation (arrow keys, space, escape)
-  - PowerPoint download using pptxgenjs
-  - Slide count selector for presentations
-  - Mobile-optimized content type cards
-- January 23, 2026: Initial MVP implementation
-  - Set up OpenAI integration via Replit AI Integrations
-  - Created content type selection cards
-  - Built prompt input with grade level and subject selectors
-  - Implemented all 5 content generation backends
-  - Added content history management
+BrightBoard is an AI-powered content creation platform designed for busy teachers. It enables instant generation of educational content including images, presentations, activities, text, and animated video storyboards. The platform aims to provide high-quality, age-appropriate, and classroom-ready materials to streamline lesson planning and enhance student engagement. BrightBoard supports various content types and offers subscription tiers for premium features, positioning itself as a valuable tool in the educational technology market.
 
 ## User Preferences
 - Target audience: Teachers (non-technical users)
 - Style: Child-friendly, colorful, playful educational theme
 - Content should be age-appropriate and classroom-ready
 
-## Project Architecture
+## System Architecture
 
-### Frontend (client/)
-- React + TypeScript + Vite
-- Tailwind CSS with custom educational theme
-- TanStack Query for data fetching
-- Wouter for routing
-- Shadcn UI components
+### UI/UX Decisions
+The platform features a beautiful, playful UI with a purple/teal educational theme, dark mode support, and a content history sidebar. Interactive elements like the Lucky Spinner game and other online games are designed with engaging animations and visual feedback.
 
-### Backend (server/)
-- Express.js
-- In-memory storage for content history
-- OpenAI integration for content generation
+### Technical Implementations
+BrightBoard is built with a React, TypeScript, and Vite frontend utilizing Tailwind CSS for styling, TanStack Query for data fetching, and Wouter for routing. The backend is an Express.js application, integrating with OpenAI for content generation. Custom email/password authentication is implemented with email verification and password reset flows, replacing Replit Auth. Subscription management is handled via Stripe/Paddle. The system supports multi-language internationalization (i18n) with 11 languages and RTL support.
 
-### Key Files
-- `client/src/pages/home.tsx` - Main content creation page
-- `client/src/components/` - Reusable UI components
-- `server/routes.ts` - API endpoints for content generation
-- `server/storage.ts` - In-memory storage interface
-- `shared/schema.ts` - Shared types and schemas
+### Feature Specifications
+- **Content Generation**: Supports 6 types: images (educational illustrations), presentations (slide decks with speaker notes, PowerPoint export, slideshow mode, customizable slide counts, premium animations, transitions, and tap-to-reveal), text (stories, explanations), activities/games (12 interactive, playable online game types like Lucky Spinner, Mystery Box, Memory Match), video storyboards (with variable video lengths, frame counts, AI narration, background music, subtitles, and multi-language audio/subtitle options), and worksheets (printable with various section types and multiple download formats).
+- **User Management**: Custom email/password authentication, email verification, password reset, and reCAPTCHA support. Owner dashboard and expense tracking for administrative oversight.
+- **File Management**: Integrated file converter (PDF, JPEG, PNG) and reference image upload for presentation generation using GPT-4o vision.
+- **Subscription Model**: Free tier with limited generations; premium tiers (weekly, monthly, yearly) offering unlimited generations, HD/4K quality, premium animations, and ad-free video exports.
+- **Internationalization**: Full i18n support for 11 languages, including RTL for Arabic, with language preference saving.
+- **Admin Tools**: Owner Dashboard provides real-time statistics (user metrics, content metrics, subscription breakdown, recent signups, 30-day trends) and Owner Expenses tracks costs (OpenAI, Resend, Paddle, ads, etc.). Owner can control video branding settings (watermark visibility, end logo).
 
-### API Endpoints
-- `GET /api/content` - Get all generated content
-- `GET /api/content/:id` - Get specific content
-- `DELETE /api/content/:id` - Delete content
-- `POST /api/generate` - Generate new content
-
-### Content Types
-1. **Image** - Educational illustrations using gpt-image-1
-2. **Presentation** - Slide decks with speaker notes
-3. **Text** - Stories, explanations, learning materials
-4. **Activity** - Quizzes, matching games, interactive learning
-5. **Storyboard** - Animated video planning with frames
-6. **Worksheet** - Printable worksheets with questions, fill-in-blanks, matching, and more
-
-## Running the Project
-The app runs on port 5000 via `npm run dev`. The Express server serves both the API and the Vite-built frontend.
-
-## Resend Email Setup Guide
-To enable email sending (verification codes, password resets), follow these steps:
-
-### Step 1: Set up Resend Domain
-1. Go to https://resend.com/domains
-2. Click "Add Domain" and enter your domain (e.g., `brightboardapp.com`)
-3. Add the DNS records Resend provides to your domain provider (Cloudflare, etc.)
-4. Wait for verification (check mark shows "Verified")
-
-### Step 2: Create API Key for Your Domain
-1. Go to https://resend.com/api-keys
-2. Click "+ Create API key"
-3. Name it (e.g., `BrightBoard`)
-4. Permission: "Sending access"
-5. **Important**: Under "Domain", select your verified domain
-6. Click Create and **copy the API key** (shown only once)
-
-### Step 3: Configure Resend in Replit
-1. Open your Replit project
-2. Find the Resend connection in Tools/Connectors section
-3. Update the **API Key** with the key from Step 2
-4. Set **From Email** to an address on your verified domain (e.g., `noreply@brightboardapp.com`)
-5. Save
-
-### Step 4: Publish
-After configuring, republish your app for changes to take effect on the live site.
+## External Dependencies
+- **OpenAI**: Used for AI content generation (images, text, presentations, storyboards, worksheets) and voice-to-text.
+- **Resend**: For email delivery (verification codes, password resets).
+- **Stripe/Paddle**: For subscription management and payment processing.
+- **pptxgenjs**: For generating PowerPoint (.pptx) files.
+- **express-session**: For session-based authentication.
+- **Web Audio API**: For sound effects in interactive games.
+- **Web Speech API**: For voice-to-text input.
+- **Zod**: For schema validation.
+- **Cloudflare**: For domain management (as per Resend setup).
