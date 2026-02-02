@@ -9,17 +9,20 @@ interface SubscriptionStatus {
 }
 
 export function useSubscription() {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const { data: status, isLoading } = useQuery<SubscriptionStatus>({
     queryKey: ["/api/subscription/status"],
     enabled: isAuthenticated,
   });
 
+  // Owner always gets premium access
+  const isOwner = user?.isOwner === true;
+
   return {
-    isPremium: status?.isPremium ?? false,
-    tier: status?.tier ?? null,
-    status: status?.status ?? null,
+    isPremium: isOwner || (status?.isPremium ?? false),
+    tier: isOwner ? "yearly" : (status?.tier ?? null),
+    status: isOwner ? "active" : (status?.status ?? null),
     currentPeriodEnd: status?.currentPeriodEnd ?? null,
     isLoading,
   };

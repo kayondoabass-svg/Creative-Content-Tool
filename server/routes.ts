@@ -785,6 +785,12 @@ This should look like it was designed by a world-class branding agency. Make it 
       const user = await stripeService.getUser(userId);
       if (!user?.email) return false;
       
+      // Owner (CEO) always gets premium access
+      const OWNER_EMAILS = ["kayondoabass@gmail.com"];
+      if (OWNER_EMAILS.includes(user.email.toLowerCase())) {
+        return true;
+      }
+      
       // Check Paddle subscription
       const paddleApiKey = process.env.PADDLE_API_KEY;
       if (paddleApiKey) {
