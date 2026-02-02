@@ -9,7 +9,7 @@ import { LanguageSelector } from "@/components/language-selector";
 import { LogoSettings } from "@/components/logo-settings";
 import { FileConverter } from "@/components/file-converter";
 import { GamesLauncher } from "@/components/games-launcher";
-import { Sparkles, GraduationCap, LogOut, Crown, User } from "lucide-react";
+import { Sparkles, GraduationCap, LogOut, Crown, User, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -28,6 +28,7 @@ import SignupPage from "@/pages/signup";
 import VerifyEmailPage from "@/pages/verify-email";
 import FileToolsPage from "@/pages/file-tools";
 import GamesPage from "@/pages/games";
+import OwnerDashboard from "@/pages/owner-dashboard";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
@@ -54,6 +55,9 @@ function Router() {
       <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/file-tools" component={FileToolsPage} />
       <Route path="/games" component={GamesPage} />
+      
+      {/* Owner dashboard - owner only */}
+      <Route path="/owner-dashboard" component={OwnerDashboard} />
       
       {/* Protected pages - require auth */}
       {!isAuthenticated ? (
@@ -117,6 +121,15 @@ function UserMenu() {
           </div>
         </div>
         <DropdownMenuSeparator />
+        {user.isOwner && (
+          <DropdownMenuItem className="cursor-pointer" asChild>
+            <a href="/owner-dashboard" className="flex items-center gap-2" data-testid="link-owner-dashboard">
+              <BarChart3 className="w-4 h-4" />
+              <span>Owner Dashboard</span>
+              <Badge className="ml-auto text-xs bg-yellow-500">Owner</Badge>
+            </a>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem className="cursor-pointer" asChild>
           <a href="/pricing" className="flex items-center gap-2">
             <Crown className="w-4 h-4" />

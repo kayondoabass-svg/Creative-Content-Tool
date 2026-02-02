@@ -11,6 +11,7 @@ interface AuthUser {
   subscriptionTier: string | null;
   subscriptionStatus: string | null;
   emailVerified?: boolean;
+  isOwner?: boolean;
 }
 
 async function fetchUser(): Promise<AuthUser | null> {
