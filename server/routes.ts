@@ -1662,7 +1662,7 @@ This should look like it was designed by a world-class branding agency. Make it 
       }
       
       if (estimatedCostCents > 0) {
-        await logAutomaticExpense("OpenAI", costDescription, estimatedCostCents, {
+        await logAutomaticExpense("openai", costDescription, estimatedCostCents, {
           contentType: type,
           contentId: saved.id,
           userId: userId,

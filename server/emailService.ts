@@ -7,18 +7,38 @@ let connectionSettings: any;
 
 // Log Resend email costs automatically
 // Resend pricing: $0.001 per email (first 100 emails/day free)
+// We store amounts in cents, so $0.001 = 0.1 cents
+// We'll batch and log 1 cent for every 10 emails to avoid fractional cents
+let pendingResendEmails = 0;
+
 async function logResendExpense(emailType: string, recipient: string): Promise<void> {
   try {
-    const costCents = 0.1; // 0.1 cents per email ($0.001)
-    await db.insert(expenses).values({
-      category: "Resend",
-      description: `${emailType} email to ${recipient.substring(0, 20)}...`,
-      amount: Math.ceil(costCents), // Round up to 1 cent minimum
-      currency: "USD",
-      date: new Date(),
-      isAutomatic: true,
-      metadata: JSON.stringify({ emailType, recipient }),
-    });
+    pendingResendEmails++;
+    // Log 1 cent for every 10 emails sent (approximation)
+    // This gives us $0.001 per email which matches Resend pricing
+    if (pendingResendEmails >= 10) {
+      await db.insert(expenses).values({
+        category: "resend",
+        description: `Batch of ${pendingResendEmails} emails sent`,
+        amount: 1, // 1 cent for 10 emails
+        currency: "USD",
+        date: new Date(),
+        isAutomatic: true,
+        metadata: JSON.stringify({ emailCount: pendingResendEmails }),
+      });
+      pendingResendEmails = 0;
+    } else {
+      // For individual tracking, log with 0 amount but track the email
+      await db.insert(expenses).values({
+        category: "resend",
+        description: `${emailType} email to ${recipient.substring(0, 20)}...`,
+        amount: 0, // Fractional cent - will accumulate over time
+        currency: "USD",
+        date: new Date(),
+        isAutomatic: true,
+        metadata: JSON.stringify({ emailType, recipient, note: "Part of $0.001/email batch" }),
+      });
+    }
   } catch (error) {
     console.error("Failed to log Resend expense:", error);
   }
