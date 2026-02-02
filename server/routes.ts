@@ -2319,6 +2319,23 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
   const length = videoOptions?.length || "5min";
   const style = videoOptions?.style || "animation";
   const quality = videoOptions?.quality || "hd";
+  const language = videoOptions?.language || "en";
+  
+  // Language names for display and prompt
+  const languageNames: Record<string, string> = {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "pt": "Portuguese",
+    "zh": "Mandarin Chinese",
+    "hi": "Hindi",
+    "ar": "Arabic",
+    "sw": "Swahili",
+    "zu": "Zulu",
+    "lg": "Luganda",
+    "vi": "Vietnamese",
+  };
+  const languageName = languageNames[language] || "English";
   
   // Determine frame count based on length
   const frameCount = {
@@ -2365,31 +2382,35 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
         - Duration: ${durationText}
         - Style: ${style === "animation" ? "Animated" : "Real-life/Live-action"}
         - Quality: ${qualityDescription}
+        - Language: ${languageName} (all dialogue, narration, songs, and text MUST be in ${languageName})
+        
+        IMPORTANT: All dialogue, narration, song lyrics, and on-screen text must be written in ${languageName}.
         
         Return a JSON object with this structure:
         {
-          "title": "Video Title",
+          "title": "Video Title in ${languageName}",
           "description": "Brief description of the video concept",
           "duration": "${durationText}",
           "style": "${style === "animation" ? "Animation" : "Real Life"}",
           "quality": "${quality.toUpperCase()}",
+          "language": "${languageName}",
           "targetAge": "Target age group",
           "frames": [
             {
               "frameNumber": 1,
               "description": "What happens in this scene",
-              "dialogue": "Any spoken words or song lyrics",
+              "dialogue": "Any spoken words or song lyrics in ${languageName}",
               "action": "Animation/movement description",
               "imagePrompt": "Detailed visual description for illustrating this frame in ${styleDescription} with ${qualityDescription}"
             }
           ]
         }
         
-        Create exactly ${frameCount} frames that tell a complete educational story with a clear beginning, middle, and end. Include catchy songs or rhymes when appropriate for animated content, or educational narration for real-life content.`
+        Create exactly ${frameCount} frames that tell a complete educational story with a clear beginning, middle, and end. Include catchy songs or rhymes when appropriate for animated content, or educational narration for real-life content. All dialogue and narration must be in ${languageName}.`
       },
       {
         role: "user",
-        content: `Create a ${durationText} ${style === "animation" ? "animated" : "real-life"} educational video storyboard about: ${prompt}. Use ${qualityDescription}. Make it engaging like popular children's educational YouTube videos.`
+        content: `Create a ${durationText} ${style === "animation" ? "animated" : "real-life"} educational video storyboard about: ${prompt}. Use ${qualityDescription}. Make it engaging like popular children's educational YouTube videos. All dialogue, songs, and narration must be in ${languageName}.`
       }
     ],
     response_format: { type: "json_object" },
@@ -2433,6 +2454,10 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
     ...framesWithImages,
     ...(storyboardData.frames?.slice(6) || [])
   ];
+  
+  // Ensure language is always present in the returned data
+  storyboardData.language = languageName;
+  storyboardData.languageCode = language;
   
   return storyboardData;
 }

@@ -40,6 +40,19 @@ MVP complete with all core features:
 - Plans to hire CEO later as app grows
 
 ## Recent Changes
+- February 2, 2026: Enhanced Video Storyboard Features
+  - 8 video length options: 30sec, 1min, 2min, 3min, 4min, 5min, 10min, 30min
+  - Frame counts scale with video length (3-50 frames)
+  - 11 language options for audio/subtitles: English, Spanish, French, Portuguese, Mandarin Chinese, Hindi, Arabic, Swahili, Zulu, Luganda, Vietnamese
+  - Language selection generates dialogue/narration in the chosen language
+  - Language selector dropdown in storyboard options
+- February 2, 2026: Owner Video Branding Settings
+  - Control watermark visibility for free user videos
+  - 4 watermark position options (top-left, top-right, bottom-left, bottom-right)
+  - Mandatory BrightBoard end logo toggle (like TikTok branding)
+  - Video settings panel on Owner Dashboard
+  - GET/PATCH endpoints at /api/owner/video-settings (owner protected)
+  - Public endpoint at /api/video-settings for video export service
 - February 2, 2026: Added Owner Expenses Tracking System
   - Comprehensive expenses management for app owner
   - 11 cost categories: OpenAI, Resend, Replit, Cloudflare, Amazon, Paddle, TikTok Ads, Meta Ads, Google Ads, Domain, Other
