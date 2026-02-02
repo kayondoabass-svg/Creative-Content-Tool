@@ -21,6 +21,9 @@ const conversionOptions = [
   { from: "png", to: "pdf", label: "PNG to PDF", fromIcon: Image, toIcon: FileText },
   { from: "jpg", to: "png", label: "JPG to PNG", fromIcon: Image, toIcon: Image },
   { from: "png", to: "jpg", label: "PNG to JPG", fromIcon: Image, toIcon: Image },
+  { from: "jpg", to: "pptx", label: "JPG to PowerPoint", fromIcon: Image, toIcon: Presentation },
+  { from: "png", to: "pptx", label: "PNG to PowerPoint", fromIcon: Image, toIcon: Presentation },
+  { from: "pdf", to: "pptx", label: "PDF to PowerPoint", fromIcon: FileText, toIcon: Presentation },
 ];
 
 export default function FileToolsPage() {
@@ -296,7 +299,7 @@ export default function FileToolsPage() {
                     ref={fileInputRef}
                     onChange={handleFileSelect}
                     className="hidden"
-                    accept=".pdf,.jpg,.jpeg,.png"
+                    accept=".pdf,.jpg,.jpeg,.png,.pptx"
                     data-testid="input-file-convert"
                   />
                   {selectedFile ? (

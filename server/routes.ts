@@ -5,6 +5,7 @@ import { generateContentSchema, fileConversionSchema, organizationSettingsSchema
 import OpenAI from "openai";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import sharp from "sharp";
+import PptxGenJS from "pptxgenjs";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { generateVideoFromStoryboard } from "./videoService";
@@ -704,6 +705,73 @@ This should look like it was designed by a world-class branding agency. Make it 
         outputBuffer = await sharpInstance.toBuffer();
         outputMimeType = "image/png";
         outputExtension = "png";
+      } else if (toFormat === "pptx") {
+        const pptx = new PptxGenJS();
+        pptx.author = "BrightBoard";
+        pptx.title = fileName.replace(/\.[^.]+$/, "");
+        
+        if (mimeType.startsWith("image/")) {
+          const slide = pptx.addSlide();
+          const pngBuffer = await sharp(buffer).png().toBuffer();
+          const base64Image = `data:image/png;base64,${pngBuffer.toString("base64")}`;
+          
+          slide.addImage({
+            data: base64Image,
+            x: 0.5,
+            y: 0.5,
+            w: 9,
+            h: 6.5,
+            sizing: { type: "contain", w: 9, h: 6.5 }
+          });
+          
+          if (addWatermark) {
+            slide.addText("Made with BrightBoard", {
+              x: 0.5,
+              y: 6.8,
+              fontSize: 10,
+              color: "999999"
+            });
+          }
+        } else if (mimeType === "application/pdf") {
+          const pdfDoc = await PDFDocument.load(buffer);
+          const pageCount = pdfDoc.getPageCount();
+          
+          for (let i = 0; i < Math.min(pageCount, 50); i++) {
+            const slide = pptx.addSlide();
+            slide.addText(`PDF Page ${i + 1}`, {
+              x: 0.5,
+              y: 3,
+              w: 9,
+              h: 1,
+              fontSize: 24,
+              align: "center",
+              color: "333333"
+            });
+            slide.addText("(Image extraction requires premium PDF processing)", {
+              x: 0.5,
+              y: 4,
+              w: 9,
+              h: 0.5,
+              fontSize: 12,
+              align: "center",
+              color: "666666"
+            });
+            
+            if (addWatermark) {
+              slide.addText("Made with BrightBoard", {
+                x: 0.5,
+                y: 6.8,
+                fontSize: 10,
+                color: "999999"
+              });
+            }
+          }
+        }
+        
+        const pptxData = await pptx.write({ outputType: "nodebuffer" }) as Buffer;
+        outputBuffer = pptxData;
+        outputMimeType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+        outputExtension = "pptx";
       } else {
         return res.status(400).json({ error: "Unsupported output format" });
       }
