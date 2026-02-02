@@ -26,10 +26,28 @@ const worksheetColorModes = [
 ];
 
 const videoLengths = [
+  { value: "30sec", label: "30 sec" },
   { value: "1min", label: "1 min" },
+  { value: "2min", label: "2 min" },
+  { value: "3min", label: "3 min" },
+  { value: "4min", label: "4 min" },
   { value: "5min", label: "5 min" },
   { value: "10min", label: "10 min" },
   { value: "30min", label: "30 min" },
+];
+
+const videoLanguages = [
+  { value: "en", label: "English" },
+  { value: "es", label: "Spanish" },
+  { value: "fr", label: "French" },
+  { value: "pt", label: "Portuguese" },
+  { value: "zh", label: "Mandarin Chinese" },
+  { value: "hi", label: "Hindi" },
+  { value: "ar", label: "Arabic" },
+  { value: "sw", label: "Swahili" },
+  { value: "zu", label: "Zulu" },
+  { value: "lg", label: "Luganda" },
+  { value: "vi", label: "Vietnamese" },
 ];
 
 const videoStyles = [
@@ -171,6 +189,7 @@ const formSchema = z.object({
   videoLength: z.string().optional(),
   videoStyle: z.string().optional(),
   videoQuality: z.string().optional(),
+  videoLanguage: z.string().optional(),
   presentationStyle: z.string().optional(),
   presentationLayout: z.string().optional(),
   presentationImageStyle: z.string().optional(),
@@ -232,9 +251,10 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       // Game type options
       gameType: "luckySpinner",
       // Video options
-      videoLength: "5min",
+      videoLength: "1min",
       videoStyle: "animation",
       videoQuality: isPremium ? "hd" : "2d",
+      videoLanguage: "en",
       presentationStyle: "textAndImages",
       presentationLayout: "single",
       presentationImageStyle: "animation",
@@ -295,6 +315,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       length: values.videoLength,
       style: values.videoStyle,
       quality: values.videoQuality,
+      language: values.videoLanguage,
     } : undefined;
     const presentationOptions = selectedType === "presentation" ? {
       style: values.presentationStyle,
@@ -922,6 +943,30 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                             disabled={qual.premium && !isPremium}
                           >
                             {qual.label} {qual.premium && !isPremium && <Lock className="w-3 h-3 inline ml-1" />}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="videoLanguage"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Audio/Subtitles:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[150px]" data-testid="select-video-language">
+                          <SelectValue placeholder="Language" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {videoLanguages.map((lang) => (
+                          <SelectItem key={lang.value} value={lang.value}>
+                            {lang.label}
                           </SelectItem>
                         ))}
                       </SelectContent>

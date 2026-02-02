@@ -30,9 +30,10 @@ export type InsertGeneratedContent = z.infer<typeof insertGeneratedContentSchema
 
 // Video options schema
 export const videoOptionsSchema = z.object({
-  length: z.enum(["1min", "5min", "10min", "30min"]).optional(),
+  length: z.enum(["30sec", "1min", "2min", "3min", "4min", "5min", "10min", "30min"]).optional(),
   style: z.enum(["animation", "reallife"]).optional(),
   quality: z.enum(["2d", "3d", "hd", "4k"]).optional(),
+  language: z.enum(["en", "es", "fr", "pt", "zh", "hi", "ar", "sw", "zu", "lg", "vi"]).optional(),
 });
 
 export type VideoOptions = z.infer<typeof videoOptionsSchema>;
