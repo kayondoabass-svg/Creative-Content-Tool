@@ -21,7 +21,7 @@ import * as paddleService from "./paddleService";
 import crypto from "crypto";
 import * as customAuth from "./customAuthService";
 import { db } from "./db";
-import { users, featureUsage } from "@shared/schema";
+import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, type Expense, type InsertExpense } from "@shared/schema";
 import { eq, count, sql, desc, gte, and } from "drizzle-orm";
 
 const openai = new OpenAI({
@@ -2518,4 +2518,192 @@ export function registerSubscriptionRoutes(app: any) {
       res.status(500).json({ error: "Webhook processing failed" });
     }
   });
+
+  // ========== OWNER EXPENSES ENDPOINTS ==========
+  
+  // Helper to log automatic expenses (OpenAI, Resend)
+  async function logAutomaticExpense(
+    category: string,
+    description: string,
+    amountCents: number,
+    metadata?: Record<string, any>
+  ): Promise<void> {
+    try {
+      await db.insert(expenses).values({
+        category,
+        description,
+        amount: amountCents,
+        currency: "USD",
+        date: new Date(),
+        isAutomatic: true,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+      });
+    } catch (error) {
+      console.error("Failed to log expense:", error);
+    }
+  }
+
+  // Get all expenses (owner only)
+  app.get("/api/owner/expenses", isOwnerMiddleware, async (req, res) => {
+    try {
+      const { startDate, endDate, category } = req.query;
+      
+      let query = db.select().from(expenses).orderBy(desc(expenses.date));
+      
+      const allExpenses = await query;
+      
+      // Filter in memory for simplicity
+      let filtered = allExpenses;
+      if (startDate) {
+        filtered = filtered.filter(e => new Date(e.date) >= new Date(startDate as string));
+      }
+      if (endDate) {
+        filtered = filtered.filter(e => new Date(e.date) <= new Date(endDate as string));
+      }
+      if (category && category !== "all") {
+        filtered = filtered.filter(e => e.category === category);
+      }
+      
+      res.json(filtered);
+    } catch (error) {
+      console.error("Error fetching expenses:", error);
+      res.status(500).json({ error: "Failed to fetch expenses" });
+    }
+  });
+
+  // Get expense summary by category (owner only)
+  app.get("/api/owner/expenses/summary", isOwnerMiddleware, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      
+      const allExpenses = await db.select().from(expenses);
+      
+      // Filter by date range
+      let filtered = allExpenses;
+      if (startDate) {
+        filtered = filtered.filter(e => new Date(e.date) >= new Date(startDate as string));
+      }
+      if (endDate) {
+        filtered = filtered.filter(e => new Date(e.date) <= new Date(endDate as string));
+      }
+      
+      // Group by category
+      const summary: Record<string, { totalAmount: number; count: number }> = {};
+      for (const expense of filtered) {
+        if (!summary[expense.category]) {
+          summary[expense.category] = { totalAmount: 0, count: 0 };
+        }
+        summary[expense.category].totalAmount += expense.amount;
+        summary[expense.category].count += 1;
+      }
+      
+      // Convert to array format
+      const result = Object.entries(summary).map(([category, data]) => ({
+        category,
+        totalAmount: data.totalAmount,
+        count: data.count,
+      }));
+      
+      // Calculate totals
+      const totalExpenses = filtered.reduce((sum, e) => sum + e.amount, 0);
+      const automaticTotal = filtered.filter(e => e.isAutomatic).reduce((sum, e) => sum + e.amount, 0);
+      const manualTotal = filtered.filter(e => !e.isAutomatic).reduce((sum, e) => sum + e.amount, 0);
+      
+      res.json({
+        byCategory: result,
+        totals: {
+          total: totalExpenses,
+          automatic: automaticTotal,
+          manual: manualTotal,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching expense summary:", error);
+      res.status(500).json({ error: "Failed to fetch expense summary" });
+    }
+  });
+
+  // Add new expense (owner only)
+  app.post("/api/owner/expenses", isOwnerMiddleware, async (req, res) => {
+    try {
+      const { category, description, amount, currency, date } = req.body;
+      
+      if (!category || !description || amount === undefined) {
+        return res.status(400).json({ error: "Category, description, and amount are required" });
+      }
+      
+      const amountCents = Math.round(parseFloat(amount) * 100);
+      
+      const [newExpense] = await db.insert(expenses).values({
+        category,
+        description,
+        amount: amountCents,
+        currency: currency || "USD",
+        date: date ? new Date(date) : new Date(),
+        isAutomatic: false,
+      }).returning();
+      
+      res.json(newExpense);
+    } catch (error) {
+      console.error("Error adding expense:", error);
+      res.status(500).json({ error: "Failed to add expense" });
+    }
+  });
+
+  // Update expense (owner only)
+  app.patch("/api/owner/expenses/:id", isOwnerMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { category, description, amount, currency, date } = req.body;
+      
+      const updates: Partial<InsertExpense> = {};
+      if (category) updates.category = category;
+      if (description) updates.description = description;
+      if (amount !== undefined) updates.amount = Math.round(parseFloat(amount) * 100);
+      if (currency) updates.currency = currency;
+      if (date) updates.date = new Date(date);
+      
+      const [updated] = await db.update(expenses)
+        .set(updates)
+        .where(eq(expenses.id, parseInt(id)))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Expense not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating expense:", error);
+      res.status(500).json({ error: "Failed to update expense" });
+    }
+  });
+
+  // Delete expense (owner only)
+  app.delete("/api/owner/expenses/:id", isOwnerMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const [deleted] = await db.delete(expenses)
+        .where(eq(expenses.id, parseInt(id)))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Expense not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+      res.status(500).json({ error: "Failed to delete expense" });
+    }
+  });
+
+  // Get expense categories
+  app.get("/api/owner/expenses/categories", isOwnerMiddleware, async (req, res) => {
+    res.json(expenseCategories);
+  });
+
+  // Make logAutomaticExpense available for use in other parts of the app
+  (app as any).logAutomaticExpense = logAutomaticExpense;
 }
