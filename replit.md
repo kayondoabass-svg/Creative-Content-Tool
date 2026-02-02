@@ -36,9 +36,21 @@ MVP complete with all core features:
   - isOwner flag set to true on signup
   - Free permanent premium access (yearly tier)
   - Access to Owner Dashboard at /owner-dashboard
+  - Access to Owner Expenses at /owner-expenses
 - Plans to hire CEO later as app grows
 
 ## Recent Changes
+- February 2, 2026: Added Owner Expenses Tracking System
+  - Comprehensive expenses management for app owner
+  - 11 cost categories: OpenAI, Resend, Replit, Cloudflare, Amazon, Paddle, TikTok Ads, Meta Ads, Google Ads, Domain, Other
+  - Automatic cost tracking for OpenAI API usage on content generation
+  - Automatic cost tracking for Resend email delivery
+  - Manual expense entry for other costs (Replit subscription, ads, etc.)
+  - Category summaries with totals and visual charts
+  - Filter by date range and category
+  - Expenses page at /owner-expenses (owner only)
+  - Expenses button on Owner Dashboard header
+  - All endpoints protected by isOwnerMiddleware
 - February 2, 2026: Added Owner Dashboard
   - Real-time statistics for app owner only
   - User metrics: total users, new today/week/month, premium vs free
