@@ -218,11 +218,32 @@ export async function login(
       return { success: false, message: "Please verify your email first" };
     }
 
-    // Update last active
-    await db
-      .update(users)
-      .set({ lastActiveAt: new Date() })
-      .where(eq(users.id, user.id));
+    // Auto-fix owner status if this is the owner email
+    const isOwnerEmail = email.toLowerCase() === OWNER_EMAIL.toLowerCase();
+    const needsOwnerFix = isOwnerEmail && (!user.isOwner || user.subscriptionTier !== "yearly" || user.subscriptionStatus !== "active");
+    
+    if (needsOwnerFix) {
+      await db
+        .update(users)
+        .set({ 
+          isOwner: true, 
+          subscriptionTier: "yearly", 
+          subscriptionStatus: "active",
+          lastActiveAt: new Date() 
+        })
+        .where(eq(users.id, user.id));
+      
+      // Update local user object for return
+      user.isOwner = true;
+      user.subscriptionTier = "yearly";
+      user.subscriptionStatus = "active";
+    } else {
+      // Update last active
+      await db
+        .update(users)
+        .set({ lastActiveAt: new Date() })
+        .where(eq(users.id, user.id));
+    }
 
     return {
       success: true,
