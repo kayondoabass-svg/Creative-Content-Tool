@@ -43,6 +43,8 @@ export const users = pgTable("users", {
   // Analytics fields
   country: varchar("country"),
   lastActiveAt: timestamp("last_active_at").defaultNow(),
+  // Owner/Admin fields
+  isOwner: boolean("is_owner").default(false),
 });
 
 // Email verification codes table

@@ -9,6 +9,9 @@ import { sendVerificationEmail, sendPasswordResetEmail } from "./emailService";
 const SALT_ROUNDS = 10;
 const CODE_EXPIRY_MINUTES = 10;
 
+// Owner email - founder gets free premium access
+const OWNER_EMAIL = "kayondoabass@gmail.com";
+
 function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -65,6 +68,9 @@ export async function signUp(
     // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+    // Check if this is the owner email - they get free premium access
+    const isOwnerEmail = email.toLowerCase() === OWNER_EMAIL.toLowerCase();
+
     // Create user
     const [newUser] = await db
       .insert(users)
@@ -74,6 +80,10 @@ export async function signUp(
         firstName,
         lastName,
         emailVerified: false,
+        // Owner gets permanent free premium access
+        isOwner: isOwnerEmail,
+        subscriptionTier: isOwnerEmail ? "yearly" : "free",
+        subscriptionStatus: isOwnerEmail ? "active" : "inactive",
       })
       .returning();
 
@@ -225,6 +235,7 @@ export async function login(
         profileImageUrl: user.profileImageUrl,
         subscriptionTier: user.subscriptionTier,
         subscriptionStatus: user.subscriptionStatus,
+        isOwner: user.isOwner,
       },
     };
   } catch (error) {
@@ -330,6 +341,7 @@ export async function getUserById(userId: string) {
     subscriptionTier: user.subscriptionTier,
     subscriptionStatus: user.subscriptionStatus,
     emailVerified: user.emailVerified,
+    isOwner: user.isOwner,
   };
 }
 
