@@ -4,7 +4,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock } from "lucide-react";
+import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 
 interface OwnerStats {
@@ -160,20 +162,35 @@ export default function OwnerDashboard() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Crown className="h-8 w-8 text-yellow-500" />
-            Owner Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Welcome back, {user?.firstName}! Here's your app overview.
-          </p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="icon" data-testid="button-back-home">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Crown className="h-8 w-8 text-yellow-500" />
+              Owner Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Welcome back, {user?.firstName}! Here's your app overview.
+            </p>
+          </div>
         </div>
-        <Badge variant="outline" className="text-sm">
-          <Clock className="h-3 w-3 mr-1" />
-          Last updated: {new Date().toLocaleTimeString()}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Link href="/owner-expenses">
+            <Button variant="outline" data-testid="button-expenses">
+              <DollarSign className="h-4 w-4 mr-1" />
+              Expenses
+            </Button>
+          </Link>
+          <Badge variant="outline" className="text-sm">
+            <Clock className="h-3 w-3 mr-1" />
+            Last updated: {new Date().toLocaleTimeString()}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

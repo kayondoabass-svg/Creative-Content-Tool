@@ -29,6 +29,7 @@ import VerifyEmailPage from "@/pages/verify-email";
 import FileToolsPage from "@/pages/file-tools";
 import GamesPage from "@/pages/games";
 import OwnerDashboard from "@/pages/owner-dashboard";
+import OwnerExpenses from "@/pages/owner-expenses";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
@@ -56,8 +57,9 @@ function Router() {
       <Route path="/file-tools" component={FileToolsPage} />
       <Route path="/games" component={GamesPage} />
       
-      {/* Owner dashboard - owner only */}
+      {/* Owner pages - owner only */}
       <Route path="/owner-dashboard" component={OwnerDashboard} />
+      <Route path="/owner-expenses" component={OwnerExpenses} />
       
       {/* Protected pages - require auth */}
       {!isAuthenticated ? (
