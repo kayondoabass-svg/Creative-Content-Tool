@@ -199,6 +199,15 @@ export const organizationSettingsSchema = z.object({
 
 export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;
 
+// Owner video settings schema (for watermark control)
+export const ownerVideoSettingsSchema = z.object({
+  showWatermark: z.boolean().default(true), // Show watermark on free tier videos
+  watermarkPosition: z.enum(["top-left", "top-right", "bottom-left", "bottom-right"]).default("top-right"),
+  showEndLogo: z.boolean().default(true), // Always show BrightBoard logo at end of videos
+});
+
+export type OwnerVideoSettings = z.infer<typeof ownerVideoSettingsSchema>;
+
 // File conversion request schema
 export const fileConversionSchema = z.object({
   file: z.string(), // Base64 file data

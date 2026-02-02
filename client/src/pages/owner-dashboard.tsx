@@ -4,9 +4,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft } from "lucide-react";
+import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft, Video, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 
 interface OwnerStats {
@@ -119,6 +124,28 @@ export default function OwnerDashboard() {
   const { data: trends, isLoading: trendsLoading } = useQuery<TrendData>({
     queryKey: ["/api/owner/trends"],
     enabled: !!user?.isOwner,
+  });
+
+  const queryClient = useQueryClient();
+  
+  interface VideoSettings {
+    showWatermark: boolean;
+    watermarkPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+    showEndLogo: boolean;
+  }
+  
+  const { data: videoSettings } = useQuery<VideoSettings>({
+    queryKey: ["/api/owner/video-settings"],
+    enabled: !!user?.isOwner,
+  });
+  
+  const updateVideoSettings = useMutation({
+    mutationFn: async (updates: Partial<VideoSettings>) => {
+      return apiRequest("PATCH", "/api/owner/video-settings", updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/video-settings"] });
+    },
   });
 
   if (authLoading) {
@@ -429,6 +456,80 @@ export default function OwnerDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Video Settings Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Video className="h-5 w-5" />
+            Video Branding Settings
+          </CardTitle>
+          <CardDescription>Control watermarks and branding on exported videos</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="show-watermark">Show Watermark (Free Tier)</Label>
+              <p className="text-sm text-muted-foreground">
+                Display "Made with BrightBoard" watermark on free user videos
+              </p>
+            </div>
+            <Switch
+              id="show-watermark"
+              checked={videoSettings?.showWatermark ?? true}
+              onCheckedChange={(checked) => updateVideoSettings.mutate({ showWatermark: checked })}
+              data-testid="switch-show-watermark"
+            />
+          </div>
+          
+          {videoSettings?.showWatermark && (
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Watermark Position</Label>
+                <p className="text-sm text-muted-foreground">
+                  Where to display the watermark on videos
+                </p>
+              </div>
+              <Select
+                value={videoSettings?.watermarkPosition ?? "top-right"}
+                onValueChange={(value) => updateVideoSettings.mutate({ watermarkPosition: value as any })}
+              >
+                <SelectTrigger className="w-[150px]" data-testid="select-watermark-position">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="top-left">Top Left</SelectItem>
+                  <SelectItem value="top-right">Top Right</SelectItem>
+                  <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                  <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="show-end-logo">BrightBoard Logo at End</Label>
+              <p className="text-sm text-muted-foreground">
+                Always show BrightBoard logo at the end of all videos (like TikTok)
+              </p>
+            </div>
+            <Switch
+              id="show-end-logo"
+              checked={videoSettings?.showEndLogo ?? true}
+              onCheckedChange={(checked) => updateVideoSettings.mutate({ showEndLogo: checked })}
+              data-testid="switch-show-end-logo"
+            />
+          </div>
+          
+          <div className="pt-4 border-t">
+            <p className="text-xs text-muted-foreground">
+              Note: End logo branding is mandatory for all users to maintain app recognition.
+              The watermark only applies to free tier users - premium users get clean videos.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

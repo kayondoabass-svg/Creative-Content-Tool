@@ -1641,11 +1641,18 @@ This should look like it was designed by a world-class branding agency. Make it 
           costDescription = `Presentation (${slideNum} slides): "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
           break;
         case "storyboard":
-          const frameCount = videoOptions?.length === "30min" ? 12 : 
-                            videoOptions?.length === "10min" ? 8 : 
-                            videoOptions?.length === "5min" ? 5 : 3;
-          estimatedCostCents = (frameCount * 5) + 2; // 5 cents per frame image + 2 cents GPT
-          costDescription = `Storyboard (${frameCount} frames): "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
+          const expenseFrameCount = {
+            "30sec": 3,
+            "1min": 6,
+            "2min": 10,
+            "3min": 12,
+            "4min": 15,
+            "5min": 18,
+            "10min": 25,
+            "30min": 50,
+          }[videoOptions?.length || "1min"] || 6;
+          estimatedCostCents = (expenseFrameCount * 5) + 2; // 5 cents per frame image + 2 cents GPT
+          costDescription = `Storyboard (${expenseFrameCount} frames): "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
           break;
         case "text":
           estimatedCostCents = 2;
@@ -1859,6 +1866,45 @@ This should look like it was designed by a world-class branding agency. Make it 
   // Get expense categories
   app.get("/api/owner/expenses/categories", isOwnerMiddleware, async (_req: any, res: any) => {
     res.json(expenseCategories);
+  });
+
+  // ========== OWNER VIDEO SETTINGS ENDPOINTS ==========
+  
+  // In-memory storage for owner video settings
+  let ownerVideoSettings = {
+    showWatermark: true,
+    watermarkPosition: "top-right" as "top-left" | "top-right" | "bottom-left" | "bottom-right",
+    showEndLogo: true,
+  };
+  
+  // Get owner video settings
+  app.get("/api/owner/video-settings", isOwnerMiddleware, async (_req: any, res: any) => {
+    res.json(ownerVideoSettings);
+  });
+  
+  // Update owner video settings
+  app.patch("/api/owner/video-settings", isOwnerMiddleware, async (req: any, res: any) => {
+    try {
+      const { showWatermark, watermarkPosition, showEndLogo } = req.body;
+      
+      if (showWatermark !== undefined) ownerVideoSettings.showWatermark = showWatermark;
+      if (watermarkPosition) ownerVideoSettings.watermarkPosition = watermarkPosition;
+      if (showEndLogo !== undefined) ownerVideoSettings.showEndLogo = showEndLogo;
+      
+      res.json(ownerVideoSettings);
+    } catch (error) {
+      console.error("Error updating video settings:", error);
+      res.status(500).json({ error: "Failed to update video settings" });
+    }
+  });
+  
+  // Public endpoint to get video settings (for video export)
+  app.get("/api/video-settings", async (_req: any, res: any) => {
+    res.json({
+      showWatermark: ownerVideoSettings.showWatermark,
+      watermarkPosition: ownerVideoSettings.watermarkPosition,
+      showEndLogo: ownerVideoSettings.showEndLogo,
+    });
   });
 
   // Make logAutomaticExpense available for use in other parts of the app
@@ -2276,11 +2322,15 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
   
   // Determine frame count based on length
   const frameCount = {
+    "30sec": 3,
     "1min": 6,
-    "5min": 15,
+    "2min": 10,
+    "3min": 12,
+    "4min": 15,
+    "5min": 18,
     "10min": 25,
     "30min": 50,
-  }[length] || 15;
+  }[length] || 10;
   
   const styleDescription = style === "animation" 
     ? "colorful 2D/3D animated style like Cocomelon, Super Simple Songs, or Pixar" 
@@ -2294,11 +2344,15 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
   }[quality] || "high-definition quality";
   
   const durationText = {
+    "30sec": "30 seconds",
     "1min": "1 minute",
+    "2min": "2 minutes",
+    "3min": "3 minutes",
+    "4min": "4 minutes",
     "5min": "5 minutes",
     "10min": "10 minutes",
     "30min": "30 minutes",
-  }[length] || "5 minutes";
+  }[length] || "2 minutes";
   
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
