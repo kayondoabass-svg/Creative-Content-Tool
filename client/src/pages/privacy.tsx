@@ -18,7 +18,7 @@ export default function Privacy() {
         <Card>
           <CardHeader>
             <CardTitle className="text-3xl">Privacy Policy</CardTitle>
-            <p className="text-muted-foreground">Last updated: January 24, 2026</p>
+            <p className="text-muted-foreground">Last updated: February 2, 2026</p>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-6">
             <section>
@@ -129,7 +129,30 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">10. Changes to This Policy</h2>
+              <h2 className="text-xl font-semibold mb-3">10. Advertising</h2>
+              <p className="text-muted-foreground">
+                We use Google AdSense to display advertisements on our website. Google AdSense uses cookies 
+                to serve ads based on your prior visits to our website or other websites. You may opt out of 
+                personalized advertising by visiting{" "}
+                <a href="https://www.google.com/settings/ads" className="text-primary underline" target="_blank" rel="noopener noreferrer">
+                  Google's Ads Settings
+                </a>.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                Third-party vendors, including Google, use cookies to serve ads based on your prior visits 
+                to this website or other websites. Google's use of advertising cookies enables it and its 
+                partners to serve ads based on your visit to our site and/or other sites on the Internet.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                For more information about how Google uses data when you use our site, visit:{" "}
+                <a href="https://policies.google.com/technologies/partner-sites" className="text-primary underline" target="_blank" rel="noopener noreferrer">
+                  How Google uses data
+                </a>.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold mb-3">11. Changes to This Policy</h2>
               <p className="text-muted-foreground">
                 We may update this Privacy Policy periodically. We will notify you of significant changes 
                 via email or through the Service. Your continued use after changes constitutes acceptance.
@@ -137,7 +160,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">11. Contact Us</h2>
+              <h2 className="text-xl font-semibold mb-3">12. Contact Us</h2>
               <p className="text-muted-foreground">
                 For privacy-related questions or to exercise your rights, contact us at: privacy@brightboardapp.com
               </p>
