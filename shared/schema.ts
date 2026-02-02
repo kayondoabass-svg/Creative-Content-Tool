@@ -218,3 +218,52 @@ export const videoExportSchema = z.object({
 });
 
 export type VideoExportRequest = z.infer<typeof videoExportSchema>;
+
+// ========== OWNER EXPENSES TRACKING ==========
+
+// Expense categories
+export const expenseCategories = [
+  "openai",           // OpenAI API costs (automatic)
+  "resend",           // Resend email costs (automatic)
+  "replit",           // Replit subscription
+  "cloudflare",       // Cloudflare DNS/CDN
+  "amazon",           // Amazon/AWS services
+  "paddle",           // Paddle transaction fees
+  "tiktok_ads",       // TikTok advertising
+  "meta_ads",         // Facebook/Instagram ads
+  "google_ads",       // Google Ads
+  "domain",           // Domain registration
+  "other",            // Other expenses
+] as const;
+
+export type ExpenseCategory = typeof expenseCategories[number];
+
+// Expense entry table
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
+  category: text("category").notNull(),
+  description: text("description").notNull(),
+  amount: integer("amount").notNull(), // Amount in cents
+  currency: varchar("currency", { length: 3 }).default("USD").notNull(),
+  date: timestamp("date").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  isAutomatic: boolean("is_automatic").default(false).notNull(), // Auto-tracked vs manual entry
+  metadata: text("metadata"), // JSON string for extra data (e.g., token counts, email counts)
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertExpenseSchema = createInsertSchema(expenses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Expense = typeof expenses.$inferSelect;
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+
+// Expense summary by category
+export const expenseSummarySchema = z.object({
+  category: z.enum(expenseCategories),
+  totalAmount: z.number(),
+  count: z.number(),
+});
+
+export type ExpenseSummary = z.infer<typeof expenseSummarySchema>;
