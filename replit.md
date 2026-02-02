@@ -30,7 +30,28 @@ MVP complete with all core features:
 - Tap-to-reveal animations
 - Unlimited content generations
 
+## Owner & Founder
+- **Kayondo Abass** (kayondoabass@gmail.com) - Sole founder and owner
+- Owner account automatically gets:
+  - isOwner flag set to true on signup
+  - Free permanent premium access (yearly tier)
+  - Access to Owner Dashboard at /owner-dashboard
+- Plans to hire CEO later as app grows
+
 ## Recent Changes
+- February 2, 2026: Added Owner Dashboard
+  - Real-time statistics for app owner only
+  - User metrics: total users, new today/week/month, premium vs free
+  - Content metrics: total generations, breakdown by type
+  - Subscription breakdown by tier (weekly/monthly/yearly)
+  - Recent signups list with user details
+  - 30-day trend charts for signups and generations
+  - Owner dashboard link in user menu (only visible to owner)
+  - Protected by isOwnerMiddleware on all /api/owner/* routes
+  - Page at client/src/pages/owner-dashboard.tsx
+- February 2, 2026: Added PowerPoint conversion to File Tools
+  - JPG to PowerPoint, PNG to PowerPoint, PDF to PowerPoint
+  - Free users get watermark, premium users get clean files
 - January 26, 2026: Interactive Online Games (like Bamboozle/Wordwall)
   - Complete redesign: Games are now playable directly in the browser
   - 12 interactive game types with full game logic:
