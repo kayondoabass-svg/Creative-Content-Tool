@@ -1,7 +1,28 @@
 // Resend email service for BrightBoard
 import { Resend } from 'resend';
+import { db } from './db';
+import { expenses } from '@shared/schema';
 
 let connectionSettings: any;
+
+// Log Resend email costs automatically
+// Resend pricing: $0.001 per email (first 100 emails/day free)
+async function logResendExpense(emailType: string, recipient: string): Promise<void> {
+  try {
+    const costCents = 0.1; // 0.1 cents per email ($0.001)
+    await db.insert(expenses).values({
+      category: "Resend",
+      description: `${emailType} email to ${recipient.substring(0, 20)}...`,
+      amount: Math.ceil(costCents), // Round up to 1 cent minimum
+      currency: "USD",
+      date: new Date(),
+      isAutomatic: true,
+      metadata: JSON.stringify({ emailType, recipient }),
+    });
+  } catch (error) {
+    console.error("Failed to log Resend expense:", error);
+  }
+}
 
 async function getCredentials() {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -95,6 +116,8 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     });
 
     console.log('Verification email sent:', result);
+    // Log Resend expense
+    await logResendExpense("Verification", email);
     return true;
   } catch (error) {
     console.error('Error sending verification email:', error);
@@ -155,6 +178,8 @@ export async function sendPasswordResetEmail(email: string, code: string): Promi
     });
 
     console.log('Password reset email sent:', result);
+    // Log Resend expense
+    await logResendExpense("Password Reset", email);
     return true;
   } catch (error) {
     console.error('Error sending password reset email:', error);

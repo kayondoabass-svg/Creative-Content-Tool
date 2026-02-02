@@ -1619,6 +1619,58 @@ This should look like it was designed by a world-class branding agency. Make it 
       // Track feature usage for analytics
       await stripeService.trackFeatureUsage(userId, type);
 
+      // Log OpenAI API costs automatically
+      // Cost estimates (in cents):
+      // - Image generation (DALL-E 3): ~5 cents per image
+      // - Text generation (GPT-4o): ~2 cents per generation
+      // - Presentation: ~5 cents per slide (image) + 2 cents base
+      // - Storyboard: ~5 cents per frame image + 2 cents base
+      // - Worksheet: ~2 cents per generation
+      // - Activity: ~2 cents per generation
+      let estimatedCostCents = 0;
+      let costDescription = "";
+      
+      switch (type) {
+        case "image":
+          estimatedCostCents = 5;
+          costDescription = `Image generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
+          break;
+        case "presentation":
+          const slideNum = slideCount || 5;
+          estimatedCostCents = (slideNum * 5) + 2; // 5 cents per slide image + 2 cents GPT
+          costDescription = `Presentation (${slideNum} slides): "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
+          break;
+        case "storyboard":
+          const frameCount = videoOptions?.length === "30min" ? 12 : 
+                            videoOptions?.length === "10min" ? 8 : 
+                            videoOptions?.length === "5min" ? 5 : 3;
+          estimatedCostCents = (frameCount * 5) + 2; // 5 cents per frame image + 2 cents GPT
+          costDescription = `Storyboard (${frameCount} frames): "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
+          break;
+        case "text":
+          estimatedCostCents = 2;
+          costDescription = `Text generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
+          break;
+        case "activity":
+          estimatedCostCents = 2;
+          costDescription = `Activity/Game generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
+          break;
+        case "worksheet":
+          estimatedCostCents = 2;
+          costDescription = `Worksheet generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
+          break;
+      }
+      
+      if (estimatedCostCents > 0) {
+        await logAutomaticExpense("OpenAI", costDescription, estimatedCostCents, {
+          contentType: type,
+          contentId: saved.id,
+          userId: userId,
+          slideCount: slideCount,
+          videoOptions: videoOptions,
+        });
+      }
+
       res.json(saved);
     } catch (error: any) {
       console.error("Error generating content:", error);
