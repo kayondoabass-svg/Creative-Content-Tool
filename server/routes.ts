@@ -20,6 +20,9 @@ function isAuthenticated(req: any, res: any, next: any) {
 import * as paddleService from "./paddleService";
 import crypto from "crypto";
 import * as customAuth from "./customAuthService";
+import { db } from "./db";
+import { users, featureUsage } from "@shared/schema";
+import { eq, count, sql, desc, gte, and } from "drizzle-orm";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -285,6 +288,215 @@ export async function registerRoutes(
   });
 
   // ========== END CUSTOM AUTH ROUTES ==========
+
+  // ========== OWNER DASHBOARD ROUTES ==========
+  
+  // Middleware to check if user is owner
+  async function isOwnerMiddleware(req: any, res: any, next: any) {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const user = await customAuth.getUserById(userId);
+    if (!user || !user.isOwner) {
+      return res.status(403).json({ error: "Access denied. Owner only." });
+    }
+    
+    return next();
+  }
+
+  // Get owner dashboard statistics
+  app.get("/api/owner/stats", isOwnerMiddleware, async (req, res) => {
+    try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      // Total users
+      const [totalUsersResult] = await db.select({ count: count() }).from(users);
+      const totalUsers = totalUsersResult?.count || 0;
+
+      // New users today
+      const [newTodayResult] = await db
+        .select({ count: count() })
+        .from(users)
+        .where(gte(users.createdAt, today));
+      const newUsersToday = newTodayResult?.count || 0;
+
+      // New users this week
+      const [newWeekResult] = await db
+        .select({ count: count() })
+        .from(users)
+        .where(gte(users.createdAt, weekAgo));
+      const newUsersWeek = newWeekResult?.count || 0;
+
+      // New users this month
+      const [newMonthResult] = await db
+        .select({ count: count() })
+        .from(users)
+        .where(gte(users.createdAt, monthAgo));
+      const newUsersMonth = newMonthResult?.count || 0;
+
+      // Subscription breakdown
+      const subscriptionStats = await db
+        .select({
+          tier: users.subscriptionTier,
+          status: users.subscriptionStatus,
+          count: count(),
+        })
+        .from(users)
+        .groupBy(users.subscriptionTier, users.subscriptionStatus);
+
+      // Active premium subscribers
+      const premiumCount = subscriptionStats
+        .filter(s => s.tier !== "free" && s.status === "active")
+        .reduce((sum, s) => sum + Number(s.count), 0);
+
+      // Free users
+      const freeCount = subscriptionStats
+        .filter(s => s.tier === "free" || s.status !== "active")
+        .reduce((sum, s) => sum + Number(s.count), 0);
+
+      // Feature usage stats
+      const [totalGenerationsResult] = await db
+        .select({ count: count() })
+        .from(featureUsage);
+      const totalGenerations = totalGenerationsResult?.count || 0;
+
+      // Generations by type
+      const generationsByType = await db
+        .select({
+          type: featureUsage.featureType,
+          count: count(),
+        })
+        .from(featureUsage)
+        .groupBy(featureUsage.featureType);
+
+      // Recent signups (last 10)
+      const recentSignups = await db
+        .select({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          createdAt: users.createdAt,
+          subscriptionTier: users.subscriptionTier,
+        })
+        .from(users)
+        .orderBy(desc(users.createdAt))
+        .limit(10);
+
+      res.json({
+        users: {
+          total: totalUsers,
+          newToday: newUsersToday,
+          newThisWeek: newUsersWeek,
+          newThisMonth: newUsersMonth,
+          premium: premiumCount,
+          free: freeCount,
+        },
+        content: {
+          totalGenerations,
+          byType: generationsByType,
+        },
+        subscriptions: subscriptionStats,
+        recentSignups: recentSignups.map(u => ({
+          id: u.id,
+          name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || "Unknown",
+          email: u.email,
+          createdAt: u.createdAt,
+          tier: u.subscriptionTier,
+        })),
+      });
+    } catch (error) {
+      console.error("Owner stats error:", error);
+      res.status(500).json({ error: "Failed to fetch statistics" });
+    }
+  });
+
+  // Get all users for owner
+  app.get("/api/owner/users", isOwnerMiddleware, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+
+      const allUsers = await db
+        .select({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          createdAt: users.createdAt,
+          lastActiveAt: users.lastActiveAt,
+          subscriptionTier: users.subscriptionTier,
+          subscriptionStatus: users.subscriptionStatus,
+          emailVerified: users.emailVerified,
+          country: users.country,
+        })
+        .from(users)
+        .orderBy(desc(users.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const [totalResult] = await db.select({ count: count() }).from(users);
+
+      res.json({
+        users: allUsers,
+        pagination: {
+          page,
+          limit,
+          total: totalResult?.count || 0,
+          pages: Math.ceil((totalResult?.count || 0) / limit),
+        },
+      });
+    } catch (error) {
+      console.error("Get users error:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // Get daily signup trend (last 30 days)
+  app.get("/api/owner/trends", isOwnerMiddleware, async (req, res) => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // Get signups per day for the last 30 days
+      const signupTrend = await db
+        .select({
+          date: sql<string>`DATE(${users.createdAt})`.as("date"),
+          count: count(),
+        })
+        .from(users)
+        .where(gte(users.createdAt, thirtyDaysAgo))
+        .groupBy(sql`DATE(${users.createdAt})`)
+        .orderBy(sql`DATE(${users.createdAt})`);
+
+      // Get generations per day
+      const generationTrend = await db
+        .select({
+          date: sql<string>`DATE(${featureUsage.createdAt})`.as("date"),
+          count: count(),
+        })
+        .from(featureUsage)
+        .where(gte(featureUsage.createdAt, thirtyDaysAgo))
+        .groupBy(sql`DATE(${featureUsage.createdAt})`)
+        .orderBy(sql`DATE(${featureUsage.createdAt})`);
+
+      res.json({
+        signups: signupTrend,
+        generations: generationTrend,
+      });
+    } catch (error) {
+      console.error("Get trends error:", error);
+      res.status(500).json({ error: "Failed to fetch trends" });
+    }
+  });
+
+  // ========== END OWNER DASHBOARD ROUTES ==========
 
   // Get all generated content
   app.get("/api/content", async (req, res) => {
