@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "wouter";
+import { useTranslation } from "react-i18next";
 import { Image, Presentation, FileText, Film, ClipboardList } from "lucide-react";
 import { ContentTypeCard } from "@/components/content-type-card";
 import { PromptInput } from "@/components/prompt-input";
@@ -10,45 +11,46 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { ContentType, GeneratedContent } from "@shared/schema";
 
-const contentTypes = [
+const getContentTypes = (t: (key: string) => string) => [
   {
     type: "image" as ContentType,
     icon: Image,
-    title: "Educational Images",
-    description: "Create colorful illustrations, diagrams, and visual aids for your lessons",
+    title: t("contentTypes.image"),
+    description: t("contentTypes.imageDesc"),
     color: "bg-chart-4",
   },
   {
     type: "presentation" as ContentType,
     icon: Presentation,
-    title: "Presentations",
-    description: "Generate engaging slide decks with structured content and speaker notes",
+    title: t("contentTypes.presentation"),
+    description: t("contentTypes.presentationDesc"),
     color: "bg-chart-5",
   },
   {
     type: "text" as ContentType,
     icon: FileText,
-    title: "Educational Text",
-    description: "Create stories, worksheets, explanations, and learning materials",
+    title: t("contentTypes.text"),
+    description: t("contentTypes.textDesc"),
     color: "bg-chart-2",
   },
   {
     type: "storyboard" as ContentType,
     icon: Film,
-    title: "Video Planning",
-    description: "Plan and script animated videos with scenes, dialogue, and visual frames",
+    title: t("contentTypes.storyboard"),
+    description: t("contentTypes.storyboardDesc"),
     color: "bg-primary",
   },
   {
     type: "worksheet" as ContentType,
     icon: ClipboardList,
-    title: "Worksheets",
-    description: "Generate printable worksheets with questions, fill-in-the-blanks, and activities",
+    title: t("contentTypes.worksheet"),
+    description: t("contentTypes.worksheetDesc"),
     color: "bg-chart-1",
   },
 ];
 
 export default function Home() {
+  const { t } = useTranslation();
   const searchString = useSearch();
   const [selectedType, setSelectedType] = useState<ContentType>("image");
   const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
@@ -57,6 +59,8 @@ export default function Home() {
   const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }; worksheetOptions?: { colorMode?: string }; referenceImage?: string; imageOptions?: { style?: string; quality?: string; layout?: string }; textOptions?: { style?: string }; activityOptions?: { gameType?: string }; includeLogo?: boolean } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const contentTypes = getContentTypes(t);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -85,14 +89,14 @@ export default function Home() {
       setSelectedHistoryItem(null);
       queryClient.invalidateQueries({ queryKey: ["/api/content"] });
       toast({
-        title: "Content created!",
-        description: "Your educational content is ready to use.",
+        title: t("home.contentCreated"),
+        description: t("home.contentReady"),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Generation failed",
-        description: error.message || "Please try again.",
+        title: t("home.generationFailed"),
+        description: error.message || t("home.tryAgain"),
         variant: "destructive",
       });
     },
@@ -105,8 +109,8 @@ export default function Home() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/content"] });
       toast({
-        title: "Deleted",
-        description: "Content removed from history.",
+        title: t("home.deleted"),
+        description: t("home.contentRemoved"),
       });
     },
   });
@@ -138,10 +142,10 @@ export default function Home() {
           {/* Header */}
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary via-chart-4 to-accent bg-clip-text text-transparent">
-              What would you like to create?
+              {t("home.whatCreate")}
             </h1>
             <p className="text-muted-foreground">
-              Choose a content type and describe what you need. AI will create it for you in seconds.
+              {t("home.chooseType")}
             </p>
           </div>
 
@@ -187,7 +191,7 @@ export default function Home() {
       {/* History Sidebar */}
       <div className="w-72 border-l bg-card/50 hidden lg:block">
         <div className="p-4 border-b">
-          <h2 className="font-semibold text-sm">Recent Creations</h2>
+          <h2 className="font-semibold text-sm">{t("home.recentCreations")}</h2>
         </div>
         <HistorySidebar
           history={history}
