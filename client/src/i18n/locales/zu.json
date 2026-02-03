@@ -17,7 +17,10 @@
     "premium": "Premium",
     "free": "Mahhala",
     "upgrade": "Thuthukisela ku-Premium",
-    "manageSubscription": "Phatha Ukubhalisela"
+    "manageSubscription": "Phatha Ukubhalisela",
+    "tagline": "Okuqukethwe kwe-AI Kothisha",
+    "ownerDashboard": "Idashbodi Yomnikazi",
+    "owner": "Umnikazi"
   },
   "landing": {
     "heroTitle": "Izwi noma Umbhalo ube Yiqiniso",

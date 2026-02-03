@@ -17,7 +17,10 @@
     "premium": "Premium",
     "free": "Free",
     "upgrade": "Upgrade to Premium",
-    "manageSubscription": "Manage Subscription"
+    "manageSubscription": "Manage Subscription",
+    "tagline": "AI Content for Teachers",
+    "ownerDashboard": "Owner Dashboard",
+    "owner": "Owner"
   },
   "landing": {
     "heroTitle": "Voice or Text to Reality",

@@ -1,6 +1,7 @@
 import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme-provider";
@@ -75,6 +76,7 @@ function Router() {
 }
 
 function UserMenu() {
+  const { t } = useTranslation();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { data: subscriptionStatus } = useQuery({
     queryKey: ["/api/subscription/status"],
@@ -88,7 +90,7 @@ function UserMenu() {
   if (!isAuthenticated || !user) {
     return (
       <Button asChild size="sm" data-testid="button-login-header">
-        <Link href="/login">Sign In</Link>
+        <Link href="/login">{t("common.signIn")}</Link>
       </Button>
     );
   }
@@ -127,15 +129,15 @@ function UserMenu() {
           <DropdownMenuItem className="cursor-pointer" asChild>
             <a href="/owner-dashboard" className="flex items-center gap-2" data-testid="link-owner-dashboard">
               <BarChart3 className="w-4 h-4" />
-              <span>Owner Dashboard</span>
-              <Badge className="ml-auto text-xs bg-yellow-500">Owner</Badge>
+              <span>{t("common.ownerDashboard")}</span>
+              <Badge className="ml-auto text-xs bg-yellow-500">{t("common.owner")}</Badge>
             </a>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem className="cursor-pointer" asChild>
           <a href="/pricing" className="flex items-center gap-2">
             <Crown className="w-4 h-4" />
-            <span>{isPremium ? "Manage Subscription" : "Upgrade to Premium"}</span>
+            <span>{isPremium ? t("common.manageSubscription") : t("common.upgrade")}</span>
             {!isPremium && (
               <Badge variant="secondary" className="ml-auto text-xs">PRO</Badge>
             )}
@@ -148,7 +150,7 @@ function UserMenu() {
           data-testid="button-logout"
         >
           <LogOut className="w-4 h-4" />
-          <span>Sign Out</span>
+          <span>{t("common.signOut")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -156,6 +158,7 @@ function UserMenu() {
 }
 
 function HeaderWithLogo() {
+  const { t } = useTranslation();
   const { isAuthenticated, isLoading } = useAuth();
   const { data: settings } = useQuery<OrganizationSettings>({
     queryKey: ["/api/settings"],
@@ -180,7 +183,7 @@ function HeaderWithLogo() {
             BrightBoard
             <GraduationCap className="h-4 w-4 text-muted-foreground" />
           </h1>
-          <p className="text-xs text-muted-foreground -mt-0.5">AI Content for Teachers</p>
+          <p className="text-xs text-muted-foreground -mt-0.5">{t("common.tagline")}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">

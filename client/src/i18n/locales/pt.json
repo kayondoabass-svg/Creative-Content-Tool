@@ -17,7 +17,10 @@
     "premium": "Premium",
     "free": "Grátis",
     "upgrade": "Atualizar para Premium",
-    "manageSubscription": "Gerenciar assinatura"
+    "manageSubscription": "Gerenciar assinatura",
+    "tagline": "Conteúdo IA para Professores",
+    "ownerDashboard": "Painel do Proprietário",
+    "owner": "Proprietário"
   },
   "landing": {
     "heroTitle": "Da voz ou texto para a realidade",

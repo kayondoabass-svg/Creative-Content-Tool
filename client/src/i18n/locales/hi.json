@@ -17,7 +17,10 @@
     "premium": "प्रीमियम",
     "free": "मुफ्त",
     "upgrade": "प्रीमियम में अपग्रेड करें",
-    "manageSubscription": "सदस्यता प्रबंधित करें"
+    "manageSubscription": "सदस्यता प्रबंधित करें",
+    "tagline": "शिक्षकों के लिए AI सामग्री",
+    "ownerDashboard": "मालिक डैशबोर्ड",
+    "owner": "मालिक"
   },
   "landing": {
     "heroTitle": "आवाज़ या टेक्स्ट से वास्तविकता",

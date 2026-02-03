@@ -17,7 +17,10 @@
     "premium": "高级版",
     "free": "免费",
     "upgrade": "升级到高级版",
-    "manageSubscription": "管理订阅"
+    "manageSubscription": "管理订阅",
+    "tagline": "教师AI内容",
+    "ownerDashboard": "所有者面板",
+    "owner": "所有者"
   },
   "landing": {
     "heroTitle": "语音或文字变为现实",

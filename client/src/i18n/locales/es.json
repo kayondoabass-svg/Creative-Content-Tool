@@ -17,7 +17,10 @@
     "premium": "Premium",
     "free": "Gratis",
     "upgrade": "Actualizar a Premium",
-    "manageSubscription": "Gestionar suscripción"
+    "manageSubscription": "Gestionar suscripción",
+    "tagline": "Contenido IA para Maestros",
+    "ownerDashboard": "Panel del Propietario",
+    "owner": "Propietario"
   },
   "landing": {
     "heroTitle": "De voz o texto a realidad",
