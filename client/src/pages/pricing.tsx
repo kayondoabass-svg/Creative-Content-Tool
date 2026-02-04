@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, ArrowLeft, Loader2 } from "lucide-react";
+import { Check, Crown, ArrowLeft, Loader2, Shield, BookOpen, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { PricingPDFDownload } from "@/components/pricing-pdf";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -15,22 +15,6 @@ interface SubscriptionStatus {
   tier: string | null;
   status: string | null;
   currentPeriodEnd: string | null;
-}
-
-interface PaddlePrices {
-  weekly: string;
-  monthly: string;
-  yearly: string;
-}
-
-interface PaddleConfig {
-  clientToken: string;
-}
-
-declare global {
-  interface Window {
-    Paddle: any;
-  }
 }
 
 const plans = [
@@ -82,42 +66,12 @@ const plans = [
 export default function PricingPage() {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const { data: subscriptionStatus, isLoading: statusLoading } = useQuery<SubscriptionStatus>({
     queryKey: ["/api/subscription/status"],
     enabled: isAuthenticated,
   });
-
-  const { data: paddlePrices } = useQuery<PaddlePrices>({
-    queryKey: ["/api/paddle/prices"],
-    enabled: isAuthenticated,
-  });
-
-  const { data: paddleConfig } = useQuery<PaddleConfig>({
-    queryKey: ["/api/paddle/config"],
-  });
-
-  useEffect(() => {
-    if (!paddleConfig?.clientToken) return;
-    
-    if (!window.Paddle) {
-      const script = document.createElement("script");
-      script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
-      script.async = true;
-      script.onload = () => {
-        if (window.Paddle && paddleConfig.clientToken) {
-          window.Paddle.Initialize({
-            token: paddleConfig.clientToken,
-          });
-        }
-      };
-      document.head.appendChild(script);
-    } else if (paddleConfig.clientToken) {
-      window.Paddle.Initialize({
-        token: paddleConfig.clientToken,
-      });
-    }
-  }, [paddleConfig?.clientToken]);
 
   const cancelMutation = useMutation({
     mutationFn: async () => {
@@ -140,36 +94,37 @@ export default function PricingPage() {
     },
   });
 
-  const handleSubscribe = (planId: string) => {
-    if (!window.Paddle || !user) {
+  const handleSubscribe = async (planId: string) => {
+    if (!user) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Payment system not ready. Please try again.",
+        description: "Please sign in to subscribe.",
       });
       return;
     }
 
-    const priceId = paddlePrices?.[planId as keyof PaddlePrices];
-    if (!priceId) {
+    setLoadingPlan(planId);
+    try {
+      const response = await apiRequest("POST", "/api/subscription/checkout", { 
+        tier: planId 
+      });
+      const data = await response.json();
+      
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Price not configured. Please contact support.",
+        description: error.message || "Failed to start checkout. Please try again.",
       });
-      return;
+    } finally {
+      setLoadingPlan(null);
     }
-
-    window.Paddle.Checkout.open({
-      items: [{ priceId, quantity: 1 }],
-      customer: {
-        email: user.email,
-      },
-      customData: {
-        user_id: user.id,
-      },
-      successUrl: window.location.origin + "/?checkout=success",
-    });
   };
 
   const isPremium = subscriptionStatus?.isPremium;
