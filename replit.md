@@ -27,7 +27,7 @@ BrightBoard is built with a React, TypeScript, and Vite frontend utilizing Tailw
 ## External Dependencies
 - **OpenAI**: Used for AI content generation (images, text, presentations, storyboards, worksheets) and voice-to-text.
 - **Resend**: For email delivery (verification codes, password resets).
-- **Stripe/Paddle**: For subscription management and payment processing.
+- **Flutterwave**: Planned payment processor for subscription management (pending registration in Uganda). Supports mobile money (MTN, Airtel), cards, and 150+ currencies.
 - **pptxgenjs**: For generating PowerPoint (.pptx) files.
 - **express-session**: For session-based authentication.
 - **Web Audio API**: For sound effects in interactive games.

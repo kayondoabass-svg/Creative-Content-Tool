@@ -203,50 +203,65 @@ export default function PricingPage() {
       )}
 
       {!isPremium && (
-        <div className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan) => (
-            <Card 
-              key={plan.id} 
-              className={`relative ${plan.highlight ? 'border-primary shadow-lg' : ''}`}
-            >
-              {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                    {plan.badge}
-                  </span>
-                </div>
-              )}
-              <CardContent className="p-6 pt-8">
-                <h3 className="font-semibold text-lg mb-2">{plan.name}</h3>
-                <div className="mb-4">
-                  <span className="text-3xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm">/{plan.period}</span>
-                </div>
-                <ul className="space-y-2 mb-6">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button 
-                  className="w-full" 
-                  variant={plan.highlight ? "default" : "outline"}
-                  onClick={() => handleSubscribe(plan.id)}
-                  data-testid={`button-subscribe-${plan.id}`}
-                >
-                  Subscribe Now
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          <Card className="mb-8 border-amber-500/50 bg-amber-500/5">
+            <CardContent className="p-6 text-center">
+              <Crown className="w-12 h-12 mx-auto mb-4 text-amber-500" />
+              <h3 className="text-xl font-bold mb-2">Premium Subscriptions Coming Soon</h3>
+              <p className="text-muted-foreground mb-4">
+                We're setting up secure payment processing. Premium features will be available shortly.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Contact us at <a href="mailto:kayondoabass@gmail.com" className="text-primary hover:underline">kayondoabass@gmail.com</a> for early access.
+              </p>
+            </CardContent>
+          </Card>
+          
+          <div className="grid md:grid-cols-3 gap-6 opacity-75">
+            {plans.map((plan) => (
+              <Card 
+                key={plan.id} 
+                className={`relative ${plan.highlight ? 'border-primary shadow-lg' : ''}`}
+              >
+                {plan.badge && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                      {plan.badge}
+                    </span>
+                  </div>
+                )}
+                <CardContent className="p-6 pt-8">
+                  <h3 className="font-semibold text-lg mb-2">{plan.name}</h3>
+                  <div className="mb-4">
+                    <span className="text-3xl font-bold">{plan.price}</span>
+                    <span className="text-muted-foreground text-sm">/{plan.period}</span>
+                  </div>
+                  <ul className="space-y-2 mb-6">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-center gap-2 text-sm">
+                        <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    disabled
+                    data-testid={`button-subscribe-${plan.id}`}
+                  >
+                    Coming Soon
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       <div className="mt-12 text-center text-sm text-muted-foreground">
         <p>All plans include a 7-day money-back guarantee. Cancel anytime.</p>
-        <p className="mt-2">Secure payment powered by Paddle.</p>
+        <p className="mt-2">Secure payment processing coming soon.</p>
       </div>
 
       <Footer />
