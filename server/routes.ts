@@ -21,7 +21,7 @@ import * as paddleService from "./paddleService";
 import crypto from "crypto";
 import * as customAuth from "./customAuthService";
 import { db } from "./db";
-import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, type Expense, type InsertExpense } from "@shared/schema";
+import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, type Expense, type InsertExpense } from "@shared/schema";
 import { eq, count, sql, desc, gte, and } from "drizzle-orm";
 
 const openai = new OpenAI({
@@ -224,6 +224,22 @@ export async function registerRoutes(
   // Get reCAPTCHA site key (for frontend)
   app.get("/api/auth/recaptcha-key", async (req, res) => {
     res.json({ siteKey: process.env.RECAPTCHA_SITE_KEY || null });
+  });
+
+  // Public stats endpoint for landing page
+  app.get("/api/public/stats", async (req, res) => {
+    try {
+      const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(users);
+      const totalContent = await db.select({ count: sql<number>`count(*)` }).from(generatedContent);
+      
+      res.json({
+        totalUsers: Number(totalUsers[0]?.count || 0),
+        totalContent: Number(totalContent[0]?.count || 0),
+      });
+    } catch (error) {
+      console.error("Error fetching public stats:", error);
+      res.json({ totalUsers: 0, totalContent: 0 });
+    }
   });
 
   // Emergency CEO account delete (for fresh start)
