@@ -13,6 +13,16 @@ BrightBoard is an AI-powered content creation platform designed for busy teacher
 ### UI/UX Decisions
 The platform features a beautiful, playful UI with a purple/teal educational theme, dark mode support, and a content history sidebar. Interactive elements like the Lucky Spinner game and other online games are designed with engaging animations and visual feedback.
 
+The landing page includes:
+- Hero section with trust badges (7-Day Money Back, Cancel Anytime, Secure Payments, 11 Languages)
+- Live stats counter showing real-time teacher signups and content generations
+- Video demo section with placeholder for walkthrough video
+- Sample content gallery showcasing AI-generated examples
+- Feature grid highlighting all 6 content types
+- Testimonials section with teacher quotes from around the world
+- FAQ accordion with common questions and answers
+- Final CTA section with call to action buttons
+
 ### Technical Implementations
 BrightBoard is built with a React, TypeScript, and Vite frontend utilizing Tailwind CSS for styling, TanStack Query for data fetching, and Wouter for routing. The backend is an Express.js application, integrating with OpenAI for content generation. Custom email/password authentication is implemented with email verification and password reset flows, replacing Replit Auth. Subscription management is handled via Stripe/Paddle. The system supports multi-language internationalization (i18n) with 11 languages and RTL support.
 
