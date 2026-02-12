@@ -187,16 +187,16 @@ export default function Affiliate() {
             <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
               Join hundreds of educators who are already earning passive income by sharing BrightBoard with their community.
             </p>
-            <a href="mailto:affiliates@brightboardapp.com?subject=Affiliate Program Application">
+            <Link href="/contact">
               <Button size="lg" data-testid="button-apply-affiliate">
                 <Mail className="w-4 h-4 mr-2" />
                 Apply Now
               </Button>
-            </a>
+            </Link>
             <p className="text-sm text-muted-foreground mt-4">
               Questions? Email us at{" "}
-              <a href="mailto:affiliates@brightboardapp.com" className="text-primary hover:underline">
-                affiliates@brightboardapp.com
+              <a href="mailto:support@brightboardapp.com" className="text-primary hover:underline">
+                support@brightboardapp.com
               </a>
             </p>
           </CardContent>
