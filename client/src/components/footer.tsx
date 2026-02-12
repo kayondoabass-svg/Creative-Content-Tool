@@ -85,8 +85,18 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4">{t('footer.contact')}</h4>
+            <h4 className="font-semibold mb-4">{t('footer.company')}</h4>
             <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-about">
+                  {t('footer.about')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-contact">
+                  {t('footer.contactUs')}
+                </Link>
+              </li>
               <li>
                 <a 
                   href="mailto:support@brightboardapp.com" 

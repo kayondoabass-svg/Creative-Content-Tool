@@ -198,11 +198,63 @@ export async function sendPasswordResetEmail(email: string, code: string): Promi
     });
 
     console.log('Password reset email sent:', result);
-    // Log Resend expense
     await logResendExpense("Password Reset", email);
     return true;
   } catch (error) {
     console.error('Error sending password reset email:', error);
+    return false;
+  }
+}
+
+export async function sendContactNotification(name: string, email: string, subject: string, message: string): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    let sender = fromEmail || 'noreply@brightboardapp.com';
+    if (sender && !sender.includes('<')) {
+      sender = `BrightBoard <${sender}>`;
+    }
+
+    const subjectLabels: Record<string, string> = {
+      general: "General Inquiry",
+      support: "Technical Support",
+      billing: "Billing Question",
+      feedback: "Feedback",
+      partnership: "Partnership",
+      bug: "Bug Report",
+    };
+
+    const result = await client.emails.send({
+      from: sender,
+      to: 'kayondoabass@gmail.com',
+      replyTo: email,
+      subject: `[BrightBoard Contact] ${subjectLabels[subject] || subject} from ${name}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 40px 20px;">
+          <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 12px; padding: 32px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h1 style="color: #7c3aed; margin: 0 0 24px 0; font-size: 24px;">New Contact Form Submission</h1>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 8px 0; color: #6b7280; width: 100px;">Name:</td><td style="padding: 8px 0; font-weight: 600;">${name}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Email:</td><td style="padding: 8px 0;"><a href="mailto:${email}" style="color: #7c3aed;">${email}</a></td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Subject:</td><td style="padding: 8px 0;">${subjectLabels[subject] || subject}</td></tr>
+            </table>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+            <h3 style="color: #1f2937; margin: 0 0 8px 0;">Message:</h3>
+            <p style="color: #4b5563; line-height: 1.6; white-space: pre-wrap;">${message}</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+            <p style="color: #9ca3af; font-size: 12px;">You can reply directly to this email to respond to ${name}.</p>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    console.log('Contact notification email sent:', result);
+    await logResendExpense("Contact Form", email);
+    return true;
+  } catch (error) {
+    console.error('Error sending contact notification:', error);
     return false;
   }
 }

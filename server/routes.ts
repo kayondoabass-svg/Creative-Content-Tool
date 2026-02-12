@@ -242,6 +242,29 @@ export async function registerRoutes(
     }
   });
 
+  // Contact form endpoint
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const { name, email, subject, message } = req.body;
+      if (!name || !email || !message) {
+        return res.status(400).json({ error: "Name, email, and message are required" });
+      }
+
+      // Send contact notification email to support
+      try {
+        const { sendContactNotification } = await import("./emailService");
+        await sendContactNotification(name, email, subject || "general", message);
+      } catch (emailError) {
+        console.error("Failed to send contact email:", emailError);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Contact form error:", error);
+      res.status(500).json({ error: "Failed to submit contact form" });
+    }
+  });
+
   // Emergency CEO account delete (for fresh start)
   app.post("/api/auth/emergency-delete", async (req, res) => {
     try {
