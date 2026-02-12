@@ -53,20 +53,23 @@ export function useAuth() {
       password, 
       firstName, 
       lastName,
-      recaptchaToken 
+      recaptchaToken,
+      ref
     }: { 
       email: string; 
       password: string; 
       firstName: string; 
       lastName: string;
       recaptchaToken?: string;
+      ref?: string;
     }) => {
       const response = await apiRequest("POST", "/api/auth/signup", { 
         email, 
         password, 
         firstName, 
         lastName,
-        recaptchaToken 
+        recaptchaToken,
+        ref
       });
       return response.json();
     },

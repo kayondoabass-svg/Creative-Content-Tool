@@ -258,3 +258,59 @@ export async function sendContactNotification(name: string, email: string, subje
     return false;
   }
 }
+
+export async function sendAffiliateStatusEmail(name: string, email: string, status: string, referralCode: string, rejectedReason?: string): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    let sender = fromEmail || 'noreply@brightboardapp.com';
+    if (sender && !sender.includes('<')) {
+      sender = `BrightBoard <${sender}>`;
+    }
+
+    const isApproved = status === "approved";
+    const referralLink = `https://www.brightboardapp.com/signup?ref=${referralCode}`;
+
+    const result = await client.emails.send({
+      from: sender,
+      to: email,
+      subject: isApproved
+        ? 'Your BrightBoard Affiliate Application is Approved!'
+        : 'Update on Your BrightBoard Affiliate Application',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 40px 20px;">
+          <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 12px; padding: 32px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h1 style="color: #7c3aed; margin: 0 0 8px 0; font-size: 24px;">BrightBoard Affiliate Program</h1>
+            <p style="color: #4b5563;">Hi ${name},</p>
+            ${isApproved ? `
+              <p style="color: #4b5563;">Great news! Your affiliate application has been <strong style="color: #16a34a;">approved</strong>!</p>
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0 0 8px 0; font-weight: 600;">Your Referral Code:</p>
+                <p style="margin: 0 0 16px 0; font-size: 24px; font-weight: bold; color: #7c3aed; letter-spacing: 2px;">${referralCode}</p>
+                <p style="margin: 0 0 8px 0; font-weight: 600;">Your Referral Link:</p>
+                <a href="${referralLink}" style="color: #7c3aed; word-break: break-all;">${referralLink}</a>
+              </div>
+              <p style="color: #4b5563;">Share this link with teachers. When they sign up and subscribe through your link, you earn commissions!</p>
+              <p style="color: #4b5563;">You can check your referrals and earnings anytime at <a href="https://www.brightboardapp.com/affiliate" style="color: #7c3aed;">brightboardapp.com/affiliate</a>.</p>
+            ` : `
+              <p style="color: #4b5563;">Thank you for your interest in our affiliate program. Unfortunately, we're unable to approve your application at this time.</p>
+              ${rejectedReason ? `<p style="color: #4b5563;"><strong>Reason:</strong> ${rejectedReason}</p>` : ''}
+              <p style="color: #4b5563;">You're welcome to apply again in the future. If you have questions, please contact us at support@brightboardapp.com.</p>
+            `}
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+            <p style="color: #9ca3af; font-size: 12px;">BrightBoard - AI Content for Teachers</p>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    console.log('Affiliate status email sent:', result);
+    await logResendExpense("Affiliate Status", email);
+    return true;
+  } catch (error) {
+    console.error('Error sending affiliate status email:', error);
+    return false;
+  }
+}

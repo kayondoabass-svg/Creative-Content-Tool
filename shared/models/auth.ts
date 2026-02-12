@@ -45,6 +45,7 @@ export const users = pgTable("users", {
   lastActiveAt: timestamp("last_active_at").defaultNow(),
   // Owner/Admin fields
   isOwner: boolean("is_owner").default(false),
+  referredBy: varchar("referred_by"),
 });
 
 // Email verification codes table
@@ -94,3 +95,23 @@ export const jobPostings = pgTable("job_postings", {
 
 export type JobPosting = typeof jobPostings.$inferSelect;
 export type InsertJobPosting = typeof jobPostings.$inferInsert;
+
+export const affiliates = pgTable("affiliates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  email: varchar("email").notNull().unique(),
+  website: varchar("website"),
+  socialMedia: varchar("social_media"),
+  audience: varchar("audience"),
+  reason: varchar("reason"),
+  referralCode: varchar("referral_code").notNull().unique(),
+  status: varchar("status").default("pending").notNull(),
+  totalReferrals: integer("total_referrals").default(0).notNull(),
+  totalEarnings: integer("total_earnings").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  rejectedReason: varchar("rejected_reason"),
+});
+
+export type Affiliate = typeof affiliates.$inferSelect;
+export type InsertAffiliate = typeof affiliates.$inferInsert;

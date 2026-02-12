@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft, Video, Settings } from "lucide-react";
+import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft, Video, Settings, UserCheck, UserX, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Switch } from "@/components/ui/switch";
@@ -530,6 +530,152 @@ export default function OwnerDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      <AffiliateManagement />
     </div>
+  );
+}
+
+function AffiliateManagement() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { data: affiliatesData, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/affiliates"],
+  });
+
+  const updateAffiliate = useMutation({
+    mutationFn: async ({ id, status, rejectedReason }: { id: string; status: string; rejectedReason?: string }) => {
+      await apiRequest("PATCH", `/api/affiliates/${id}`, { status, rejectedReason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/affiliates"] });
+    },
+  });
+
+  const pending = affiliatesData?.filter((a: any) => a.status === "pending") || [];
+  const approved = affiliatesData?.filter((a: any) => a.status === "approved") || [];
+  const rejected = affiliatesData?.filter((a: any) => a.status === "rejected") || [];
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader><CardTitle>{t("common.loading")}</CardTitle></CardHeader>
+        <CardContent><Skeleton className="h-32 w-full" /></CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="w-5 h-5" />
+              Affiliate Management
+            </CardTitle>
+            <CardDescription>
+              {affiliatesData?.length || 0} total applications
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="secondary">{pending.length} pending</Badge>
+            <Badge className="bg-green-500">{approved.length} approved</Badge>
+            <Badge variant="destructive">{rejected.length} rejected</Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {(!affiliatesData || affiliatesData.length === 0) && (
+          <p className="text-center text-muted-foreground py-8">No affiliate applications yet.</p>
+        )}
+
+        {pending.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Pending Review</h4>
+            {pending.map((aff: any) => (
+              <div key={aff.id} className="border rounded-md p-4 space-y-3" data-testid={`affiliate-pending-${aff.id}`}>
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div>
+                    <p className="font-medium">{aff.name}</p>
+                    <p className="text-sm text-muted-foreground">{aff.email}</p>
+                  </div>
+                  <Badge variant="secondary">Pending</Badge>
+                </div>
+                {aff.website && <p className="text-sm"><span className="text-muted-foreground">Website:</span> {aff.website}</p>}
+                {aff.socialMedia && <p className="text-sm"><span className="text-muted-foreground">Social:</span> {aff.socialMedia}</p>}
+                {aff.audience && <p className="text-sm"><span className="text-muted-foreground">Audience:</span> {aff.audience}</p>}
+                <p className="text-sm"><span className="text-muted-foreground">Reason:</span> {aff.reason}</p>
+                <p className="text-xs text-muted-foreground">Applied: {new Date(aff.createdAt).toLocaleDateString()}</p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => updateAffiliate.mutate({ id: aff.id, status: "approved" })}
+                    disabled={updateAffiliate.isPending}
+                    data-testid={`button-approve-${aff.id}`}
+                  >
+                    <UserCheck className="w-4 h-4 mr-1" />
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      const reason = prompt("Reason for rejection (optional):");
+                      updateAffiliate.mutate({ id: aff.id, status: "rejected", rejectedReason: reason || undefined });
+                    }}
+                    disabled={updateAffiliate.isPending}
+                    data-testid={`button-reject-${aff.id}`}
+                  >
+                    <UserX className="w-4 h-4 mr-1" />
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {approved.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Approved Affiliates</h4>
+            {approved.map((aff: any) => (
+              <div key={aff.id} className="border rounded-md p-4" data-testid={`affiliate-approved-${aff.id}`}>
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div>
+                    <p className="font-medium">{aff.name}</p>
+                    <p className="text-sm text-muted-foreground">{aff.email}</p>
+                  </div>
+                  <Badge className="bg-green-500">Approved</Badge>
+                </div>
+                <div className="mt-2 flex items-center gap-4 text-sm flex-wrap">
+                  <span className="text-muted-foreground">Code: <code className="font-mono text-primary">{aff.referralCode}</code></span>
+                  <span className="text-muted-foreground">Referrals: <strong>{aff.totalReferrals}</strong></span>
+                  <span className="text-muted-foreground">Earnings: <strong>${((aff.totalEarnings || 0) / 100).toFixed(2)}</strong></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {rejected.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Rejected</h4>
+            {rejected.map((aff: any) => (
+              <div key={aff.id} className="border rounded-md p-4 opacity-60" data-testid={`affiliate-rejected-${aff.id}`}>
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div>
+                    <p className="font-medium">{aff.name}</p>
+                    <p className="text-sm text-muted-foreground">{aff.email}</p>
+                  </div>
+                  <Badge variant="destructive">Rejected</Badge>
+                </div>
+                {aff.rejectedReason && <p className="text-sm mt-1 text-muted-foreground">{aff.rejectedReason}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

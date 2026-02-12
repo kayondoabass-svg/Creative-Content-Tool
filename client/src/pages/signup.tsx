@@ -73,7 +73,9 @@ export default function SignupPage() {
         recaptchaToken = await window.grecaptcha.execute(recaptchaSiteKey, { action: "signup" });
       }
       
-      await signup({ email, password, firstName, lastName, recaptchaToken });
+      const urlParams = new URLSearchParams(window.location.search);
+      const ref = urlParams.get("ref") || undefined;
+      await signup({ email, password, firstName, lastName, recaptchaToken, ref });
       localStorage.setItem("pendingVerificationEmail", email);
       toast({ title: "Check your email", description: "We sent you a verification code" });
       setLocation(`/verify-email?email=${encodeURIComponent(email)}`);

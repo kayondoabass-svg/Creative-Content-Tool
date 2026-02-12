@@ -21,7 +21,7 @@ import * as paddleService from "./paddleService";
 import crypto from "crypto";
 import * as customAuth from "./customAuthService";
 import { db } from "./db";
-import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, type Expense, type InsertExpense } from "@shared/schema";
+import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, type Expense, type InsertExpense } from "@shared/schema";
 import { eq, count, sql, desc, gte, and } from "drizzle-orm";
 
 const openai = new OpenAI({
@@ -38,7 +38,7 @@ export async function registerRoutes(
   // Sign up with email/password
   app.post("/api/auth/signup", async (req, res) => {
     try {
-      const { email, password, firstName, lastName, recaptchaToken } = req.body;
+      const { email, password, firstName, lastName, recaptchaToken, ref } = req.body;
       
       if (!email || !password || !firstName || !lastName) {
         return res.status(400).json({ error: "All fields are required" });
@@ -52,6 +52,19 @@ export async function registerRoutes(
       
       if (!result.success) {
         return res.status(400).json({ error: result.message });
+      }
+
+      // Track referral if ref code provided
+      if (ref && result.userId) {
+        try {
+          const affiliate = await db.select().from(affiliates).where(eq(affiliates.referralCode, ref)).limit(1);
+          if (affiliate[0] && affiliate[0].status === "approved") {
+            await db.update(users).set({ referredBy: ref }).where(eq(users.id, result.userId));
+            await db.update(affiliates).set({ totalReferrals: sql`${affiliates.totalReferrals} + 1` }).where(eq(affiliates.id, affiliate[0].id));
+          }
+        } catch (refErr) {
+          console.error("Referral tracking error:", refErr);
+        }
       }
       
       res.json({ message: result.message, userId: result.userId });
@@ -262,6 +275,135 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Contact form error:", error);
       res.status(500).json({ error: "Failed to submit contact form" });
+    }
+  });
+
+  // ========== AFFILIATE PROGRAM ENDPOINTS ==========
+  
+  // Apply to affiliate program (public)
+  app.post("/api/affiliates/apply", async (req, res) => {
+    try {
+      const { name, email, website, socialMedia, audience, reason } = req.body;
+      if (!name || !email || !reason) {
+        return res.status(400).json({ error: "Name, email, and reason are required" });
+      }
+
+      // Check if already applied
+      const existing = await db.select().from(affiliates).where(eq(affiliates.email, email.toLowerCase())).limit(1);
+      if (existing.length > 0) {
+        const status = existing[0].status;
+        if (status === "approved") {
+          return res.json({ success: true, alreadyApproved: true, referralCode: existing[0].referralCode });
+        }
+        return res.status(400).json({ error: "An application with this email already exists" });
+      }
+
+      // Generate unique referral code
+      const code = name.split(" ")[0].toLowerCase().replace(/[^a-z]/g, "").substring(0, 8) + Math.random().toString(36).substring(2, 6);
+
+      await db.insert(affiliates).values({
+        name,
+        email: email.toLowerCase(),
+        website: website || null,
+        socialMedia: socialMedia || null,
+        audience: audience || null,
+        reason,
+        referralCode: code,
+        status: "pending",
+      });
+
+      // Notify owner
+      try {
+        const { sendContactNotification } = await import("./emailService");
+        await sendContactNotification(name, email, "partnership", `New affiliate application:\n\nName: ${name}\nEmail: ${email}\nWebsite: ${website || "N/A"}\nSocial Media: ${socialMedia || "N/A"}\nAudience: ${audience || "N/A"}\nReason: ${reason}`);
+      } catch (e) {
+        console.error("Failed to send affiliate notification:", e);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Affiliate apply error:", error);
+      res.status(500).json({ error: "Failed to submit application" });
+    }
+  });
+
+  // Check affiliate status by email (public)
+  app.get("/api/affiliates/status/:email", async (req, res) => {
+    try {
+      const result = await db.select().from(affiliates).where(eq(affiliates.email, req.params.email.toLowerCase())).limit(1);
+      if (result.length === 0) {
+        return res.json({ found: false });
+      }
+      const aff = result[0];
+      res.json({
+        found: true,
+        status: aff.status,
+        referralCode: aff.status === "approved" ? aff.referralCode : null,
+        referralLink: aff.status === "approved" ? `https://www.brightboardapp.com/signup?ref=${aff.referralCode}` : null,
+        totalReferrals: aff.totalReferrals,
+        totalEarnings: aff.totalEarnings,
+        appliedAt: aff.createdAt,
+        approvedAt: aff.approvedAt,
+        rejectedReason: aff.rejectedReason,
+      });
+    } catch (error) {
+      console.error("Affiliate status error:", error);
+      res.status(500).json({ error: "Failed to check status" });
+    }
+  });
+
+  // Owner: List all affiliates
+  app.get("/api/affiliates", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user[0]?.isOwner) return res.status(403).json({ error: "Not authorized" });
+
+      const allAffiliates = await db.select().from(affiliates).orderBy(desc(affiliates.createdAt));
+      res.json(allAffiliates);
+    } catch (error) {
+      console.error("List affiliates error:", error);
+      res.status(500).json({ error: "Failed to list affiliates" });
+    }
+  });
+
+  // Owner: Approve/reject affiliate
+  app.patch("/api/affiliates/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user[0]?.isOwner) return res.status(403).json({ error: "Not authorized" });
+
+      const { status, rejectedReason } = req.body;
+      if (!["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ error: "Status must be approved or rejected" });
+      }
+
+      const updateData: any = { status };
+      if (status === "approved") {
+        updateData.approvedAt = new Date();
+      }
+      if (status === "rejected" && rejectedReason) {
+        updateData.rejectedReason = rejectedReason;
+      }
+
+      await db.update(affiliates).set(updateData).where(eq(affiliates.id, req.params.id));
+
+      // Get affiliate to send email notification
+      const aff = await db.select().from(affiliates).where(eq(affiliates.id, req.params.id)).limit(1);
+      if (aff[0]) {
+        try {
+          const { sendAffiliateStatusEmail } = await import("./emailService");
+          await sendAffiliateStatusEmail(aff[0].name, aff[0].email, status, aff[0].referralCode, rejectedReason);
+        } catch (e) {
+          console.error("Failed to send affiliate status email:", e);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Update affiliate error:", error);
+      res.status(500).json({ error: "Failed to update affiliate" });
     }
   });
 
