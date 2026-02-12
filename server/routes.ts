@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions, type ImageOptions, type TextOptions, type ActivityOptions } from "@shared/schema";
 import OpenAI from "openai";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFExtract } from "pdf.js-extract";
 import sharp from "sharp";
 import PptxGenJS from "pptxgenjs";
 import { stripeService } from "./stripeService";
@@ -1132,29 +1133,81 @@ This should look like it was designed by a world-class branding agency. Make it 
             });
           }
         } else if (mimeType === "application/pdf") {
-          const pdfDoc = await PDFDocument.load(buffer);
-          const pageCount = pdfDoc.getPageCount();
+          const pdfExtract = new PDFExtract();
+          const pdfData = await pdfExtract.extractBuffer(buffer, {});
+          const pageCount = pdfData.pages.length;
           
           for (let i = 0; i < Math.min(pageCount, 50); i++) {
             const slide = pptx.addSlide();
-            slide.addText(`PDF Page ${i + 1}`, {
-              x: 0.5,
-              y: 3,
-              w: 9,
-              h: 1,
-              fontSize: 24,
-              align: "center",
-              color: "333333"
-            });
-            slide.addText("(Image extraction requires premium PDF processing)", {
-              x: 0.5,
-              y: 4,
-              w: 9,
-              h: 0.5,
-              fontSize: 12,
-              align: "center",
-              color: "666666"
-            });
+            const pdfPage = pdfData.pages[i];
+            
+            const pageWidth = pdfPage.pageInfo?.width || 612;
+            const pageHeight = pdfPage.pageInfo?.height || 792;
+            
+            const slideW = 10;
+            const slideH = 7.5;
+            const scaleX = slideW / pageWidth;
+            const scaleY = slideH / pageHeight;
+            
+            const textItems = pdfPage.content || [];
+            
+            if (textItems.length === 0) {
+              slide.addText(`Page ${i + 1}`, {
+                x: 0.5,
+                y: 3,
+                w: 9,
+                h: 1,
+                fontSize: 24,
+                align: "center",
+                color: "666666"
+              });
+            } else {
+              const lines: { text: string; y: number; x: number; fontSize: number; fontName?: string; bold?: boolean }[] = [];
+              let currentLine = { text: "", y: 0, x: 0, fontSize: 12, fontName: "", bold: false };
+              
+              for (const item of textItems) {
+                if (!item.str || item.str.trim() === "") continue;
+                
+                const itemY = Math.round((item.y || 0) * 10) / 10;
+                
+                if (lines.length === 0 || Math.abs(itemY - currentLine.y) > 2) {
+                  if (currentLine.text) {
+                    lines.push({ ...currentLine });
+                  }
+                  currentLine = {
+                    text: item.str,
+                    y: itemY,
+                    x: item.x || 0,
+                    fontSize: Math.round(item.height || 12),
+                    fontName: (item as any).fontName || "",
+                    bold: ((item as any).fontName || "").toLowerCase().includes("bold")
+                  };
+                } else {
+                  currentLine.text += " " + item.str;
+                }
+              }
+              if (currentLine.text) {
+                lines.push({ ...currentLine });
+              }
+              
+              for (const line of lines) {
+                const posX = Math.max(0.3, line.x * scaleX);
+                const posY = Math.max(0.2, Math.min(line.y * scaleY, slideH - 0.5));
+                const fontSize = Math.max(8, Math.min(line.fontSize, 36));
+                
+                slide.addText(line.text, {
+                  x: posX,
+                  y: posY,
+                  w: slideW - posX - 0.3,
+                  h: 0.5,
+                  fontSize: fontSize,
+                  color: "333333",
+                  bold: line.bold,
+                  valign: "top",
+                  wrap: true
+                });
+              }
+            }
             
             if (addWatermark) {
               slide.addText("Made with BrightBoard", {
