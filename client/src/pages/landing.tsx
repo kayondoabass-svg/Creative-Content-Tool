@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { 
   Sparkles, Image, FileText, Presentation, Video, FileSpreadsheet, 
   ChevronLeft, ChevronRight, Shield, Clock, CreditCard, Users, 
-  FileCheck, Play, Star, Gamepad2, Globe, Zap,
+  FileCheck, Play, Pause, Star, Gamepad2, Globe, Zap,
   GraduationCap, School, Award
 } from "lucide-react";
 import { Footer } from "@/components/footer";
@@ -46,6 +46,8 @@ const sampleContentData = [
 export default function LandingPage() {
   const { t } = useTranslation();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const { data: stats } = useQuery<{ totalUsers: number; totalContent: number }>({
     queryKey: ['/api/public/stats'],
@@ -239,30 +241,66 @@ export default function LandingPage() {
           
           <div className="max-w-4xl mx-auto">
             <div className="relative aspect-video rounded-2xl overflow-hidden bg-gradient-to-br from-primary/20 to-purple-500/20 border-2 border-primary/30 shadow-2xl">
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-900/90 to-slate-800/90">
-                <div className="text-center" data-testid="demo-video-container">
-                  <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg hover-elevate cursor-pointer" data-testid="button-play-demo">
-                    <Play className="w-10 h-10 text-white ml-1" />
+              <video
+                ref={videoRef}
+                src="/demo-video.mp4"
+                className="absolute inset-0 w-full h-full object-cover"
+                loop
+                playsInline
+                muted
+                onPlay={() => setIsVideoPlaying(true)}
+                onPause={() => setIsVideoPlaying(false)}
+                onEnded={() => setIsVideoPlaying(false)}
+                data-testid="demo-video"
+              />
+              
+              <div 
+                className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 cursor-pointer ${
+                  isVideoPlaying ? 'opacity-0 hover:opacity-100' : 'opacity-100'
+                } bg-gradient-to-br from-slate-900/80 to-slate-800/80`}
+                onClick={() => {
+                  if (videoRef.current) {
+                    if (isVideoPlaying) {
+                      videoRef.current.pause();
+                    } else {
+                      videoRef.current.play();
+                    }
+                  }
+                }}
+                data-testid="demo-video-container"
+              >
+                <div className="text-center">
+                  <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg" data-testid="button-play-demo">
+                    {isVideoPlaying 
+                      ? <Pause className="w-10 h-10 text-white" />
+                      : <Play className="w-10 h-10 text-white ml-1" />
+                    }
                   </div>
-                  <p className="text-white/80 text-lg">{t('landing.demoPlayButton')}</p>
-                  <p className="text-white/60 text-sm mt-2">{t('landing.demoPlaySubtext')}</p>
+                  {!isVideoPlaying && (
+                    <>
+                      <p className="text-white/80 text-lg">{t('landing.demoPlayButton')}</p>
+                      <p className="text-white/60 text-sm mt-2">{t('landing.demoPlaySubtext')}</p>
+                    </>
+                  )}
                 </div>
               </div>
               
-              <div className="absolute bottom-4 left-4 right-4 flex justify-center gap-4 flex-wrap">
-                <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 text-white/90 text-xs flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-yellow-400" />
-                  {t('landing.demoInstant')}
+              {!isVideoPlaying && (
+                <div className="absolute bottom-4 left-4 right-4 flex justify-center gap-4 flex-wrap">
+                  <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 text-white/90 text-xs flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-yellow-400" />
+                    {t('landing.demoInstant')}
+                  </div>
+                  <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 text-white/90 text-xs flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-purple-400" />
+                    {t('landing.demoAIPowered')}
+                  </div>
+                  <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 text-white/90 text-xs flex items-center gap-1">
+                    <GraduationCap className="w-3 h-3 text-blue-400" />
+                    {t('landing.demoTeacherDesigned')}
+                  </div>
                 </div>
-                <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 text-white/90 text-xs flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-purple-400" />
-                  {t('landing.demoAIPowered')}
-                </div>
-                <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 text-white/90 text-xs flex items-center gap-1">
-                  <GraduationCap className="w-3 h-3 text-blue-400" />
-                  {t('landing.demoTeacherDesigned')}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </section>
