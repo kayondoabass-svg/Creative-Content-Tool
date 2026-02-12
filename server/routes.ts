@@ -2055,12 +2055,24 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
     ];
   }
   
+  const mathInstructions = `
+CRITICAL MATH & NUMBER ACCURACY RULES:
+- All numbers, calculations, equations, and mathematical content MUST be 100% accurate.
+- If presenting number sequences (e.g., "numbers 1 to 50"), ensure every number is listed in the correct sequential order with NO gaps, NO duplicates, and NO numbers out of order.
+- Double-check all arithmetic: addition, subtraction, multiplication, division results must be correct.
+- For counting or number charts, distribute numbers evenly across slides in sequential groups (e.g., slide 1: 1-10, slide 2: 11-20, etc.).
+- Never skip numbers or put them out of sequence.
+- If showing examples or practice problems, ensure all answers and solutions are mathematically correct.
+- For word problems, ensure the numbers and operations described match the expected answer.`;
+
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
         role: "system",
         content: `You are an expert educational content creator specializing in engaging presentations for teachers. ${referenceImage ? "Analyze the provided reference image to understand the lesson content, visual style, and teaching approach. Create a presentation that matches and expands on what you see." : "Create presentations that are age-appropriate, visually describable, and include interactive elements."} ${context}
+        
+        ${mathInstructions}
         
         Return a JSON object with this exact structure:
         {
@@ -2081,7 +2093,7 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 4000,
+    max_completion_tokens: 8000,
   });
 
   const content = response.choices[0]?.message?.content || "{}";
@@ -2173,6 +2185,8 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
       {
         role: "system",
         content: `You are an expert educational content writer specializing in creating engaging, age-appropriate learning materials for teachers to use in their classrooms. ${context}
+        
+        CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic and ensure number sequences are correct.
         
         Format: ${styleInstructions[textStyle] || styleInstructions.story}
         
@@ -2289,6 +2303,8 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
       {
         role: "system",
         content: `You are an expert educational game designer creating ONLINE INTERACTIVE games for teachers like those on Wordwall and Baamboozle. ${context}
+
+CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Ensure all answers and solutions are mathematically correct.
 
 GAME TYPE: ${gameInfo.name}
 DESCRIPTION: ${gameInfo.description}
@@ -2495,6 +2511,8 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
         content: `You are an expert educational worksheet creator. Create engaging, printable worksheets for teachers. ${context}
         
         ${colorInstructions}
+        
+        CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Ensure number sequences are in correct order with no gaps or duplicates. All answers in the answer key must be correct.
         
         Return a JSON object with this exact structure:
         {
