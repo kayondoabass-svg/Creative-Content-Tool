@@ -259,11 +259,18 @@ export default function LandingPage() {
                   isVideoPlaying ? 'opacity-0 hover:opacity-100' : 'opacity-100'
                 } bg-gradient-to-br from-slate-900/80 to-slate-800/80`}
                 onClick={() => {
-                  if (videoRef.current) {
-                    if (isVideoPlaying) {
-                      videoRef.current.pause();
-                    } else {
-                      videoRef.current.play();
+                  const video = videoRef.current;
+                  if (!video) return;
+                  if (isVideoPlaying) {
+                    video.pause();
+                  } else {
+                    video.muted = true;
+                    const playPromise = video.play();
+                    if (playPromise !== undefined) {
+                      playPromise.catch(() => {
+                        video.muted = true;
+                        video.play().catch(() => {});
+                      });
                     }
                   }
                 }}
