@@ -33,6 +33,9 @@ import FileToolsPage from "@/pages/file-tools";
 import GamesPage from "@/pages/games";
 import OwnerDashboard from "@/pages/owner-dashboard";
 import OwnerExpenses from "@/pages/owner-expenses";
+import Blog from "@/pages/blog";
+import HowItWorks from "@/pages/how-it-works";
+import Features from "@/pages/features";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
@@ -61,6 +64,9 @@ function Router() {
       <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/file-tools" component={FileToolsPage} />
       <Route path="/games" component={GamesPage} />
+      <Route path="/blog" component={Blog} />
+      <Route path="/how-it-works" component={HowItWorks} />
+      <Route path="/features" component={Features} />
       
       {/* Owner pages - owner only */}
       <Route path="/owner-dashboard" component={OwnerDashboard} />

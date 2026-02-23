@@ -35,8 +35,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">
+                <Link href="/features" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">
                   {t('common.features')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/how-it-works" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-how-it-works">
+                  {t('footer.howItWorks')}
                 </Link>
               </li>
               <li>
@@ -90,6 +95,11 @@ export function Footer() {
               <li>
                 <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-about">
                   {t('footer.about')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog">
+                  {t('footer.blog')}
                 </Link>
               </li>
               <li>

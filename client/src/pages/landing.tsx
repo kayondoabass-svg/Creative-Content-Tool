@@ -86,8 +86,9 @@ export default function LandingPage() {
             <span className="font-bold text-xl">{t('common.appName')}</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <a href="#features" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">{t('common.features')}</a>
-            <a href="#demo" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-demo">{t('landing.watchDemo')}</a>
+            <Link href="/features" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">{t('common.features')}</Link>
+            <Link href="/how-it-works" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-how-it-works">{t('footer.howItWorks')}</Link>
+            <Link href="/blog" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog">{t('footer.blog')}</Link>
             <Link href="/file-tools" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-file-tools">{t('common.fileTools')}</Link>
             <LanguageSelector />
             <ThemeToggle />
