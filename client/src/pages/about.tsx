@@ -4,7 +4,6 @@ import { ArrowLeft, GraduationCap, Globe, Heart, Target, Users, Lightbulb, Award
 import { Link } from "wouter";
 import { Footer } from "@/components/footer";
 import { useTranslation } from "react-i18next";
-import registrationCertImg from "@assets/IMG_5870_1772185586523.jpeg";
 
 export default function About() {
   const { t } = useTranslation();
@@ -70,33 +69,22 @@ export default function About() {
                 <h2 className="text-xl font-semibold m-0">{t("about.companyTitle")}</h2>
               </div>
               <div className="bg-muted/50 rounded-md p-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-medium" data-testid="text-company-name">{t("about.companyName")}</h3>
-                    <p className="text-muted-foreground">{t("about.companyDesc")}</p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <FileCheck className="w-4 h-4 text-green-500 flex-shrink-0" />
-                        <span className="text-muted-foreground" data-testid="text-reg-number">{t("about.regNumber")}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FileCheck className="w-4 h-4 text-green-500 flex-shrink-0" />
-                        <span className="text-muted-foreground" data-testid="text-reg-date">{t("about.regDate")}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                        <span className="text-muted-foreground">{t("about.regLocation")}</span>
-                      </div>
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium" data-testid="text-company-name">{t("about.companyName")}</h3>
+                  <p className="text-muted-foreground">{t("about.companyDesc")}</p>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <FileCheck className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <span className="text-muted-foreground" data-testid="text-reg-number">{t("about.regNumber")}</span>
                     </div>
-                  </div>
-                  <div>
-                    <img
-                      src={registrationCertImg}
-                      alt={t("about.certAlt")}
-                      className="rounded-lg border shadow-sm w-full object-contain"
-                      data-testid="img-registration-cert"
-                    />
-                    <p className="text-xs text-muted-foreground mt-2 text-center">{t("about.certCaption")}</p>
+                    <div className="flex items-center gap-2">
+                      <FileCheck className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <span className="text-muted-foreground" data-testid="text-reg-date">{t("about.regDate")}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <span className="text-muted-foreground">{t("about.regLocation")}</span>
+                    </div>
                   </div>
                 </div>
               </div>
