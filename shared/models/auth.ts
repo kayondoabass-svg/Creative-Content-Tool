@@ -115,3 +115,15 @@ export const affiliates = pgTable("affiliates", {
 
 export type Affiliate = typeof affiliates.$inferSelect;
 export type InsertAffiliate = typeof affiliates.$inferInsert;
+
+export const newsletterSubscribers = pgTable("newsletter_subscribers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").notNull().unique(),
+  name: varchar("name"),
+  status: varchar("status").default("active").notNull(),
+  subscribedAt: timestamp("subscribed_at").defaultNow(),
+  unsubscribedAt: timestamp("unsubscribed_at"),
+});
+
+export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
+export type InsertNewsletterSubscriber = typeof newsletterSubscribers.$inferInsert;

@@ -279,6 +279,60 @@ export async function registerRoutes(
     }
   });
 
+  // ========== NEWSLETTER SUBSCRIPTION ==========
+  
+  app.post("/api/newsletter/subscribe", async (req, res) => {
+    try {
+      const { email, name } = req.body;
+      if (!email || !email.includes("@")) {
+        return res.status(400).json({ error: "Valid email is required" });
+      }
+
+      const { newsletterSubscribers } = await import("@shared/schema");
+      
+      const existing = await db.select().from(newsletterSubscribers).where(eq(newsletterSubscribers.email, email.toLowerCase()));
+      if (existing.length > 0) {
+        if (existing[0].status === "unsubscribed") {
+          await db.update(newsletterSubscribers)
+            .set({ status: "active", unsubscribedAt: null })
+            .where(eq(newsletterSubscribers.email, email.toLowerCase()));
+          return res.json({ success: true, message: "Welcome back! You've been re-subscribed." });
+        }
+        return res.json({ success: true, message: "You're already subscribed!" });
+      }
+
+      await db.insert(newsletterSubscribers).values({
+        email: email.toLowerCase(),
+        name: name || null,
+        status: "active",
+      });
+
+      try {
+        const { sendNewsletterWelcomeEmail } = await import("./emailService");
+        await sendNewsletterWelcomeEmail(email.toLowerCase(), name);
+      } catch (emailError) {
+        console.error("Failed to send newsletter welcome email:", emailError);
+      }
+
+      res.json({ success: true, message: "Successfully subscribed!" });
+    } catch (error) {
+      console.error("Newsletter subscription error:", error);
+      res.status(500).json({ error: "Failed to subscribe" });
+    }
+  });
+
+  app.get("/api/newsletter/count", async (req, res) => {
+    try {
+      const { newsletterSubscribers } = await import("@shared/schema");
+      const result = await db.select({ count: sql<number>`count(*)` })
+        .from(newsletterSubscribers)
+        .where(eq(newsletterSubscribers.status, "active"));
+      res.json({ count: Number(result[0]?.count || 0) });
+    } catch (error) {
+      res.json({ count: 0 });
+    }
+  });
+
   // ========== AFFILIATE PROGRAM ENDPOINTS ==========
   
   // Apply to affiliate program (public)

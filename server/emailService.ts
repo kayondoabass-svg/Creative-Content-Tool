@@ -314,3 +314,53 @@ export async function sendAffiliateStatusEmail(name: string, email: string, stat
     return false;
   }
 }
+
+export async function sendNewsletterWelcomeEmail(email: string, name?: string): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    let sender = fromEmail || 'noreply@brightboardapp.com';
+    if (sender && !sender.includes('<')) {
+      sender = `BrightBoard <${sender}>`;
+    }
+
+    const greeting = name ? `Hi ${name}` : 'Hi there';
+
+    const result = await client.emails.send({
+      from: sender,
+      to: email,
+      subject: 'Welcome to BrightBoard Weekly Teaching Tips!',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 40px 20px;">
+          <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 12px; padding: 32px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h1 style="color: #7c3aed; margin: 0 0 8px 0; font-size: 24px;">Welcome to BrightBoard!</h1>
+            <p style="color: #4b5563;">${greeting},</p>
+            <p style="color: #4b5563;">Thank you for subscribing to our weekly teaching tips newsletter! You'll receive:</p>
+            <ul style="color: #4b5563; line-height: 1.8;">
+              <li>Weekly teaching tips and strategies</li>
+              <li>New feature announcements</li>
+              <li>Creative content ideas for your classroom</li>
+              <li>Exclusive tips from experienced educators</li>
+            </ul>
+            <div style="background: linear-gradient(135deg, #7c3aed20, #0d948820); border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+              <p style="margin: 0 0 12px 0; font-weight: 600; color: #7c3aed;">Start creating amazing content today!</p>
+              <a href="https://www.brightboardapp.com/signup" style="display: inline-block; background: #7c3aed; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Try BrightBoard Free</a>
+            </div>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+            <p style="color: #9ca3af; font-size: 12px;">BrightBoard - AI Content for Teachers</p>
+            <p style="color: #9ca3af; font-size: 11px;">You can unsubscribe at any time by visiting <a href="https://www.brightboardapp.com" style="color: #7c3aed;">brightboardapp.com</a></p>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    console.log('Newsletter welcome email sent:', result);
+    await logResendExpense("Newsletter Welcome", email);
+    return true;
+  } catch (error) {
+    console.error('Error sending newsletter welcome email:', error);
+    return false;
+  }
+}

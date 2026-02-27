@@ -21,6 +21,9 @@ The landing page includes:
 - Feature grid highlighting all 6 content types
 - Testimonials section with teacher quotes from around the world
 - FAQ accordion with common questions and answers
+- Daily Teaching Tip section (30 rotating tips, changes daily based on day of year)
+- Newsletter subscription section (email signup with Resend welcome email)
+- Welcome Back banner for returning visitors (localStorage-based detection, auto-dismisses after 8 seconds)
 - Final CTA section with call to action buttons
 
 ### Technical Implementations

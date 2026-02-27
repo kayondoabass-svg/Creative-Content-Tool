@@ -3,16 +3,19 @@ import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { 
   Sparkles, Image, FileText, Presentation, Video, FileSpreadsheet, 
   ChevronLeft, ChevronRight, Shield, Clock, CreditCard, Users, 
   FileCheck, Play, Pause, Star, Gamepad2, Globe, Zap,
-  GraduationCap, School, Award
+  GraduationCap, School, Award, Lightbulb, Mail, CheckCircle, 
+  RefreshCw, X, ArrowRight
 } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { LanguageSelector } from "@/components/language-selector";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Accordion,
   AccordionContent,
@@ -48,10 +51,65 @@ export default function LandingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isReturningVisitor, setIsReturningVisitor] = useState(false);
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterName, setNewsletterName] = useState("");
+  const [newsletterStatus, setNewsletterStatus] = useState<"idle" | "success" | "error">("idle");
+  const [newsletterStatusMessage, setNewsletterStatusMessage] = useState("");
+
+  const dailyTipIndex = (() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now.getTime() - start.getTime();
+    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+    return (dayOfYear % 30) + 1;
+  })();
 
   const { data: stats } = useQuery<{ totalUsers: number; totalContent: number }>({
     queryKey: ['/api/public/stats'],
   });
+
+  const { data: newsletterCount } = useQuery<{ count: number }>({
+    queryKey: ['/api/newsletter/count'],
+  });
+
+  const newsletterMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/newsletter/subscribe", {
+        email: newsletterEmail,
+        name: newsletterName || undefined,
+      });
+      return res.json();
+    },
+    onSuccess: (data: { success: boolean; message?: string }) => {
+      if (data.message?.includes("already")) {
+        setNewsletterStatus("success");
+        setNewsletterStatusMessage(t('landing.newsletterAlready'));
+      } else {
+        setNewsletterStatus("success");
+        setNewsletterStatusMessage(t('landing.newsletterSuccess'));
+      }
+      setNewsletterEmail("");
+      setNewsletterName("");
+      import("@/lib/queryClient").then(({ queryClient }) => {
+        queryClient.invalidateQueries({ queryKey: ['/api/newsletter/count'] });
+      });
+    },
+    onError: () => {
+      setNewsletterStatus("error");
+    },
+  });
+
+  useEffect(() => {
+    const visited = localStorage.getItem("bb_visited");
+    if (visited) {
+      setIsReturningVisitor(true);
+      setShowWelcomeBack(true);
+      setTimeout(() => setShowWelcomeBack(false), 8000);
+    }
+    localStorage.setItem("bb_visited", new Date().toISOString());
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -100,6 +158,36 @@ export default function LandingPage() {
       </nav>
 
       <main className="flex-1 pt-24 pb-16">
+        {/* Welcome Back Banner */}
+        {showWelcomeBack && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-full max-w-lg px-4 animate-in slide-in-from-top duration-500">
+            <Card className="p-4 bg-gradient-to-r from-primary/10 via-purple-500/10 to-teal-500/10 border-primary/30 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm" data-testid="text-welcome-back">{t('landing.welcomeBackTitle')}</p>
+                  <p className="text-xs text-muted-foreground">{t('landing.welcomeBackMessage')}</p>
+                </div>
+                <Button size="sm" asChild data-testid="button-welcome-back-cta">
+                  <Link href="/signup">
+                    {t('landing.welcomeBackCta')}
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </Link>
+                </Button>
+                <button
+                  onClick={() => setShowWelcomeBack(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                  data-testid="button-dismiss-welcome"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* Hero Section */}
         <section className="container mx-auto px-4 py-12">
           <div className="text-center max-w-3xl mx-auto mb-8">
@@ -443,6 +531,93 @@ export default function LandingPage() {
                 </AccordionItem>
               ))}
             </Accordion>
+          </div>
+        </section>
+
+        {/* Daily Teaching Tip */}
+        <section className="container mx-auto px-4 py-16">
+          <div className="max-w-3xl mx-auto">
+            <Card className="overflow-hidden border-amber-200 dark:border-amber-800">
+              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 p-6 md:p-8">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0">
+                    <Lightbulb className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-bold text-lg" data-testid="text-daily-tip-title">{t('landing.dailyTipTitle')}</h3>
+                      <span className="text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <RefreshCw className="w-3 h-3" />
+                        {t('landing.dailyTipRefresh')}
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed" data-testid="text-daily-tip-content">
+                      {t(`landing.dailyTip${dailyTipIndex}`)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        {/* Newsletter Subscription */}
+        <section className="container mx-auto px-4 py-16 bg-gradient-to-br from-primary/5 via-purple-500/5 to-teal-500/5">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
+              <Mail className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-3xl font-bold mb-4" data-testid="text-newsletter-title">{t('landing.newsletterTitle')}</h2>
+            <p className="text-muted-foreground text-lg mb-8">
+              {t('landing.newsletterSubtitle')}
+            </p>
+
+            {newsletterStatus === "success" ? (
+              <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 p-4 rounded-xl" data-testid="text-newsletter-success">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-medium">{newsletterStatusMessage}</span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3 max-w-lg mx-auto">
+                  <Input
+                    type="email"
+                    placeholder={t('landing.newsletterPlaceholderEmail')}
+                    value={newsletterEmail}
+                    onChange={(e) => { setNewsletterEmail(e.target.value); setNewsletterStatus("idle"); }}
+                    className="flex-1"
+                    data-testid="input-newsletter-email"
+                  />
+                  <Input
+                    type="text"
+                    placeholder={t('landing.newsletterPlaceholderName')}
+                    value={newsletterName}
+                    onChange={(e) => setNewsletterName(e.target.value)}
+                    className="flex-1 sm:max-w-[180px]"
+                    data-testid="input-newsletter-name"
+                  />
+                </div>
+                <Button
+                  size="lg"
+                  onClick={() => newsletterMutation.mutate()}
+                  disabled={!newsletterEmail || !newsletterEmail.includes("@") || newsletterMutation.isPending}
+                  className="w-full sm:w-auto min-w-[200px]"
+                  data-testid="button-newsletter-subscribe"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  {newsletterMutation.isPending ? t('landing.newsletterSubscribing') : t('landing.newsletterButton')}
+                </Button>
+                {newsletterStatus === "error" && (
+                  <p className="text-sm text-red-500" data-testid="text-newsletter-error">{t('landing.newsletterError')}</p>
+                )}
+                <p className="text-xs text-muted-foreground">{t('landing.newsletterPrivacy')}</p>
+                {(newsletterCount?.count ?? 0) > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-semibold text-primary">{newsletterCount?.count?.toLocaleString()}</span> {t('landing.newsletterCount')}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
