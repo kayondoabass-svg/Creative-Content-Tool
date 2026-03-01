@@ -39,6 +39,8 @@ BrightBoard is built with a React, TypeScript, and Vite frontend utilizing Tailw
 - **Branding**: BrightBoard logo badge (favicon + "brightboardapp.com") appears on all generated content (images, presentations, storyboards, games, slideshows, PPT exports, videos). Free users get watermark overlay; all content shows the brand badge via shared `BrightBoardLogo` component (`client/src/components/brightboard-logo.tsx`).
 - **Image Generation**: DALL-E prompts explicitly instruct no text/labels in generated images to prevent text overlap with slide content.
 
+- **PWA Support**: Full Progressive Web App setup with manifest.json, service worker (sw.js), and icons (192x192, 512x512, apple-touch-icon). Users can install BrightBoard on their phone's home screen from the browser. Offline fallback caching for static assets.
+
 ## External Dependencies
 - **OpenAI**: Used for AI content generation (images, text, presentations, storyboards, worksheets) and voice-to-text.
 - **Resend**: For email delivery (verification codes, password resets).
