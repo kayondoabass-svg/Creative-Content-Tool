@@ -284,7 +284,7 @@ export async function generateVideoFromStoryboard(
     let videoFilter = 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black';
     
     if (!isPremium) {
-      videoFilter += ",drawtext=text='Made with BrightBoard':fontsize=24:fontcolor=white@0.6:x=w-tw-20:y=h-th-20:shadowcolor=black@0.4:shadowx=1:shadowy=1";
+      videoFilter += ",drawtext=text='brightboardapp.com':fontsize=20:fontcolor=white@0.6:x=w-tw-20:y=h-th-20:shadowcolor=black@0.4:shadowx=1:shadowy=1";
     }
     
     let subtitleFile: string | null = null;

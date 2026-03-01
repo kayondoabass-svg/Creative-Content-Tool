@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SlideshowModal } from "./slideshow-modal";
 import { VideoExportModal } from "./video-export-modal";
 import { GamePlayerModal } from "./game-player-modal";
+import { BrightBoardLogo } from "./brightboard-logo";
 import pptxgen from "pptxgenjs";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -259,6 +260,18 @@ export function GeneratedContentDisplay({
         if (slide.notes) {
           pptSlide.addNotes(slide.notes);
         }
+
+        // BrightBoard logo text on every slide (bottom-right corner)
+        pptSlide.addText("brightboardapp.com", {
+          x: 7.2,
+          y: 5.2,
+          w: 2.5,
+          h: 0.3,
+          fontSize: 9,
+          color: "999999",
+          align: "right",
+          italic: true,
+        });
       });
 
       await pptx.writeFile({ fileName: `${data.title || "presentation"}.pptx` });
@@ -411,7 +424,7 @@ function ImageContent({ content }: { content: string }) {
     const data = JSON.parse(content);
     if (data.imageUrl || data.b64_json) {
       const imgSrc = data.imageUrl || `data:image/png;base64,${data.b64_json}`;
-      const hasWatermark = !!data.watermark;
+      const showLogo = !!data.showLogo || !!data.watermark;
       return (
         <div className="space-y-4">
           <div className="rounded-lg overflow-hidden border relative">
@@ -421,14 +434,7 @@ function ImageContent({ content }: { content: string }) {
               className="w-full h-auto"
               data-testid="img-generated"
             />
-            {hasWatermark && (
-              <div 
-                className="absolute bottom-2 right-2 bg-black/40 text-white text-xs px-2 py-1 rounded backdrop-blur-sm"
-                data-testid="watermark"
-              >
-                {data.watermark}
-              </div>
-            )}
+            <BrightBoardLogo show={showLogo} />
           </div>
           {data.title && (
             <h3 className="font-semibold text-lg">{data.title}</h3>
@@ -522,11 +528,7 @@ function PresentationContent({ content }: { content: string }) {
                             className="w-full h-auto rounded-lg border shadow-sm aspect-square object-cover"
                             data-testid={`img-slide-${index}-${imgIndex}`}
                           />
-                          {hasWatermark && (
-                            <div className="absolute bottom-1 right-1 bg-black/40 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm">
-                              {data.watermark}
-                            </div>
-                          )}
+                          <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
                         </div>
                       ))}
                     </div>
@@ -541,11 +543,7 @@ function PresentationContent({ content }: { content: string }) {
                         className="w-full max-w-md h-auto rounded-lg border shadow-sm"
                         data-testid={`img-slide-${index}`}
                       />
-                      {hasWatermark && (
-                        <div className="absolute bottom-2 right-2 bg-black/40 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
-                          {data.watermark}
-                        </div>
-                      )}
+                      <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
                     </div>
                   )}
                   
@@ -870,11 +868,7 @@ function StoryboardContent({ content }: { content: string }) {
                         className="w-full h-auto rounded-lg border shadow-sm"
                         data-testid={`img-frame-${index}`}
                       />
-                      {hasWatermark && (
-                        <div className="absolute bottom-1 right-1 bg-black/40 text-white text-[8px] px-1 py-0.5 rounded backdrop-blur-sm">
-                          {data.watermark}
-                        </div>
-                      )}
+                      <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
                     </>
                   ) : (
                     <div className="w-full aspect-video sm:w-32 sm:h-24 rounded-lg bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30">

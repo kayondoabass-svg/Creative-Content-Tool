@@ -1105,7 +1105,7 @@ This should look like it was designed by a world-class branding agency. Make it 
         // Add watermark for free users
         if (addWatermark) {
           const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-          page.drawText("Made with BrightBoard", {
+          page.drawText("brightboardapp.com", {
             x: 20,
             y: 20,
             size: 10,
@@ -1129,7 +1129,7 @@ This should look like it was designed by a world-class branding agency. Make it 
           const metadata = await sharp(buffer).metadata();
           const watermarkSvg = Buffer.from(`
             <svg width="${metadata.width}" height="${metadata.height}">
-              <text x="20" y="${(metadata.height || 100) - 20}" font-family="Arial" font-size="16" fill="rgba(128,128,128,0.7)">Made with BrightBoard</text>
+              <text x="20" y="${(metadata.height || 100) - 20}" font-family="Arial" font-size="16" fill="rgba(128,128,128,0.7)">brightboardapp.com</text>
             </svg>
           `);
           sharpInstance = sharpInstance.composite([{ input: watermarkSvg, gravity: 'southwest' }]);
@@ -1150,7 +1150,7 @@ This should look like it was designed by a world-class branding agency. Make it 
           const metadata = await sharp(buffer).metadata();
           const watermarkSvg = Buffer.from(`
             <svg width="${metadata.width}" height="${metadata.height}">
-              <text x="20" y="${(metadata.height || 100) - 20}" font-family="Arial" font-size="16" fill="rgba(128,128,128,0.7)">Made with BrightBoard</text>
+              <text x="20" y="${(metadata.height || 100) - 20}" font-family="Arial" font-size="16" fill="rgba(128,128,128,0.7)">brightboardapp.com</text>
             </svg>
           `);
           sharpInstance = sharpInstance.composite([{ input: watermarkSvg, gravity: 'southwest' }]);
@@ -1179,7 +1179,7 @@ This should look like it was designed by a world-class branding agency. Make it 
           });
           
           if (addWatermark) {
-            slide.addText("Made with BrightBoard", {
+            slide.addText("brightboardapp.com", {
               x: 0.5,
               y: 6.8,
               fontSize: 10,
@@ -1264,7 +1264,7 @@ This should look like it was designed by a world-class branding agency. Make it 
             }
             
             if (addWatermark) {
-              slide.addText("Made with BrightBoard", {
+              slide.addText("brightboardapp.com", {
                 x: 0.5,
                 y: 6.8,
                 fontSize: 10,
@@ -1403,7 +1403,7 @@ This should look like it was designed by a world-class branding agency. Make it 
           const metadata = await sharp(buffer).metadata();
           const watermarkSvg = Buffer.from(`
             <svg width="${metadata.width}" height="${metadata.height}">
-              <text x="20" y="${(metadata.height || 100) - 20}" font-family="Arial" font-size="16" fill="rgba(128,128,128,0.7)">Made with BrightBoard</text>
+              <text x="20" y="${(metadata.height || 100) - 20}" font-family="Arial" font-size="16" fill="rgba(128,128,128,0.7)">brightboardapp.com</text>
             </svg>
           `);
           sharpInstance = sharpInstance.composite([{ input: watermarkSvg, gravity: 'southwest' }]);
@@ -1878,10 +1878,13 @@ This should look like it was designed by a world-class branding agency. Make it 
           return res.status(400).json({ error: "Invalid content type" });
       }
 
-      // Add watermark flag for free users
-      if (!isPremium && (type === 'image' || type === 'presentation' || type === 'storyboard')) {
+      // Add watermark flag for free users (and logo for all content)
+      if (type === 'image' || type === 'presentation' || type === 'storyboard' || type === 'activity' || type === 'worksheet' || type === 'text') {
         const parsed = JSON.parse(generatedContent);
-        parsed.watermark = "by BrightBoard";
+        parsed.showLogo = true;
+        if (!isPremium) {
+          parsed.watermark = "brightboardapp.com";
+        }
         generatedContent = JSON.stringify(parsed);
       }
 
@@ -2335,7 +2338,15 @@ CRITICAL MATH & NUMBER ACCURACY RULES:
 - For counting or number charts, distribute numbers evenly across slides in sequential groups (e.g., slide 1: 1-10, slide 2: 11-20, etc.).
 - Never skip numbers or put them out of sequence.
 - If showing examples or practice problems, ensure all answers and solutions are mathematically correct.
-- For word problems, ensure the numbers and operations described match the expected answer.`;
+- For word problems, ensure the numbers and operations described match the expected answer.
+
+CRITICAL SPELLING, GRAMMAR & CLARITY RULES:
+- Proofread ALL text for spelling errors before returning. Every word must be spelled correctly.
+- Use clear, simple, and complete sentences that are easy for students to understand.
+- Avoid vague or ambiguous phrasing. Be specific and direct.
+- Bullet points should be concise but grammatically complete (not sentence fragments that trail off).
+- Double-check all proper nouns, scientific terms, and subject-specific vocabulary for correct spelling.
+- Ensure slide titles are descriptive and properly capitalized.`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -2410,7 +2421,7 @@ CRITICAL MATH & NUMBER ACCURACY RULES:
             
             const imageResponse = await openai.images.generate({
               model: "gpt-image-1",
-              prompt: `${stylePrompt}. ${qualityPrompt}. Educational illustration for children: ${imgPrompt}. Suitable for classroom presentation.`,
+              prompt: `${stylePrompt}. ${qualityPrompt}. Educational illustration for children: ${imgPrompt}. Suitable for classroom presentation. IMPORTANT: Do NOT include any text, words, letters, numbers, labels, or captions in the image. The image should be purely visual with no written text whatsoever. Keep the illustration clean so text can be overlaid separately.`,
               n: 1,
               size: "1024x1024",
             });

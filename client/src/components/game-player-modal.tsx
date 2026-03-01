@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { X, Maximize2, Minimize2, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { GameType } from "@shared/schema";
+import { BrightBoardLogo } from "./brightboard-logo";
 import {
   LuckySpinner,
   MysteryBox,
@@ -166,8 +167,11 @@ export function GamePlayerModal({ isOpen, onClose, gameType, gameData, title }: 
             </div>
           </div>
           
-          <div className="flex-1 overflow-auto bg-background">
+          <div className="flex-1 overflow-auto bg-background relative">
             {renderGame()}
+            <div className="absolute bottom-3 right-3 z-10">
+              <BrightBoardLogo show={true} size="md" absolute={false} />
+            </div>
           </div>
         </div>
       </DialogContent>

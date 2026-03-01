@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import type { Slide } from "@shared/schema";
+import { BrightBoardLogo } from "./brightboard-logo";
 
 interface SlideshowModalProps {
   slides: Slide[];
@@ -116,6 +117,11 @@ export function SlideshowModal({ slides, title, isOpen, onClose }: SlideshowModa
             </div>
           )}
         </div>
+      </div>
+
+      {/* BrightBoard Logo */}
+      <div className="absolute bottom-16 right-4 z-10">
+        <BrightBoardLogo show={true} size="md" absolute={false} />
       </div>
 
       {/* Navigation footer */}

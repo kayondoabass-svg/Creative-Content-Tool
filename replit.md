@@ -36,6 +36,8 @@ BrightBoard is built with a React, TypeScript, and Vite frontend utilizing Tailw
 - **Subscription Model**: Free tier with limited generations; premium tiers (weekly, monthly, yearly) offering unlimited generations, HD/4K quality, premium animations, and ad-free video exports.
 - **Internationalization**: Full i18n support for 11 languages, including RTL for Arabic, with language preference saving.
 - **Admin Tools**: Owner Dashboard provides real-time statistics (user metrics, content metrics, subscription breakdown, recent signups, 30-day trends) and Owner Expenses tracks costs (OpenAI, Resend, Paddle, ads, etc.). Owner can control video branding settings (watermark visibility, end logo).
+- **Branding**: BrightBoard logo badge (favicon + "brightboardapp.com") appears on all generated content (images, presentations, storyboards, games, slideshows, PPT exports, videos). Free users get watermark overlay; all content shows the brand badge via shared `BrightBoardLogo` component (`client/src/components/brightboard-logo.tsx`).
+- **Image Generation**: DALL-E prompts explicitly instruct no text/labels in generated images to prevent text overlap with slide content.
 
 ## External Dependencies
 - **OpenAI**: Used for AI content generation (images, text, presentations, storyboards, worksheets) and voice-to-text.
