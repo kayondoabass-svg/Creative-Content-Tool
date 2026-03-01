@@ -534,29 +534,51 @@ function PresentationContent({ content }: { content: string }) {
                     </div>
                   )}
                   
-                  {/* Single layout - one image */}
-                  {layout !== "grid" && slide.image && (
-                    <div className="ml-11 relative inline-block">
-                      <img 
-                        src={slide.image} 
-                        alt={slide.title}
-                        className="w-full max-w-md h-auto rounded-lg border shadow-sm"
-                        data-testid={`img-slide-${index}`}
-                      />
-                      <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
+                  {/* Single layout - image + text side by side */}
+                  {layout !== "grid" && slide.image && slide.content && slide.content.length > 0 ? (
+                    <div className="flex flex-col sm:flex-row gap-3 ml-11">
+                      <div className="sm:w-2/5 flex-shrink-0 relative">
+                        <img 
+                          src={slide.image} 
+                          alt={slide.title}
+                          className="w-full h-auto rounded-lg border shadow-sm"
+                          data-testid={`img-slide-${index}`}
+                        />
+                        <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
+                      </div>
+                      <ul className="space-y-1.5 sm:w-3/5">
+                        {slide.content.map((point, i) => (
+                          <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <span className="text-primary mt-1">•</span>
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  )}
-                  
-                  {/* Text content (if not images-only or if has content) */}
-                  {slide.content && slide.content.length > 0 && (
-                    <ul className="space-y-1.5 ml-11">
-                      {slide.content.map((point, i) => (
-                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-primary mt-1">•</span>
-                          {point}
-                        </li>
-                      ))}
-                    </ul>
+                  ) : (
+                    <>
+                      {layout !== "grid" && slide.image && (
+                        <div className="ml-11 relative inline-block">
+                          <img 
+                            src={slide.image} 
+                            alt={slide.title}
+                            className="w-full max-w-md h-auto rounded-lg border shadow-sm"
+                            data-testid={`img-slide-${index}`}
+                          />
+                          <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
+                        </div>
+                      )}
+                      {slide.content && slide.content.length > 0 && (
+                        <ul className="space-y-1.5 ml-11">
+                          {slide.content.map((point, i) => (
+                            <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                              <span className="text-primary mt-1">•</span>
+                              {point}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
                   )}
                   
                   {slide.notes && (

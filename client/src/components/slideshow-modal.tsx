@@ -85,29 +85,54 @@ export function SlideshowModal({ slides, title, isOpen, onClose }: SlideshowModa
 
       {/* Slide content - scrollable */}
       <div className="flex-1 overflow-auto p-4 md:p-8">
-        <div className="max-w-4xl w-full mx-auto bg-white dark:bg-card rounded-xl shadow-2xl p-4 md:p-8 lg:p-12">
-          {slide.image && (
-            <div className="mb-4 md:mb-6">
-              <img 
-                src={slide.image} 
-                alt={slide.title}
-                className="w-full max-w-md mx-auto h-auto rounded-xl shadow-lg"
-                data-testid={`slideshow-img-${currentSlide}`}
-              />
-            </div>
-          )}
+        <div className="max-w-5xl w-full mx-auto bg-white dark:bg-card rounded-xl shadow-2xl p-4 md:p-8 lg:p-10">
           <h3 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground mb-4 md:mb-6">
             {slide.title}
           </h3>
-          {slide.content && slide.content.length > 0 && (
-            <ul className="space-y-3 md:space-y-4">
-              {slide.content.map((point, i) => (
-                <li key={i} className="flex items-start gap-3 text-base md:text-lg text-muted-foreground">
-                  <span className="text-primary text-xl leading-none mt-0.5">•</span>
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
+          {slide.image && slide.content && slide.content.length > 0 ? (
+            <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+              <div className="md:w-2/5 flex-shrink-0">
+                <img 
+                  src={slide.image} 
+                  alt={slide.title}
+                  className="w-full h-auto rounded-xl shadow-lg"
+                  data-testid={`slideshow-img-${currentSlide}`}
+                />
+              </div>
+              <div className="md:w-3/5">
+                <ul className="space-y-3 md:space-y-4">
+                  {slide.content.map((point, i) => (
+                    <li key={i} className="flex items-start gap-3 text-base md:text-lg text-muted-foreground">
+                      <span className="text-primary text-xl leading-none mt-0.5">•</span>
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <>
+              {slide.image && (
+                <div className="mb-4 md:mb-6">
+                  <img 
+                    src={slide.image} 
+                    alt={slide.title}
+                    className="w-full max-w-lg mx-auto h-auto rounded-xl shadow-lg"
+                    data-testid={`slideshow-img-${currentSlide}`}
+                  />
+                </div>
+              )}
+              {slide.content && slide.content.length > 0 && (
+                <ul className="space-y-3 md:space-y-4">
+                  {slide.content.map((point, i) => (
+                    <li key={i} className="flex items-start gap-3 text-base md:text-lg text-muted-foreground">
+                      <span className="text-primary text-xl leading-none mt-0.5">•</span>
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
           {slide.notes && (
             <div className="mt-6 pt-4 border-t">
