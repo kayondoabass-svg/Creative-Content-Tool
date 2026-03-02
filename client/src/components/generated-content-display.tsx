@@ -424,7 +424,6 @@ function ImageContent({ content }: { content: string }) {
     const data = JSON.parse(content);
     if (data.imageUrl || data.b64_json) {
       const imgSrc = data.imageUrl || `data:image/png;base64,${data.b64_json}`;
-      const showLogo = !!data.showLogo || !!data.watermark;
       return (
         <div className="space-y-4">
           <div className="rounded-lg overflow-hidden border relative">
@@ -434,7 +433,7 @@ function ImageContent({ content }: { content: string }) {
               className="w-full h-auto"
               data-testid="img-generated"
             />
-            <BrightBoardLogo show={showLogo} />
+            <BrightBoardLogo show={true} />
           </div>
           {data.title && (
             <h3 className="font-semibold text-lg">{data.title}</h3>
@@ -462,12 +461,19 @@ function PresentationContent({ content }: { content: string }) {
     const transition = data.transition;
     const tapToReveal = data.tapToReveal;
     const hasWatermark = !!data.watermark;
+    const showBranding = true;
 
     if (slides.length > 0) {
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <h3 className="font-bold text-xl">{data.title || "Presentation"}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-xl">{data.title || "Presentation"}</h3>
+              <div className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5" data-testid="logo-badge-title">
+                <img src="/favicon.png" alt="BrightBoard" className="w-3.5 h-3.5 rounded" />
+                <span className="text-muted-foreground text-[10px] font-medium">brightboardapp.com</span>
+              </div>
+            </div>
             <div className="flex gap-2 flex-wrap">
               {style && (
                 <Badge variant="outline" data-testid="badge-presentation-style">
@@ -528,7 +534,7 @@ function PresentationContent({ content }: { content: string }) {
                             className="w-full h-auto rounded-lg border shadow-sm aspect-square object-cover"
                             data-testid={`img-slide-${index}-${imgIndex}`}
                           />
-                          <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
+                          <BrightBoardLogo show={showBranding} />
                         </div>
                       ))}
                     </div>
@@ -544,7 +550,7 @@ function PresentationContent({ content }: { content: string }) {
                           className="w-full h-auto rounded-lg border shadow-sm"
                           data-testid={`img-slide-${index}`}
                         />
-                        <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
+                        <BrightBoardLogo show={showBranding} />
                       </div>
                       <ul className="space-y-1.5 sm:w-3/5">
                         {slide.content.map((point, i) => (
@@ -565,7 +571,7 @@ function PresentationContent({ content }: { content: string }) {
                             className="w-full max-w-md h-auto rounded-lg border shadow-sm"
                             data-testid={`img-slide-${index}`}
                           />
-                          <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
+                          <BrightBoardLogo show={showBranding} />
                         </div>
                       )}
                       {slide.content && slide.content.length > 0 && (
@@ -890,7 +896,7 @@ function StoryboardContent({ content }: { content: string }) {
                         className="w-full h-auto rounded-lg border shadow-sm"
                         data-testid={`img-frame-${index}`}
                       />
-                      <BrightBoardLogo show={!!data.showLogo || hasWatermark} />
+                      <BrightBoardLogo show={true} />
                     </>
                   ) : (
                     <div className="w-full aspect-video sm:w-32 sm:h-24 rounded-lg bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
