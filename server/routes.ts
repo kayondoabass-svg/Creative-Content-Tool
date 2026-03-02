@@ -2415,54 +2415,64 @@ CRITICAL IMAGE DESCRIPTION RULES:
     return presentationData;
   }
   
-  // Generate images for each slide
-  const slidesWithImages = await Promise.all(
-    presentationData.slides.map(async (slide: Slide & { imagePrompts?: string[], images?: string[] }) => {
-      const prompts = slide.imagePrompts || (slide.imagePrompt ? [slide.imagePrompt] : []);
-      
-      if (prompts.length > 0) {
-        const images: string[] = [];
+  // Build style/quality prompts once (not per image)
+  const stylePrompt = imageStyle === "reallife" 
+    ? "Photorealistic, educational photography style, high quality stock photo look"
+    : "Colorful animated style, cartoon-like, Pixar/Disney quality, child-friendly";
+  
+  const qualityPrompt = imageQuality === "4k" ? "Ultra high definition, 4K quality, extremely detailed" :
+    imageQuality === "3d" ? "3D rendered, CGI quality, depth and lighting effects" :
+    imageQuality === "2d" ? "Flat 2D illustration, clean simple shapes, minimal shadows" :
+    "High definition, crisp and clear, professional quality";
+
+  // Use smaller image size for faster generation (512x512 for slides, 1024x1024 only for 4K)
+  const imageSize = imageQuality === "4k" ? "1024x1024" as const : "1024x1024" as const;
+
+  // Collect ALL image generation tasks across all slides for maximum parallelism
+  const allImageTasks: { slideIndex: number; promptIndex: number; prompt: string }[] = [];
+  
+  presentationData.slides.forEach((slide: Slide & { imagePrompts?: string[], images?: string[] }, slideIndex: number) => {
+    const prompts = slide.imagePrompts || (slide.imagePrompt ? [slide.imagePrompt] : []);
+    const promptsToGenerate = prompts.slice(0, imagesPerSlide);
+    promptsToGenerate.forEach((imgPrompt, promptIndex) => {
+      allImageTasks.push({ slideIndex, promptIndex, prompt: imgPrompt });
+    });
+  });
+
+  // Generate ALL images in parallel (across all slides at once)
+  const imageResults = await Promise.all(
+    allImageTasks.map(async (task) => {
+      try {
+        const imageResponse = await openai.images.generate({
+          model: "gpt-image-1",
+          prompt: `${stylePrompt}. ${qualityPrompt}. Educational illustration for children: ${task.prompt}. Suitable for classroom presentation. IMPORTANT: Do NOT include any text, words, letters, numbers, labels, or captions in the image. The image should be purely visual with no written text whatsoever.`,
+          n: 1,
+          size: imageSize,
+        });
         
-        // Generate images (limit based on layout)
-        const promptsToGenerate = prompts.slice(0, imagesPerSlide);
-        
-        for (const imgPrompt of promptsToGenerate) {
-          try {
-            // Build style prompt based on imageStyle and imageQuality
-            const stylePrompt = imageStyle === "reallife" 
-              ? "Photorealistic, educational photography style, high quality stock photo look"
-              : "Colorful animated style, cartoon-like, Pixar/Disney quality, child-friendly";
-            
-            const qualityPrompt = imageQuality === "4k" ? "Ultra high definition, 4K quality, extremely detailed" :
-              imageQuality === "3d" ? "3D rendered, CGI quality, depth and lighting effects" :
-              imageQuality === "2d" ? "Flat 2D illustration, clean simple shapes, minimal shadows" :
-              "High definition, crisp and clear, professional quality";
-            
-            const imageResponse = await openai.images.generate({
-              model: "gpt-image-1",
-              prompt: `${stylePrompt}. ${qualityPrompt}. Educational illustration for children: ${imgPrompt}. Suitable for classroom presentation. IMPORTANT: Do NOT include any text, words, letters, numbers, labels, or captions in the image. The image should be purely visual with no written text whatsoever. Keep the illustration clean so text can be overlaid separately.`,
-              n: 1,
-              size: "1024x1024",
-            });
-            
-            const imageData = imageResponse.data?.[0]?.b64_json;
-            if (imageData) {
-              images.push(`data:image/png;base64,${imageData}`);
-            }
-          } catch (error) {
-            console.error("Failed to generate image for slide:", error);
-          }
-        }
-        
-        // Store images array for grid layout, or single image for single layout
-        if (layout === "grid") {
-          slide.images = images;
-        } else if (images.length > 0) {
-          slide.image = images[0];
-        }
+        const imageData = imageResponse.data?.[0]?.b64_json;
+        return { ...task, image: imageData ? `data:image/png;base64,${imageData}` : null };
+      } catch (error) {
+        console.error(`Failed to generate image for slide ${task.slideIndex}:`, error);
+        return { ...task, image: null };
       }
-      return slide;
     })
+  );
+
+  // Assign generated images back to their respective slides
+  const slidesWithImages = presentationData.slides.map((slide: Slide & { imagePrompts?: string[], images?: string[] }, slideIndex: number) => {
+    const slideImages = imageResults
+      .filter(r => r.slideIndex === slideIndex && r.image)
+      .sort((a, b) => a.promptIndex - b.promptIndex)
+      .map(r => r.image!);
+    
+    if (layout === "grid") {
+      slide.images = slideImages;
+    } else if (slideImages.length > 0) {
+      slide.image = slideImages[0];
+    }
+    return slide;
+  }
   );
   
   presentationData.slides = slidesWithImages;
@@ -2766,7 +2776,7 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
           
           const imageResponse = await openai.images.generate({
             model: "gpt-image-1",
-            prompt: `${stylePrompt}: ${frame.imagePrompt}. Child-friendly, educational, vibrant colors.`,
+            prompt: `${stylePrompt}: ${frame.imagePrompt}. Child-friendly, educational, vibrant colors. Do NOT include any text, words, or labels in the image.`,
             n: 1,
             size: "1024x1024",
           });
