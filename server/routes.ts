@@ -2332,10 +2332,22 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   const mathInstructions = `
 CRITICAL MATH & NUMBER ACCURACY RULES:
 - All numbers, calculations, equations, and mathematical content MUST be 100% accurate.
-- If presenting number sequences (e.g., "numbers 1 to 50"), ensure every number is listed in the correct sequential order with NO gaps, NO duplicates, and NO numbers out of order.
+- If presenting number sequences (e.g., "numbers 1 to 50"), ensure EVERY SINGLE number is listed in the correct sequential order with NO gaps, NO duplicates, and NO numbers out of order.
+- PAY SPECIAL ATTENTION to numbers 40 and above. Common mistakes to avoid:
+  * Do NOT skip from 39 to 50, or 40 to 50. List EVERY number: 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50.
+  * Do NOT confuse 41-49 with 31-39 or any other decade. Each decade must be complete: 40, 41, 42, 43, 44, 45, 46, 47, 48, 49.
+  * After 49 comes 50, after 59 comes 60, after 69 comes 70, etc.
+  * The pattern for every decade is: X0, X1, X2, X3, X4, X5, X6, X7, X8, X9 (e.g., 40, 41, 42, 43, 44, 45, 46, 47, 48, 49).
+- When distributing numbers across slides, use EXACTLY 10 numbers per slide in sequential groups:
+  * Slide 1: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+  * Slide 2: 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+  * Slide 3: 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
+  * Slide 4: 31, 32, 33, 34, 35, 36, 37, 38, 39, 40
+  * Slide 5: 41, 42, 43, 44, 45, 46, 47, 48, 49, 50
+  * And so on for higher numbers.
+- VERIFY: Count the total numbers across all slides. For "1 to 50" there must be exactly 50 numbers. For "1 to 100" there must be exactly 100 numbers.
 - Double-check all arithmetic: addition, subtraction, multiplication, division results must be correct.
-- For counting or number charts, distribute numbers evenly across slides in sequential groups (e.g., slide 1: 1-10, slide 2: 11-20, etc.).
-- Never skip numbers or put them out of sequence.
+- Never skip numbers or put them out of sequence. After writing each slide, verify the sequence continues correctly from where the previous slide ended.
 - If showing examples or practice problems, ensure all answers and solutions are mathematically correct.
 - For word problems, ensure the numbers and operations described match the expected answer.
 
@@ -2476,7 +2488,7 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
         role: "system",
         content: `You are an expert educational content writer specializing in creating engaging, age-appropriate learning materials for teachers to use in their classrooms. ${context}
         
-        CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic and ensure number sequences are correct.
+        CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Number sequences must list EVERY number with no gaps — pay special attention to 40+ (40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, etc.). Every decade must be complete.
         
         Format: ${styleInstructions[textStyle] || styleInstructions.story}
         
@@ -2594,7 +2606,7 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
         role: "system",
         content: `You are an expert educational game designer creating ONLINE INTERACTIVE games for teachers like those on Wordwall and Baamboozle. ${context}
 
-CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Ensure all answers and solutions are mathematically correct.
+CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Number sequences must list EVERY number with no gaps — pay special attention to 40+ (40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, etc.). Every decade must be complete. All answers and solutions must be correct.
 
 GAME TYPE: ${gameInfo.name}
 DESCRIPTION: ${gameInfo.description}
@@ -2802,7 +2814,7 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
         
         ${colorInstructions}
         
-        CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Ensure number sequences are in correct order with no gaps or duplicates. All answers in the answer key must be correct.
+        CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Number sequences must list EVERY number with no gaps — pay special attention to 40+ (40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, etc.). Every decade must be complete. All answers in the answer key must be correct.
         
         Return a JSON object with this exact structure:
         {
