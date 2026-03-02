@@ -7,7 +7,7 @@ import { z } from "zod";
 export * from "./models/auth";
 
 // Content generation types
-export const contentTypes = ["image", "presentation", "text", "activity", "storyboard", "worksheet"] as const;
+export const contentTypes = ["image", "presentation", "text", "activity", "storyboard", "worksheet", "mindmap"] as const;
 export type ContentType = typeof contentTypes[number];
 
 // Generated content table

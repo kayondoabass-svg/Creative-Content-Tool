@@ -303,6 +303,8 @@ export function GeneratedContentDisplay({
         return <StoryboardContent content={content} />;
       case "worksheet":
         return <WorksheetContent content={content} />;
+      case "mindmap":
+        return <MindmapContent content={content} />;
       default:
         return <TextContent content={content} />;
     }
@@ -1100,6 +1102,91 @@ function WorksheetContent({ content }: { content: string }) {
               )}
             </Card>
           ))}
+        </div>
+      </div>
+    );
+  } catch {
+    return <TextContent content={content} />;
+  }
+}
+
+interface MindmapNode {
+  label: string;
+  color?: string;
+  children?: MindmapNode[];
+}
+
+function MindmapContent({ content }: { content: string }) {
+  try {
+    const data = JSON.parse(content);
+    const branches: MindmapNode[] = data.branches || [];
+
+    const renderBranch = (branch: MindmapNode) => {
+      const color = branch.color || "#7c3aed";
+
+      return (
+        <div className="relative" data-testid={`mindmap-branch-${branch.label}`}>
+          <div
+            className="rounded-xl px-4 py-2 font-semibold text-sm border-2 shadow-sm text-white"
+            style={{ backgroundColor: color, borderColor: color }}
+          >
+            {branch.label}
+          </div>
+          {branch.children && branch.children.length > 0 && (
+            <div className="ml-6 mt-1 space-y-1 border-l-2 pl-4" style={{ borderColor: `${color}60` }}>
+              {branch.children.map((child, i) => (
+                <div key={i}>
+                  <div
+                    className="rounded-lg px-3 py-1.5 text-sm border shadow-sm bg-background"
+                    style={{ borderColor: `${color}50` }}
+                  >
+                    {child.label}
+                  </div>
+                  {child.children && child.children.length > 0 && (
+                    <div className="ml-5 mt-1 space-y-1 border-l pl-3" style={{ borderColor: `${color}30` }}>
+                      {child.children.map((detail, j) => (
+                        <div
+                          key={j}
+                          className="rounded px-2.5 py-1 text-xs text-muted-foreground border bg-muted/30"
+                          style={{ borderColor: `${color}25` }}
+                        >
+                          {detail.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-4" data-testid="mindmap-content">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="font-bold text-xl" data-testid="mindmap-title">{data.title || "Mind Map"}</h3>
+          <div className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5" data-testid="logo-badge-mindmap">
+            <img src="/favicon.png" alt="BrightBoard" className="w-3.5 h-3.5 rounded" />
+            <span className="text-muted-foreground text-[10px] font-medium">brightboardapp.com</span>
+          </div>
+        </div>
+
+        <div className="relative p-6 bg-gradient-to-br from-muted/30 to-muted/10 rounded-xl border overflow-auto">
+          <div className="flex justify-center mb-6">
+            <div className="bg-gradient-to-r from-primary to-accent text-white rounded-2xl px-6 py-3 font-bold text-lg shadow-lg text-center" data-testid="mindmap-center">
+              {data.centralTopic || data.title}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {branches.map((branch, index) => (
+              <div key={index}>
+                {renderBranch(branch)}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );

@@ -128,6 +128,7 @@ const placeholders: Record<ContentType, string> = {
   activity: "Describe your online game topic... e.g., 'A fun game about multiplication tables for 3rd graders' or 'Animals and their habitats for kindergarten'",
   storyboard: "Describe your animated video concept... e.g., 'A fun animated video teaching the ABC song with dancing letters like Cocomelon style'",
   worksheet: "Describe the worksheet you want to create... e.g., 'A math worksheet with addition problems for 2nd graders' or 'A vocabulary worksheet about animals'",
+  mindmap: "Describe the mind map topic... e.g., 'Jobs and places in the community' or 'The solar system and its planets' or 'Types of animals and their habitats'",
 };
 
 // Image generation options (for Educational Images)

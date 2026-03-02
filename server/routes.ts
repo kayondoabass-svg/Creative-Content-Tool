@@ -1874,12 +1874,18 @@ This should look like it was designed by a world-class branding agency. Make it 
           title = worksheetResult.title;
           break;
 
+        case "mindmap":
+          const mindmapResult = await generateMindmap(prompt, gradeLevel, subject);
+          generatedContent = JSON.stringify(mindmapResult);
+          title = mindmapResult.title;
+          break;
+
         default:
           return res.status(400).json({ error: "Invalid content type" });
       }
 
       // Add watermark flag for free users (and logo for all content)
-      if (type === 'image' || type === 'presentation' || type === 'storyboard' || type === 'activity' || type === 'worksheet' || type === 'text') {
+      if (type === 'image' || type === 'presentation' || type === 'storyboard' || type === 'activity' || type === 'worksheet' || type === 'text' || type === 'mindmap') {
         const parsed = JSON.parse(generatedContent);
         parsed.showLogo = true;
         if (!isPremium) {
@@ -1956,6 +1962,10 @@ This should look like it was designed by a world-class branding agency. Make it 
         case "worksheet":
           estimatedCostCents = 2;
           costDescription = `Worksheet generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
+          break;
+        case "mindmap":
+          estimatedCostCents = 2;
+          costDescription = `Mind map generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
           break;
       }
       
@@ -2904,6 +2914,65 @@ function escapeXml(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+async function generateMindmap(prompt: string, gradeLevel?: string, subject?: string) {
+  const context = buildContext(gradeLevel, subject);
+  
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `You are an expert educational mind map creator. Create colorful, engaging mind maps for teachers and students. ${context}
+        
+        CRITICAL: All spelling must be 100% correct. Double-check every word.
+        
+        Return a JSON object with this exact structure:
+        {
+          "title": "Mind Map Title",
+          "centralTopic": "The main topic in the center",
+          "branches": [
+            {
+              "label": "Main Branch 1",
+              "color": "#FF6B6B",
+              "children": [
+                {
+                  "label": "Sub-topic 1a",
+                  "children": [
+                    { "label": "Detail 1" },
+                    { "label": "Detail 2" }
+                  ]
+                },
+                {
+                  "label": "Sub-topic 1b",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+        
+        Guidelines:
+        - Create 4-6 main branches from the central topic
+        - Each main branch should have 2-4 sub-topics
+        - Sub-topics can have 1-3 details each
+        - Use distinct, vibrant colors for each main branch (hex colors like #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7, #DDA0DD, #FF8C42, #87CEEB)
+        - Keep labels concise (1-4 words each)
+        - Make content age-appropriate and educational
+        - Organize information logically and hierarchically`
+      },
+      {
+        role: "user",
+        content: `Create an educational mind map about: ${prompt}`
+      }
+    ],
+    response_format: { type: "json_object" },
+    max_completion_tokens: 4000,
+  });
+
+  const content = response.choices[0]?.message?.content || "{}";
+  return JSON.parse(content);
 }
 
 // ============================================

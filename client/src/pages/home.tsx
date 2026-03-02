@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Image, Presentation, FileText, Film, ClipboardList } from "lucide-react";
+import { Image, Presentation, FileText, Film, ClipboardList, Network } from "lucide-react";
 import { ContentTypeCard } from "@/components/content-type-card";
 import { PromptInput } from "@/components/prompt-input";
 import { GeneratedContentDisplay } from "@/components/generated-content-display";
@@ -46,6 +46,13 @@ const getContentTypes = (t: (key: string) => string) => [
     title: t("contentTypes.worksheet"),
     description: t("contentTypes.worksheetDesc"),
     color: "bg-chart-1",
+  },
+  {
+    type: "mindmap" as ContentType,
+    icon: Network,
+    title: t("contentTypes.mindmap"),
+    description: t("contentTypes.mindmapDesc"),
+    color: "bg-chart-3",
   },
 ];
 

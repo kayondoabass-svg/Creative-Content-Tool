@@ -169,7 +169,9 @@
     "storyboard": "Video Storyboards",
     "storyboardDesc": "Plan animated educational videos with frame-by-frame visual guides",
     "worksheet": "Worksheets",
-    "worksheetDesc": "Generate printable worksheets with questions, fill-in-blanks, and more"
+    "worksheetDesc": "Generate printable worksheets with questions, fill-in-blanks, and more",
+    "mindmap": "Mind Maps",
+    "mindmapDesc": "Create visual mind maps to explore topics, brainstorm ideas, and organize concepts"
   },
   "auth": {
     "email": "Email",

@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Image, Presentation, FileText, Gamepad2, Film, Clock, Trash2 } from "lucide-react";
+import { Image, Presentation, FileText, Gamepad2, Film, Clock, Trash2, Network } from "lucide-react";
 import type { GeneratedContent, ContentType } from "@shared/schema";
 
 interface HistorySidebarProps {
@@ -18,6 +18,8 @@ const typeIcons: Record<ContentType, typeof Image> = {
   text: FileText,
   activity: Gamepad2,
   storyboard: Film,
+  worksheet: FileText,
+  mindmap: Network,
 };
 
 const typeColors: Record<ContentType, string> = {
@@ -26,6 +28,8 @@ const typeColors: Record<ContentType, string> = {
   text: "bg-chart-2",
   activity: "bg-chart-3",
   storyboard: "bg-primary",
+  worksheet: "bg-chart-1",
+  mindmap: "bg-chart-3",
 };
 
 export function HistorySidebar({ history, onSelect, onDelete, selectedId }: HistorySidebarProps) {
