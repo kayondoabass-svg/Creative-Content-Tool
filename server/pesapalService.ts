@@ -191,14 +191,97 @@ export async function getTransactionStatus(orderTrackingId: string): Promise<Tra
   };
 }
 
-const TIER_PRICES: Record<string, { amount: number; currency: string; days: number }> = {
-  weekly: { amount: 4.99, currency: 'USD', days: 7 },
-  monthly: { amount: 14.99, currency: 'USD', days: 30 },
-  yearly: { amount: 99.99, currency: 'USD', days: 365 },
+const TIER_PRICES_USD: Record<string, { amount: number; days: number }> = {
+  weekly: { amount: 4.99, days: 7 },
+  monthly: { amount: 14.99, days: 30 },
+  yearly: { amount: 99.99, days: 365 },
 };
 
-export function getTierPrice(tier: string) {
-  return TIER_PRICES[tier] || null;
+const CURRENCY_RATES: Record<string, { rate: number; symbol: string; name: string }> = {
+  USD: { rate: 1, symbol: '$', name: 'US Dollar' },
+  UGX: { rate: 3750, symbol: 'UGX', name: 'Ugandan Shilling' },
+  KES: { rate: 154, symbol: 'KSh', name: 'Kenyan Shilling' },
+  TZS: { rate: 2650, symbol: 'TSh', name: 'Tanzanian Shilling' },
+  RWF: { rate: 1350, symbol: 'FRw', name: 'Rwandan Franc' },
+  NGN: { rate: 1550, symbol: '₦', name: 'Nigerian Naira' },
+  GHS: { rate: 15, symbol: 'GH₵', name: 'Ghanaian Cedi' },
+  ZAR: { rate: 18.5, symbol: 'R', name: 'South African Rand' },
+  GBP: { rate: 0.79, symbol: '£', name: 'British Pound' },
+  EUR: { rate: 0.92, symbol: '€', name: 'Euro' },
+  INR: { rate: 84, symbol: '₹', name: 'Indian Rupee' },
+  AED: { rate: 3.67, symbol: 'AED', name: 'UAE Dirham' },
+  SAR: { rate: 3.75, symbol: 'SAR', name: 'Saudi Riyal' },
+  CAD: { rate: 1.36, symbol: 'CA$', name: 'Canadian Dollar' },
+  AUD: { rate: 1.55, symbol: 'A$', name: 'Australian Dollar' },
+  MWK: { rate: 1750, symbol: 'MK', name: 'Malawian Kwacha' },
+  ZMW: { rate: 27, symbol: 'ZK', name: 'Zambian Kwacha' },
+  ETB: { rate: 57, symbol: 'Br', name: 'Ethiopian Birr' },
+  XAF: { rate: 605, symbol: 'FCFA', name: 'CFA Franc' },
+  XOF: { rate: 605, symbol: 'CFA', name: 'West African CFA' },
+  EGP: { rate: 49, symbol: 'E£', name: 'Egyptian Pound' },
+  MAD: { rate: 10, symbol: 'MAD', name: 'Moroccan Dirham' },
+};
+
+const COUNTRY_CURRENCY: Record<string, string> = {
+  UG: 'UGX', KE: 'KES', TZ: 'TZS', RW: 'RWF', NG: 'NGN',
+  GH: 'GHS', ZA: 'ZAR', GB: 'GBP', IE: 'EUR', FR: 'EUR',
+  DE: 'EUR', IT: 'EUR', ES: 'EUR', PT: 'EUR', NL: 'EUR',
+  BE: 'EUR', AT: 'EUR', FI: 'EUR', GR: 'EUR', LU: 'EUR',
+  IN: 'INR', AE: 'AED', SA: 'SAR', CA: 'CAD', AU: 'AUD',
+  NZ: 'AUD', MW: 'MWK', ZM: 'ZMW', ET: 'ETB', CM: 'XAF',
+  GA: 'XAF', CG: 'XAF', TD: 'XAF', CF: 'XAF', GQ: 'XAF',
+  SN: 'XOF', ML: 'XOF', BF: 'XOF', CI: 'XOF', TG: 'XOF',
+  BJ: 'XOF', NE: 'XOF', GW: 'XOF', EG: 'EGP', MA: 'MAD',
+  US: 'USD',
+};
+
+export function getCurrencyForCountry(countryCode: string): string {
+  return COUNTRY_CURRENCY[countryCode.toUpperCase()] || 'USD';
+}
+
+export function convertPrice(usdAmount: number, currency: string): number {
+  const rate = CURRENCY_RATES[currency]?.rate || 1;
+  const converted = usdAmount * rate;
+  if (rate >= 100) {
+    return Math.round(converted / 100) * 100;
+  }
+  if (rate >= 10) {
+    return Math.round(converted);
+  }
+  return Math.round(converted * 100) / 100;
+}
+
+export function getLocalizedPricing(countryCode: string) {
+  const currency = getCurrencyForCountry(countryCode);
+  const currencyInfo = CURRENCY_RATES[currency] || CURRENCY_RATES['USD'];
+
+  const plans: Record<string, { amount: number; currency: string; symbol: string; days: number }> = {};
+  for (const [tier, base] of Object.entries(TIER_PRICES_USD)) {
+    plans[tier] = {
+      amount: convertPrice(base.amount, currency),
+      currency,
+      symbol: currencyInfo.symbol,
+      days: base.days,
+    };
+  }
+
+  return { currency, symbol: currencyInfo.symbol, name: currencyInfo.name, plans };
+}
+
+export function getSupportedCurrencies() {
+  return Object.entries(CURRENCY_RATES).map(([code, info]) => ({
+    code,
+    symbol: info.symbol,
+    name: info.name,
+  }));
+}
+
+export function getTierPrice(tier: string, currency?: string) {
+  const base = TIER_PRICES_USD[tier];
+  if (!base) return null;
+  const cur = currency || 'USD';
+  const amount = convertPrice(base.amount, cur);
+  return { amount, currency: cur, days: base.days };
 }
 
 export function getSubscriptionEndDate(tier: string): Date {

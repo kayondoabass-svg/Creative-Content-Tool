@@ -3420,6 +3420,21 @@ export function registerSubscriptionRoutes(app: any) {
     res.json({ configured: pesapalService.isConfigured() });
   });
 
+  app.get("/api/pricing", async (req: any, res: any) => {
+    try {
+      const countryCode = (req.query.country as string) || 'US';
+      const pricing = pesapalService.getLocalizedPricing(countryCode);
+      res.json(pricing);
+    } catch (error) {
+      console.error("Pricing error:", error);
+      res.status(500).json({ error: "Failed to fetch pricing" });
+    }
+  });
+
+  app.get("/api/currencies", async (_req: any, res: any) => {
+    res.json(pesapalService.getSupportedCurrencies());
+  });
+
   app.post("/api/pesapal/checkout", async (req: any, res: any) => {
     try {
       const sessionUserId = req.session?.userId;
@@ -3428,12 +3443,12 @@ export function registerSubscriptionRoutes(app: any) {
         return res.status(401).json({ error: "Please sign in to subscribe" });
       }
 
-      const { tier } = req.body;
+      const { tier, currency } = req.body;
       if (!tier || !['weekly', 'monthly', 'yearly'].includes(tier)) {
         return res.status(400).json({ error: "Invalid subscription tier" });
       }
 
-      const price = pesapalService.getTierPrice(tier);
+      const price = pesapalService.getTierPrice(tier, currency);
       if (!price) {
         return res.status(400).json({ error: "Invalid tier" });
       }
