@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon, Film, Gamepad2 } from "lucide-react";
+import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon, Film, Gamepad2, Crown } from "lucide-react";
 import { useState } from "react";
 import type { ContentType, Slide, Activity, StoryboardFrame, Worksheet, GameType } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -515,6 +515,20 @@ function PresentationContent({ content }: { content: string }) {
             </div>
           </div>
           <div className="grid gap-4">
+            {data.slideLimitReached && (
+              <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center gap-3" data-testid="banner-slide-limit">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-amber-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">You requested {data.requestedSlides} slides, but free accounts are limited to {data.maxFreeSlides} slides.</p>
+                  <p className="text-xs text-muted-foreground">Upgrade to Premium for up to 20 slides per presentation, HD/4K images, and more.</p>
+                </div>
+                <a href="/pricing" className="flex-shrink-0 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity" data-testid="link-upgrade-slides">
+                  Upgrade
+                </a>
+              </div>
+            )}
             {slides.map((slide, index) => (
               <Card key={index} className="p-4 bg-muted/30">
                 <div className="space-y-4">

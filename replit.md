@@ -33,7 +33,7 @@ BrightBoard is built with a React, TypeScript, and Vite frontend utilizing Tailw
 - **Content Generation**: Supports 7 types: images (educational illustrations), presentations (slide decks with speaker notes, PowerPoint export, slideshow mode, customizable slide counts, premium animations, transitions, and tap-to-reveal), text (stories, explanations), activities/games (12 interactive, playable online game types like Lucky Spinner, Mystery Box, Memory Match), video storyboards (with variable video lengths, frame counts, AI narration, background music, subtitles, and multi-language audio/subtitle options), worksheets (printable with various section types and multiple download formats), and mind maps (visual illustrated mind maps with AI-generated images for center and each branch, hierarchical topic organization with color-coded branches).
 - **User Management**: Custom email/password authentication, email verification, password reset, and reCAPTCHA support. Owner dashboard and expense tracking for administrative oversight.
 - **File Management**: Integrated file converter (PDF, JPEG, PNG) and reference image upload for presentation generation using GPT-4o vision.
-- **Subscription Model**: Free tier with limited generations; premium tiers (weekly, monthly, yearly) offering unlimited generations, HD/4K quality, premium animations, and ad-free video exports.
+- **Subscription Model**: Free tier with limited generations and max 4 slides per presentation; premium tiers (weekly $4.99, monthly $14.99, yearly $99.99) offering unlimited generations, up to 20 slides, HD/4K quality, premium animations, and ad-free video exports. Payment processing via PesaPal (mobile money, cards). Email receipts sent via Resend after successful payment.
 - **Internationalization**: Full i18n support for 11 languages, including RTL for Arabic, with language preference saving.
 - **Admin Tools**: Owner Dashboard provides real-time statistics (user metrics, content metrics, subscription breakdown, recent signups, 30-day trends) and Owner Expenses tracks costs (OpenAI, Resend, Paddle, ads, etc.). Owner can control video branding settings (watermark visibility, end logo).
 - **Branding**: BrightBoard logo badge (favicon + "brightboardapp.com") appears on all generated content (images, presentations, storyboards, games, slideshows, PPT exports, videos). Free users get watermark overlay; all content shows the brand badge via shared `BrightBoardLogo` component (`client/src/components/brightboard-logo.tsx`).
@@ -44,7 +44,7 @@ BrightBoard is built with a React, TypeScript, and Vite frontend utilizing Tailw
 ## External Dependencies
 - **OpenAI**: Used for AI content generation (images, text, presentations, storyboards, worksheets) and voice-to-text.
 - **Resend**: For email delivery (verification codes, password resets).
-- **Flutterwave**: Planned payment processor for subscription management (pending registration in Uganda). Supports mobile money (MTN, Airtel), cards, and 150+ currencies.
+- **PesaPal**: Payment processor for subscription management (API 3.0). Supports mobile money (MTN, Airtel), cards, and multiple currencies. Service in `server/pesapalService.ts`.
 - **pptxgenjs**: For generating PowerPoint (.pptx) files.
 - **express-session**: For session-based authentication.
 - **Web Audio API**: For sound effects in interactive games.

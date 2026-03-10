@@ -22,7 +22,8 @@ import * as paddleService from "./paddleService";
 import crypto from "crypto";
 import * as customAuth from "./customAuthService";
 import { db } from "./db";
-import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, type Expense, type InsertExpense } from "@shared/schema";
+import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
+import * as pesapalService from "./pesapalService";
 import { eq, count, sql, desc, gte, and } from "drizzle-orm";
 
 const openai = new OpenAI({
@@ -1845,7 +1846,18 @@ This should look like it was designed by a world-class branding agency. Make it 
           break;
 
         case "presentation":
-          const presentationResult = await generatePresentation(prompt, gradeLevel, subject, slideCount, presentationOptions, referenceImage);
+          let effectiveSlideCount = slideCount;
+          let slideLimitReached = false;
+          if (!isPremium && effectiveSlideCount && effectiveSlideCount > 4) {
+            effectiveSlideCount = 4;
+            slideLimitReached = true;
+          }
+          const presentationResult = await generatePresentation(prompt, gradeLevel, subject, effectiveSlideCount, presentationOptions, referenceImage);
+          if (slideLimitReached) {
+            (presentationResult as any).slideLimitReached = true;
+            (presentationResult as any).requestedSlides = slideCount;
+            (presentationResult as any).maxFreeSlides = 4;
+          }
           generatedContent = JSON.stringify(presentationResult);
           title = presentationResult.title;
           break;
@@ -3073,14 +3085,14 @@ export function registerSubscriptionRoutes(app: any) {
   // Get current user subscription status
   app.get("/api/subscription/status", isAuthenticated, async (req: any, res: any) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = req.session?.userId || req.user?.claims?.sub;
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
       }
       
       // CEO bypass - founder always gets premium access
       const CEO_EMAILS = ["kayondoabass@gmail.com"];
-      const userEmail = req.user?.claims?.email;
+      const userEmail = req.session?.user?.email || req.user?.claims?.email;
       const isCEO = userEmail && CEO_EMAILS.includes(userEmail.toLowerCase());
       
       if (isCEO) {
@@ -3292,6 +3304,231 @@ export function registerSubscriptionRoutes(app: any) {
     } catch (error) {
       console.error("Error processing Paddle webhook:", error);
       res.status(500).json({ error: "Webhook processing failed" });
+    }
+  });
+
+  // ============ PESAPAL ROUTES ============
+
+  app.get("/api/pesapal/config", async (req: any, res: any) => {
+    res.json({ configured: pesapalService.isConfigured() });
+  });
+
+  app.post("/api/pesapal/checkout", async (req: any, res: any) => {
+    try {
+      const sessionUserId = req.session?.userId;
+      const sessionUser = req.session?.user;
+      if (!sessionUserId || !sessionUser) {
+        return res.status(401).json({ error: "Please sign in to subscribe" });
+      }
+
+      const { tier } = req.body;
+      if (!tier || !['weekly', 'monthly', 'yearly'].includes(tier)) {
+        return res.status(400).json({ error: "Invalid subscription tier" });
+      }
+
+      const price = pesapalService.getTierPrice(tier);
+      if (!price) {
+        return res.status(400).json({ error: "Invalid tier" });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const result = await pesapalService.submitOrder({
+        userId: sessionUserId,
+        email: sessionUser.email || '',
+        firstName: sessionUser.firstName || '',
+        lastName: sessionUser.lastName || '',
+        amount: price.amount,
+        currency: price.currency,
+        tier,
+        callbackUrl: `${baseUrl}/api/pesapal/callback`,
+        ipnUrl: `${baseUrl}/api/pesapal/ipn`,
+      });
+
+      res.json({ url: result.redirectUrl, orderTrackingId: result.orderTrackingId });
+    } catch (error: any) {
+      console.error("PesaPal checkout error:", error);
+      res.status(500).json({ error: error.message || "Failed to create checkout" });
+    }
+  });
+
+  app.get("/api/pesapal/callback", async (req: any, res: any) => {
+    try {
+      const { OrderTrackingId, OrderMerchantReference } = req.query;
+      if (!OrderTrackingId) {
+        return res.redirect('/pricing?payment=failed');
+      }
+
+      const status = await pesapalService.getTransactionStatus(OrderTrackingId as string);
+
+      if (status.paymentStatusDescription === 'Completed') {
+        const [payment] = await db.select().from(payments)
+          .where(eq(payments.pesapalTrackingId, OrderTrackingId as string))
+          .limit(1);
+
+        if (payment) {
+          await pesapalService.updatePaymentStatus(
+            payment.orderId,
+            'completed',
+            status.paymentMethod,
+            status.confirmationCode,
+          );
+          await pesapalService.activateSubscription(payment.userId, payment.tier, OrderTrackingId as string);
+
+          const [user] = await db.select().from(users).where(eq(users.id, payment.userId)).limit(1);
+          if (user?.email) {
+            const { sendPaymentReceiptEmail } = await import("./emailService");
+            const endDate = pesapalService.getSubscriptionEndDate(payment.tier);
+            await sendPaymentReceiptEmail(user.email, {
+              orderId: payment.orderId,
+              amount: status.amount,
+              currency: status.currency,
+              planName: payment.tier.charAt(0).toUpperCase() + payment.tier.slice(1),
+              paymentMethod: status.paymentMethod,
+              confirmationCode: status.confirmationCode,
+              date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+              nextBillingDate: endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+              customerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer',
+            });
+
+            await db.update(payments)
+              .set({ receiptSentAt: new Date() })
+              .where(eq(payments.orderId, payment.orderId));
+          }
+        }
+
+        res.redirect('/payment/callback?status=success');
+      } else if (status.paymentStatusDescription === 'Failed') {
+        const [payment] = await db.select().from(payments)
+          .where(eq(payments.pesapalTrackingId, OrderTrackingId as string))
+          .limit(1);
+        if (payment) {
+          await pesapalService.updatePaymentStatus(payment.orderId, 'failed');
+        }
+        res.redirect('/payment/callback?status=failed');
+      } else {
+        res.redirect('/payment/callback?status=pending');
+      }
+    } catch (error) {
+      console.error("PesaPal callback error:", error);
+      res.redirect('/payment/callback?status=failed');
+    }
+  });
+
+  app.get("/api/pesapal/ipn", async (req: any, res: any) => {
+    try {
+      const { OrderTrackingId, OrderMerchantReference, OrderNotificationType } = req.query;
+
+      if (!OrderTrackingId) {
+        return res.status(400).json({ error: "Missing OrderTrackingId" });
+      }
+
+      const status = await pesapalService.getTransactionStatus(OrderTrackingId as string);
+
+      const [payment] = await db.select().from(payments)
+        .where(eq(payments.pesapalTrackingId, OrderTrackingId as string))
+        .limit(1);
+
+      if (!payment) {
+        console.error("IPN: Payment not found for tracking ID:", OrderTrackingId);
+        return res.json({ orderNotificationType: OrderNotificationType, orderTrackingId: OrderTrackingId });
+      }
+
+      if (status.paymentStatusDescription === 'Completed' && payment.status !== 'completed') {
+        await pesapalService.updatePaymentStatus(
+          payment.orderId,
+          'completed',
+          status.paymentMethod,
+          status.confirmationCode,
+        );
+        await pesapalService.activateSubscription(payment.userId, payment.tier, OrderTrackingId as string);
+
+        const [user] = await db.select().from(users).where(eq(users.id, payment.userId)).limit(1);
+        if (user?.email && !payment.receiptSentAt) {
+          const { sendPaymentReceiptEmail } = await import("./emailService");
+          const endDate = pesapalService.getSubscriptionEndDate(payment.tier);
+          await sendPaymentReceiptEmail(user.email, {
+            orderId: payment.orderId,
+            amount: status.amount,
+            currency: status.currency,
+            planName: payment.tier.charAt(0).toUpperCase() + payment.tier.slice(1),
+            paymentMethod: status.paymentMethod,
+            confirmationCode: status.confirmationCode,
+            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            nextBillingDate: endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            customerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer',
+          });
+
+          await db.update(payments)
+            .set({ receiptSentAt: new Date() })
+            .where(eq(payments.orderId, payment.orderId));
+        }
+      } else if (status.paymentStatusDescription === 'Failed') {
+        await pesapalService.updatePaymentStatus(payment.orderId, 'failed');
+      }
+
+      res.json({ orderNotificationType: OrderNotificationType, orderTrackingId: OrderTrackingId });
+    } catch (error) {
+      console.error("PesaPal IPN error:", error);
+      res.status(500).json({ error: "IPN processing failed" });
+    }
+  });
+
+  // ============ PAYMENT HISTORY & USAGE ============
+
+  app.get("/api/payments/history", async (req: any, res: any) => {
+    try {
+      const sessionUserId = req.session?.userId;
+      if (!sessionUserId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const userPayments = await db.select().from(payments)
+        .where(eq(payments.userId, sessionUserId))
+        .orderBy(desc(payments.createdAt));
+
+      res.json({ payments: userPayments });
+    } catch (error) {
+      console.error("Error fetching payment history:", error);
+      res.status(500).json({ error: "Failed to fetch payment history" });
+    }
+  });
+
+  app.get("/api/usage/breakdown", async (req: any, res: any) => {
+    try {
+      const sessionUserId = req.session?.userId;
+      if (!sessionUserId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const usageByType = await db.select({
+        featureType: featureUsage.featureType,
+        count: count(),
+      })
+        .from(featureUsage)
+        .where(and(
+          eq(featureUsage.userId, sessionUserId),
+          gte(featureUsage.createdAt, thirtyDaysAgo),
+        ))
+        .groupBy(featureUsage.featureType);
+
+      const totalUsage = await db.select({ count: count() })
+        .from(featureUsage)
+        .where(eq(featureUsage.userId, sessionUserId));
+
+      const subscriptionStatus = await stripeService.getSubscriptionStatus(sessionUserId);
+
+      res.json({
+        usageByType,
+        totalGenerations: totalUsage[0]?.count || 0,
+        isPremium: subscriptionStatus.isPremium,
+        tier: subscriptionStatus.tier,
+      });
+    } catch (error) {
+      console.error("Error fetching usage breakdown:", error);
+      res.status(500).json({ error: "Failed to fetch usage breakdown" });
     }
   });
 }

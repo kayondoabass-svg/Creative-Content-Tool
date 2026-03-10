@@ -232,7 +232,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       prompt: "",
       gradeLevel: "",
       subject: "",
-      slideCount: "6",
+      slideCount: isPremium ? "6" : "4",
       // Image options
       imageStyle: "animation",
       imageQuality: isPremium ? "hd" : "2d",
@@ -416,12 +416,26 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                       <Input
                         type="number"
                         min={3}
-                        max={20}
+                        max={isPremium ? 20 : 4}
                         className="w-[70px]"
                         data-testid="input-slide-count"
                         {...field}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (!isPremium && val > 4) {
+                            field.onChange("4");
+                          } else {
+                            field.onChange(e.target.value);
+                          }
+                        }}
                       />
                     </FormControl>
+                    {!isPremium && (
+                      <a href="/pricing" className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 whitespace-nowrap hover:underline" data-testid="link-slide-limit-upgrade">
+                        <Lock className="w-3 h-3" />
+                        Max 4 free
+                      </a>
+                    )}
                   </FormItem>
                 )}
               />

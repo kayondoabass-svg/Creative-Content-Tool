@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, ArrowLeft, Loader2, Shield, BookOpen, Users } from "lucide-react";
+import { Check, Crown, ArrowLeft, Loader2, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { PricingPDFDownload } from "@/components/pricing-pdf";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -25,6 +25,7 @@ const plans = [
     period: "per week",
     features: [
       "Unlimited content generations",
+      "Up to 20 slides per presentation",
       "HD/4K image quality",
       "Premium slide transitions",
       "Tap-to-reveal animations",
@@ -39,6 +40,7 @@ const plans = [
     badge: "Save 25%",
     features: [
       "Unlimited content generations",
+      "Up to 20 slides per presentation",
       "HD/4K image quality",
       "Premium slide transitions",
       "Tap-to-reveal animations",
@@ -54,6 +56,7 @@ const plans = [
     highlight: true,
     features: [
       "Unlimited content generations",
+      "Up to 20 slides per presentation",
       "HD/4K image quality",
       "Premium slide transitions",
       "Tap-to-reveal animations",
@@ -106,7 +109,7 @@ export default function PricingPage() {
 
     setLoadingPlan(planId);
     try {
-      const response = await apiRequest("POST", "/api/subscription/checkout", { 
+      const response = await apiRequest("POST", "/api/pesapal/checkout", { 
         tier: planId 
       });
       const data = await response.json();
@@ -155,10 +158,10 @@ export default function PricingPage() {
       </div>
 
       <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold mb-4">
+        <h1 className="text-3xl font-bold mb-4" data-testid="text-pricing-title">
           {isPremium ? "Manage Your Subscription" : "Upgrade to Premium"}
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground" data-testid="text-pricing-subtitle">
           {isPremium 
             ? "You have access to all premium features. Manage your subscription below."
             : "Unlock unlimited content generation and premium features"
@@ -204,24 +207,17 @@ export default function PricingPage() {
 
       {!isPremium && (
         <>
-          <Card className="mb-8 border-amber-500/50 bg-amber-500/5">
-            <CardContent className="p-6 text-center">
-              <Crown className="w-12 h-12 mx-auto mb-4 text-amber-500" />
-              <h3 className="text-xl font-bold mb-2">Premium Subscriptions Coming Soon</h3>
-              <p className="text-muted-foreground mb-4">
-                We're setting up secure payment processing. Premium features will be available shortly.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Contact us at <a href="mailto:kayondoabass@gmail.com" className="text-primary hover:underline">kayondoabass@gmail.com</a> for early access.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="flex items-center justify-center gap-2 mb-6 text-sm text-muted-foreground">
+            <Shield className="w-4 h-4" />
+            <span>Secure payments powered by PesaPal — Mobile Money, Cards & more</span>
+          </div>
           
-          <div className="grid md:grid-cols-3 gap-6 opacity-75">
+          <div className="grid md:grid-cols-3 gap-6">
             {plans.map((plan) => (
               <Card 
                 key={plan.id} 
                 className={`relative ${plan.highlight ? 'border-primary shadow-lg' : ''}`}
+                data-testid={`card-plan-${plan.id}`}
               >
                 {plan.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -246,22 +242,42 @@ export default function PricingPage() {
                   </ul>
                   <Button 
                     className="w-full" 
-                    variant="outline"
-                    disabled
+                    variant={plan.highlight ? "default" : "outline"}
+                    onClick={() => handleSubscribe(plan.id)}
+                    disabled={loadingPlan === plan.id}
                     data-testid={`button-subscribe-${plan.id}`}
                   >
-                    Coming Soon
+                    {loadingPlan === plan.id ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</>
+                    ) : (
+                      "Subscribe Now"
+                    )}
                   </Button>
                 </CardContent>
               </Card>
             ))}
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center text-sm text-muted-foreground">
+            <div className="flex flex-col items-center gap-1">
+              <Shield className="w-5 h-5 text-primary" />
+              <span>7-Day Money Back Guarantee</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <Check className="w-5 h-5 text-primary" />
+              <span>Cancel Anytime</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <Crown className="w-5 h-5 text-primary" />
+              <span>Instant Premium Access</span>
+            </div>
           </div>
         </>
       )}
 
       <div className="mt-12 text-center text-sm text-muted-foreground">
         <p>All plans include a 7-day money-back guarantee. Cancel anytime.</p>
-        <p className="mt-2">Secure payment processing coming soon.</p>
+        <p className="mt-2">Payments processed securely by PesaPal.</p>
       </div>
 
       <Footer />

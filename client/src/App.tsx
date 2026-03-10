@@ -10,7 +10,7 @@ import { LanguageSelector } from "@/components/language-selector";
 import { LogoSettings } from "@/components/logo-settings";
 import { FileConverter } from "@/components/file-converter";
 import { GamesLauncher } from "@/components/games-launcher";
-import { Sparkles, GraduationCap, LogOut, Crown, User, BarChart3 } from "lucide-react";
+import { Sparkles, GraduationCap, LogOut, Crown, User, BarChart3, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -33,6 +33,8 @@ import FileToolsPage from "@/pages/file-tools";
 import GamesPage from "@/pages/games";
 import OwnerDashboard from "@/pages/owner-dashboard";
 import OwnerExpenses from "@/pages/owner-expenses";
+import PaymentCallbackPage from "@/pages/payment-callback";
+import BillingPage from "@/pages/billing";
 import Blog from "@/pages/blog";
 import HowItWorks from "@/pages/how-it-works";
 import Features from "@/pages/features";
@@ -59,6 +61,8 @@ function Router() {
       <Route path="/about" component={About} />
       <Route path="/contact" component={Contact} />
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/payment/callback" component={PaymentCallbackPage} />
+      <Route path="/billing" component={BillingPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
@@ -151,6 +155,12 @@ function UserMenu() {
             {!isPremium && (
               <Badge variant="secondary" className="ml-auto text-xs">PRO</Badge>
             )}
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer" asChild>
+          <a href="/billing" className="flex items-center gap-2" data-testid="link-billing">
+            <Receipt className="w-4 h-4" />
+            <span>Billing & Usage</span>
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

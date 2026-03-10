@@ -229,6 +229,31 @@ export const videoExportSchema = z.object({
 
 export type VideoExportRequest = z.infer<typeof videoExportSchema>;
 
+// ========== PAYMENTS TRACKING ==========
+
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  orderId: varchar("order_id").notNull(),
+  pesapalTrackingId: varchar("pesapal_tracking_id"),
+  amount: integer("amount").notNull(),
+  currency: varchar("currency", { length: 3 }).default("UGX").notNull(),
+  tier: varchar("tier").notNull(),
+  status: varchar("status").default("pending").notNull(),
+  paymentMethod: varchar("payment_method"),
+  confirmationCode: varchar("confirmation_code"),
+  receiptSentAt: timestamp("receipt_sent_at"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
 // ========== OWNER EXPENSES TRACKING ==========
 
 // Expense categories

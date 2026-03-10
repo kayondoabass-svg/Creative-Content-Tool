@@ -364,3 +364,108 @@ export async function sendNewsletterWelcomeEmail(email: string, name?: string): 
     return false;
   }
 }
+
+interface PaymentReceiptData {
+  orderId: string;
+  amount: number;
+  currency: string;
+  planName: string;
+  paymentMethod: string;
+  confirmationCode: string;
+  date: string;
+  nextBillingDate: string;
+  customerName: string;
+}
+
+export async function sendPaymentReceiptEmail(email: string, data: PaymentReceiptData): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    if (!client) return false;
+
+    let sender = fromEmail || 'noreply@brightboardapp.com';
+    if (sender && !sender.includes('<')) {
+      sender = `BrightBoard <${sender}>`;
+    }
+
+    const result = await client.emails.send({
+      from: sender,
+      to: email,
+      subject: `Payment Receipt - BrightBoard ${data.planName} Plan`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8" /></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f3f4f6;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <div style="background: linear-gradient(135deg, #7c3aed, #0d9488); padding: 30px; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">Payment Receipt</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">Thank you for your purchase!</p>
+              </div>
+              <div style="padding: 30px;">
+                <p style="color: #374151; font-size: 16px;">Hello ${data.customerName},</p>
+                <p style="color: #6b7280; font-size: 14px;">Your payment has been processed successfully. Here are your receipt details:</p>
+                
+                <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0; border: 1px solid #e5e7eb;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Order ID</td>
+                      <td style="padding: 8px 0; color: #111827; font-size: 14px; text-align: right; font-weight: 600;">${data.orderId}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Plan</td>
+                      <td style="padding: 8px 0; color: #7c3aed; font-size: 14px; text-align: right; font-weight: 600;">${data.planName}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Amount</td>
+                      <td style="padding: 8px 0; color: #111827; font-size: 18px; text-align: right; font-weight: 700;">${data.currency} ${data.amount.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Payment Method</td>
+                      <td style="padding: 8px 0; color: #111827; font-size: 14px; text-align: right;">${data.paymentMethod}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Confirmation</td>
+                      <td style="padding: 8px 0; color: #111827; font-size: 14px; text-align: right;">${data.confirmationCode}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Date</td>
+                      <td style="padding: 8px 0; color: #111827; font-size: 14px; text-align: right;">${data.date}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Next Billing</td>
+                      <td style="padding: 8px 0; color: #111827; font-size: 14px; text-align: right;">${data.nextBillingDate}</td>
+                    </tr>
+                  </table>
+                </div>
+
+                <div style="background: linear-gradient(135deg, #7c3aed10, #0d948810); border-radius: 8px; padding: 16px; margin: 20px 0;">
+                  <p style="margin: 0; color: #7c3aed; font-weight: 600; font-size: 14px;">🎉 Premium Features Activated!</p>
+                  <p style="margin: 8px 0 0 0; color: #6b7280; font-size: 13px;">Unlimited generations, HD/4K quality, premium transitions, and more.</p>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+                
+                <div style="font-size: 11px; color: #9ca3af;">
+                  <p style="margin: 4px 0;"><strong>Keyo Technologies</strong></p>
+                  <p style="margin: 4px 0;">Registration: 80030812159711 | TIN: 1008176770</p>
+                  <p style="margin: 4px 0;">Kampala, Uganda</p>
+                  <p style="margin: 8px 0;">For support: <a href="mailto:kayondoabass@gmail.com" style="color: #7c3aed;">kayondoabass@gmail.com</a></p>
+                  <p style="margin: 4px 0;">BrightBoard - AI Content for Teachers | <a href="https://www.brightboardapp.com" style="color: #7c3aed;">brightboardapp.com</a></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    console.log('Payment receipt email sent:', result);
+    await logResendExpense("Payment Receipt", email);
+    return true;
+  } catch (error) {
+    console.error('Error sending payment receipt email:', error);
+    return false;
+  }
+}
