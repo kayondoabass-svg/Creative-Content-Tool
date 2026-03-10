@@ -2932,10 +2932,12 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
         {
           "title": "Mind Map Title",
           "centralTopic": "The main topic in the center",
+          "centralImagePrompt": "A cute cartoon illustration of [the central topic], colorful educational style, white background, no text or labels",
           "branches": [
             {
               "label": "Main Branch 1",
               "color": "#FF6B6B",
+              "imagePrompt": "A cute cartoon illustration of [this branch topic], colorful educational style, white background, no text or labels",
               "children": [
                 {
                   "label": "Sub-topic 1a",
@@ -2943,10 +2945,6 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
                     { "label": "Detail 1" },
                     { "label": "Detail 2" }
                   ]
-                },
-                {
-                  "label": "Sub-topic 1b",
-                  "children": []
                 }
               ]
             }
@@ -2960,7 +2958,8 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
         - Use distinct, vibrant colors for each main branch (hex colors like #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7, #DDA0DD, #FF8C42, #87CEEB)
         - Keep labels concise (1-4 words each)
         - Make content age-appropriate and educational
-        - Organize information logically and hierarchically`
+        - Organize information logically and hierarchically
+        - IMPORTANT: For centralImagePrompt and each branch imagePrompt, write a clear DALL-E prompt for a cute, colorful cartoon illustration that represents the topic. Always specify: white background, no text, no labels, no words, educational cartoon style.`
       },
       {
         role: "user",
@@ -2972,7 +2971,52 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  const mindmapData = JSON.parse(content);
+
+  const imagePrompts: { key: string; prompt: string }[] = [];
+  
+  if (mindmapData.centralImagePrompt) {
+    imagePrompts.push({ key: "centralImage", prompt: mindmapData.centralImagePrompt });
+  }
+  
+  if (mindmapData.branches) {
+    mindmapData.branches.forEach((branch: any, index: number) => {
+      if (branch.imagePrompt) {
+        imagePrompts.push({ key: `branch_${index}`, prompt: branch.imagePrompt });
+      }
+    });
+  }
+
+  const imageResults = await Promise.all(
+    imagePrompts.map(async (item) => {
+      try {
+        const imgResponse = await openai.images.generate({
+          model: "dall-e-3",
+          prompt: item.prompt + " IMPORTANT: Do NOT include any text, words, letters, numbers, or labels in the image.",
+          n: 1,
+          size: "1024x1024",
+          quality: "standard",
+        });
+        return { key: item.key, url: imgResponse.data[0]?.url || null };
+      } catch (err) {
+        console.error(`Failed to generate mind map image for ${item.key}:`, err);
+        return { key: item.key, url: null };
+      }
+    })
+  );
+
+  for (const result of imageResults) {
+    if (result.key === "centralImage") {
+      mindmapData.centralImage = result.url;
+    } else if (result.key.startsWith("branch_")) {
+      const index = parseInt(result.key.split("_")[1]);
+      if (mindmapData.branches[index]) {
+        mindmapData.branches[index].image = result.url;
+      }
+    }
+  }
+
+  return mindmapData;
 }
 
 // ============================================

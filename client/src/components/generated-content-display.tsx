@@ -1113,6 +1113,7 @@ function WorksheetContent({ content }: { content: string }) {
 interface MindmapNode {
   label: string;
   color?: string;
+  image?: string;
   children?: MindmapNode[];
 }
 
@@ -1120,48 +1121,6 @@ function MindmapContent({ content }: { content: string }) {
   try {
     const data = JSON.parse(content);
     const branches: MindmapNode[] = data.branches || [];
-
-    const renderBranch = (branch: MindmapNode) => {
-      const color = branch.color || "#7c3aed";
-
-      return (
-        <div className="relative" data-testid={`mindmap-branch-${branch.label}`}>
-          <div
-            className="rounded-xl px-4 py-2 font-semibold text-sm border-2 shadow-sm text-white"
-            style={{ backgroundColor: color, borderColor: color }}
-          >
-            {branch.label}
-          </div>
-          {branch.children && branch.children.length > 0 && (
-            <div className="ml-6 mt-1 space-y-1 border-l-2 pl-4" style={{ borderColor: `${color}60` }}>
-              {branch.children.map((child, i) => (
-                <div key={i}>
-                  <div
-                    className="rounded-lg px-3 py-1.5 text-sm border shadow-sm bg-background"
-                    style={{ borderColor: `${color}50` }}
-                  >
-                    {child.label}
-                  </div>
-                  {child.children && child.children.length > 0 && (
-                    <div className="ml-5 mt-1 space-y-1 border-l pl-3" style={{ borderColor: `${color}30` }}>
-                      {child.children.map((detail, j) => (
-                        <div
-                          key={j}
-                          className="rounded px-2.5 py-1 text-xs text-muted-foreground border bg-muted/30"
-                          style={{ borderColor: `${color}25` }}
-                        >
-                          {detail.label}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    };
 
     return (
       <div className="space-y-4" data-testid="mindmap-content">
@@ -1173,19 +1132,87 @@ function MindmapContent({ content }: { content: string }) {
           </div>
         </div>
 
-        <div className="relative p-6 bg-gradient-to-br from-muted/30 to-muted/10 rounded-xl border overflow-auto">
-          <div className="flex justify-center mb-6">
+        <div className="relative p-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-muted/30 dark:to-muted/10 rounded-xl border overflow-auto">
+          <div className="flex flex-col items-center mb-8">
+            {data.centralImage && (
+              <img
+                src={data.centralImage}
+                alt={data.centralTopic || data.title}
+                className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-lg mb-3"
+                data-testid="mindmap-center-image"
+              />
+            )}
             <div className="bg-gradient-to-r from-primary to-accent text-white rounded-2xl px-6 py-3 font-bold text-lg shadow-lg text-center" data-testid="mindmap-center">
               {data.centralTopic || data.title}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {branches.map((branch, index) => (
-              <div key={index}>
-                {renderBranch(branch)}
-              </div>
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {branches.map((branch, index) => {
+              const color = branch.color || "#7c3aed";
+              return (
+                <div
+                  key={index}
+                  className="rounded-2xl overflow-hidden shadow-md border bg-background"
+                  style={{ borderColor: color }}
+                  data-testid={`mindmap-branch-${branch.label}`}
+                >
+                  {branch.image && (
+                    <div className="relative">
+                      <img
+                        src={branch.image}
+                        alt={branch.label}
+                        className="w-full h-36 object-cover"
+                        data-testid={`mindmap-branch-image-${index}`}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                      <div
+                        className="absolute bottom-2 left-2 right-2 rounded-lg px-3 py-1.5 font-bold text-sm text-white"
+                        style={{ backgroundColor: `${color}dd` }}
+                      >
+                        {branch.label}
+                      </div>
+                    </div>
+                  )}
+                  {!branch.image && (
+                    <div
+                      className="px-4 py-3 font-bold text-sm text-white"
+                      style={{ backgroundColor: color }}
+                    >
+                      {branch.label}
+                    </div>
+                  )}
+
+                  {branch.children && branch.children.length > 0 && (
+                    <div className="p-3 space-y-2">
+                      {branch.children.map((child, i) => (
+                        <div key={i}>
+                          <div
+                            className="rounded-lg px-3 py-1.5 text-sm font-medium border-l-4"
+                            style={{ borderColor: color, backgroundColor: `${color}10` }}
+                          >
+                            {child.label}
+                          </div>
+                          {child.children && child.children.length > 0 && (
+                            <div className="ml-4 mt-1 space-y-0.5">
+                              {child.children.map((detail, j) => (
+                                <div
+                                  key={j}
+                                  className="text-xs text-muted-foreground pl-2 py-0.5 border-l"
+                                  style={{ borderColor: `${color}40` }}
+                                >
+                                  • {detail.label}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
