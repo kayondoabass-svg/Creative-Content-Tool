@@ -61,6 +61,16 @@ export const worksheetOptionsSchema = z.object({
 
 export type WorksheetOptions = z.infer<typeof worksheetOptionsSchema>;
 
+// Mind map options schema
+export const mindmapOptionsSchema = z.object({
+  branchCount: z.number().min(3).max(8).optional(),
+  imageStyle: z.enum(["animation", "reallife"]).optional(),
+  imageQuality: z.enum(["2d", "hd", "4k"]).optional(),
+  contentStyle: z.enum(["imagesAndText", "imagesOnly", "textOnly"]).optional(),
+});
+
+export type MindmapOptions = z.infer<typeof mindmapOptionsSchema>;
+
 // Image options schema (for Educational Images)
 export const imageOptionsSchema = z.object({
   style: z.enum(["animation", "reallife"]).optional(),
@@ -116,6 +126,7 @@ export const generateContentSchema = z.object({
   imageOptions: imageOptionsSchema.optional(),
   textOptions: textOptionsSchema.optional(),
   activityOptions: activityOptionsSchema.optional(),
+  mindmapOptions: mindmapOptionsSchema.optional(),
   includeLogo: z.boolean().optional(),
 });
 

@@ -1849,7 +1849,7 @@ This should look like it was designed by a world-class branding agency. Make it 
   app.post("/api/generate", async (req, res) => {
     try {
       const validatedData = generateContentSchema.parse(req.body);
-      let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, includeLogo } = validatedData;
+      let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, mindmapOptions, includeLogo } = validatedData;
       
       // Get user info - require authentication (custom session auth)
       const sessionUserId = (req as any).session?.userId;
@@ -1994,7 +1994,10 @@ This should look like it was designed by a world-class branding agency. Make it 
           break;
 
         case "mindmap":
-          const mindmapResult = await generateMindmap(prompt, gradeLevel, subject);
+          if (!isPremium && mindmapOptions?.imageQuality && ['hd', '4k'].includes(mindmapOptions.imageQuality)) {
+            mindmapOptions.imageQuality = '2d';
+          }
+          const mindmapResult = await generateMindmap(prompt, gradeLevel, subject, mindmapOptions);
           generatedContent = JSON.stringify(mindmapResult);
           title = mindmapResult.title;
           break;
@@ -3035,28 +3038,33 @@ function escapeXml(text: string): string {
     .replace(/'/g, '&apos;');
 }
 
-async function generateMindmap(prompt: string, gradeLevel?: string, subject?: string) {
+async function generateMindmap(prompt: string, gradeLevel?: string, subject?: string, mindmapOptions?: { branchCount?: number; imageStyle?: string; imageQuality?: string; contentStyle?: string }) {
   const context = buildContext(gradeLevel, subject);
+  const branchCount = mindmapOptions?.branchCount || 5;
+  const imageStyle = mindmapOptions?.imageStyle || "animation";
+  const contentStyle = mindmapOptions?.contentStyle || "imagesAndText";
+  const imageQuality = mindmapOptions?.imageQuality || "2d";
+
+  const imageStyleDesc = imageStyle === "reallife" 
+    ? "a realistic, high-quality photograph" 
+    : "a cute cartoon illustration";
   
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: `You are an expert educational mind map creator. Create colorful, engaging mind maps for teachers and students. ${context}
-        
-        CRITICAL: All spelling must be 100% correct. Double-check every word.
-        
-        Return a JSON object with this exact structure:
+  const includeImages = contentStyle !== "textOnly";
+
+  const imagePromptInstruction = includeImages 
+    ? `- IMPORTANT: For centralImagePrompt and each branch imagePrompt, write a clear DALL-E prompt for ${imageStyleDesc} that represents the topic. Always specify: white background, no text, no labels, no words${imageStyle === "animation" ? ", educational cartoon style" : ", realistic photographic style"}.`
+    : "";
+
+  const jsonStructure = includeImages ? `
         {
           "title": "Mind Map Title",
           "centralTopic": "The main topic in the center",
-          "centralImagePrompt": "A cute cartoon illustration of [the central topic], colorful educational style, white background, no text or labels",
+          "centralImagePrompt": "${imageStyleDesc} of [the central topic], white background, no text or labels",
           "branches": [
             {
               "label": "Main Branch 1",
               "color": "#FF6B6B",
-              "imagePrompt": "A cute cartoon illustration of [this branch topic], colorful educational style, white background, no text or labels",
+              "imagePrompt": "${imageStyleDesc} of [this branch topic], white background, no text or labels",
               "children": [
                 {
                   "label": "Sub-topic 1a",
@@ -3068,17 +3076,48 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
               ]
             }
           ]
-        }
+        }` : `
+        {
+          "title": "Mind Map Title",
+          "centralTopic": "The main topic in the center",
+          "branches": [
+            {
+              "label": "Main Branch 1",
+              "color": "#FF6B6B",
+              "children": [
+                {
+                  "label": "Sub-topic 1a",
+                  "children": [
+                    { "label": "Detail 1" },
+                    { "label": "Detail 2" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `You are an expert educational mind map creator. Create colorful, engaging mind maps for teachers and students. ${context}
+        
+        CRITICAL: All spelling must be 100% correct. Double-check every word.
+        
+        Return a JSON object with this exact structure:
+        ${jsonStructure}
         
         Guidelines:
-        - Create 4-6 main branches from the central topic
+        - Create exactly ${branchCount} main branches from the central topic
         - Each main branch should have 2-4 sub-topics
         - Sub-topics can have 1-3 details each
         - Use distinct, vibrant colors for each main branch (hex colors like #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7, #DDA0DD, #FF8C42, #87CEEB)
         - Keep labels concise (1-4 words each)
         - Make content age-appropriate and educational
         - Organize information logically and hierarchically
-        - IMPORTANT: For centralImagePrompt and each branch imagePrompt, write a clear DALL-E prompt for a cute, colorful cartoon illustration that represents the topic. Always specify: white background, no text, no labels, no words, educational cartoon style.`
+        ${imagePromptInstruction}`
       },
       {
         role: "user",
@@ -3092,49 +3131,58 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
   const content = response.choices[0]?.message?.content || "{}";
   const mindmapData = JSON.parse(content);
 
-  const imagePrompts: { key: string; prompt: string }[] = [];
-  
-  if (mindmapData.centralImagePrompt) {
-    imagePrompts.push({ key: "centralImage", prompt: mindmapData.centralImagePrompt });
-  }
-  
-  if (mindmapData.branches) {
-    mindmapData.branches.forEach((branch: any, index: number) => {
-      if (branch.imagePrompt) {
-        imagePrompts.push({ key: `branch_${index}`, prompt: branch.imagePrompt });
-      }
-    });
-  }
+  if (includeImages) {
+    const imagePrompts: { key: string; prompt: string }[] = [];
+    
+    if (mindmapData.centralImagePrompt) {
+      imagePrompts.push({ key: "centralImage", prompt: mindmapData.centralImagePrompt });
+    }
+    
+    if (mindmapData.branches) {
+      mindmapData.branches.forEach((branch: any, index: number) => {
+        if (branch.imagePrompt) {
+          imagePrompts.push({ key: `branch_${index}`, prompt: branch.imagePrompt });
+        }
+      });
+    }
 
-  const imageResults = await Promise.all(
-    imagePrompts.map(async (item) => {
-      try {
-        const imgResponse = await openai.images.generate({
-          model: "dall-e-3",
-          prompt: item.prompt + " IMPORTANT: Do NOT include any text, words, letters, numbers, or labels in the image.",
-          n: 1,
-          size: "1024x1024",
-          quality: "standard",
-        });
-        return { key: item.key, url: imgResponse.data[0]?.url || null };
-      } catch (err) {
-        console.error(`Failed to generate mind map image for ${item.key}:`, err);
-        return { key: item.key, url: null };
-      }
-    })
-  );
+    const dalleSize = (imageQuality === "hd" || imageQuality === "4k") ? "1024x1024" : "1024x1024";
+    const dalleQuality = (imageQuality === "hd" || imageQuality === "4k") ? "hd" : "standard";
 
-  for (const result of imageResults) {
-    if (result.key === "centralImage") {
-      mindmapData.centralImage = result.url;
-    } else if (result.key.startsWith("branch_")) {
-      const index = parseInt(result.key.split("_")[1]);
-      if (mindmapData.branches[index]) {
-        mindmapData.branches[index].image = result.url;
+    const imageResults = await Promise.all(
+      imagePrompts.map(async (item) => {
+        try {
+          const styleAddition = imageStyle === "reallife" 
+            ? " Realistic photograph, high quality, professional photography." 
+            : " Cute cartoon illustration, colorful, educational style.";
+          const imgResponse = await openai.images.generate({
+            model: "dall-e-3",
+            prompt: item.prompt + styleAddition + " IMPORTANT: Do NOT include any text, words, letters, numbers, or labels in the image.",
+            n: 1,
+            size: dalleSize,
+            quality: dalleQuality,
+          });
+          return { key: item.key, url: imgResponse.data[0]?.url || null };
+        } catch (err) {
+          console.error(`Failed to generate mind map image for ${item.key}:`, err);
+          return { key: item.key, url: null };
+        }
+      })
+    );
+
+    for (const result of imageResults) {
+      if (result.key === "centralImage") {
+        mindmapData.centralImage = result.url;
+      } else if (result.key.startsWith("branch_")) {
+        const index = parseInt(result.key.split("_")[1]);
+        if (mindmapData.branches[index]) {
+          mindmapData.branches[index].image = result.url;
+        }
       }
     }
   }
 
+  mindmapData.options = { imageStyle, imageQuality, contentStyle, branchCount };
   return mindmapData;
 }
 

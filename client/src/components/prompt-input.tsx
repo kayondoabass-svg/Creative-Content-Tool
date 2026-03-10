@@ -16,7 +16,7 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; imageStyle?: string; imageQuality?: string; contentStyle?: string }) => void;
   isGenerating: boolean;
   defaultGameType?: string | null;
 }
@@ -189,6 +189,11 @@ const formSchema = z.object({
   presentationTransitionDelay: z.string().optional(),
   presentationTapToReveal: z.boolean().optional(),
   worksheetColorMode: z.string().optional(),
+  // Mindmap options
+  mindmapBranchCount: z.string().optional(),
+  mindmapImageStyle: z.string().optional(),
+  mindmapImageQuality: z.string().optional(),
+  mindmapContentStyle: z.string().optional(),
   // Logo toggle (applies to all visual content)
   includeLogo: z.boolean().optional(),
 });
@@ -254,6 +259,11 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       presentationTransitionDelay: "0",
       presentationTapToReveal: false,
       worksheetColorMode: "colored",
+      // Mindmap options
+      mindmapBranchCount: "5",
+      mindmapImageStyle: "animation",
+      mindmapImageQuality: isPremium ? "hd" : "2d",
+      mindmapContentStyle: "imagesAndText",
       // Logo toggle
       includeLogo: false,
     },
@@ -331,6 +341,12 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     const activityOptions = selectedType === "activity" ? {
       gameType: values.gameType,
     } : undefined;
+    const mindmapOptions = selectedType === "mindmap" ? {
+      branchCount: values.mindmapBranchCount ? parseInt(values.mindmapBranchCount) : 5,
+      imageStyle: values.mindmapImageStyle,
+      imageQuality: values.mindmapImageQuality,
+      contentStyle: values.mindmapContentStyle,
+    } : undefined;
     
     onGenerate(
       values.prompt.trim(),
@@ -344,7 +360,8 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       imageOptions,
       textOptions,
       activityOptions,
-      values.includeLogo || false
+      values.includeLogo || false,
+      mindmapOptions,
     );
   };
 
@@ -441,8 +458,36 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
               />
             )}
 
+            {selectedType === "mindmap" && (
+              <FormField
+                control={form.control}
+                name="mindmapBranchCount"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">Branches:</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={3}
+                        max={8}
+                        className="w-[70px]"
+                        data-testid="input-branch-count"
+                        {...field}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (val > 8) field.onChange("8");
+                          else if (val < 3) field.onChange("3");
+                          else field.onChange(e.target.value);
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            )}
+
             {/* Logo toggle for visual content */}
-            {(selectedType === "image" || selectedType === "presentation" || selectedType === "storyboard" || selectedType === "worksheet") && (
+            {(selectedType === "image" || selectedType === "presentation" || selectedType === "storyboard" || selectedType === "worksheet" || selectedType === "mindmap") && (
               <FormField
                 control={form.control}
                 name="includeLogo"
@@ -546,6 +591,86 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                             {t(l.key)}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+
+          {/* Mind map options */}
+          {selectedType === "mindmap" && (
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <FormField
+                control={form.control}
+                name="mindmapImageStyle"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">{t('home.style')}:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[130px]" data-testid="select-mindmap-image-style">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="animation">{t('home.animation')}</SelectItem>
+                        <SelectItem value="reallife">{t('home.realLife')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="mindmapImageQuality"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">{t('home.quality')}:</FormLabel>
+                    <Select 
+                      onValueChange={(val) => {
+                        if (!isPremium && ['hd', '4k', '3d'].includes(val)) return;
+                        field.onChange(val);
+                      }} 
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-[110px]" data-testid="select-mindmap-image-quality">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="2d">2D</SelectItem>
+                        <SelectItem value="hd">
+                          <span className="flex items-center gap-1">HD {!isPremium && <Lock className="w-3 h-3 text-amber-500" />}</span>
+                        </SelectItem>
+                        <SelectItem value="4k">
+                          <span className="flex items-center gap-1">4K {!isPremium && <Lock className="w-3 h-3 text-amber-500" />}</span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="mindmapContentStyle"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">{t('home.content')}:</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-[150px]" data-testid="select-mindmap-content-style">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="imagesAndText">{t('home.textAndImages')}</SelectItem>
+                        <SelectItem value="textOnly">{t('home.textOnly')}</SelectItem>
+                        <SelectItem value="imagesOnly">{t('home.imagesOnly')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
