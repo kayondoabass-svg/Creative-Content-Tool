@@ -24,7 +24,7 @@ import * as customAuth from "./customAuthService";
 import { db } from "./db";
 import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
-import { eq, count, sql, desc, gte, and } from "drizzle-orm";
+import { eq, count, sql, desc, gte, and, sum } from "drizzle-orm";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -650,6 +650,113 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Owner stats error:", error);
       res.status(500).json({ error: "Failed to fetch statistics" });
+    }
+  });
+
+  app.get("/api/owner/revenue", isOwnerMiddleware, async (req, res) => {
+    try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const currentYear = now.getFullYear();
+      const yearStart = new Date(currentYear, 0, 1);
+
+      const completedPayments = await db
+        .select()
+        .from(payments)
+        .where(eq(payments.status, "completed"))
+        .orderBy(desc(payments.createdAt));
+
+      const totalRevenue = completedPayments.reduce((sum, p) => sum + p.amount, 0);
+      const revenueThisMonth = completedPayments
+        .filter(p => p.createdAt >= thirtyDaysAgo)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const revenueToday = completedPayments
+        .filter(p => p.createdAt >= today)
+        .reduce((sum, p) => sum + p.amount, 0);
+      const revenueThisYear = completedPayments
+        .filter(p => p.createdAt >= yearStart)
+        .reduce((sum, p) => sum + p.amount, 0);
+
+      const byTier: Record<string, { count: number; revenue: number }> = {};
+      const byMethod: Record<string, { count: number; revenue: number }> = {};
+      const byCurrency: Record<string, { count: number; revenue: number }> = {};
+
+      completedPayments.forEach(p => {
+        const tier = p.tier || "unknown";
+        if (!byTier[tier]) byTier[tier] = { count: 0, revenue: 0 };
+        byTier[tier].count++;
+        byTier[tier].revenue += p.amount;
+
+        const method = p.paymentMethod || "unknown";
+        if (!byMethod[method]) byMethod[method] = { count: 0, revenue: 0 };
+        byMethod[method].count++;
+        byMethod[method].revenue += p.amount;
+
+        const currency = p.currency || "UGX";
+        if (!byCurrency[currency]) byCurrency[currency] = { count: 0, revenue: 0 };
+        byCurrency[currency].count++;
+        byCurrency[currency].revenue += p.amount;
+      });
+
+      const monthlyTrend: Record<string, number> = {};
+      completedPayments.forEach(p => {
+        const monthKey = `${p.createdAt.getFullYear()}-${String(p.createdAt.getMonth() + 1).padStart(2, "0")}`;
+        monthlyTrend[monthKey] = (monthlyTrend[monthKey] || 0) + p.amount;
+      });
+      const sortedMonthlyTrend = Object.entries(monthlyTrend)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, amount]) => ({ month, amount }));
+
+      const vatRate = 0.18;
+      const estimatedVAT = Math.round(revenueThisYear * vatRate / (1 + vatRate));
+      const incomeBeforeVAT = revenueThisYear - estimatedVAT;
+
+      const allPayments = await db
+        .select({
+          id: payments.id,
+          userId: payments.userId,
+          orderId: payments.orderId,
+          amount: payments.amount,
+          currency: payments.currency,
+          tier: payments.tier,
+          status: payments.status,
+          paymentMethod: payments.paymentMethod,
+          confirmationCode: payments.confirmationCode,
+          createdAt: payments.createdAt,
+        })
+        .from(payments)
+        .orderBy(desc(payments.createdAt))
+        .limit(50);
+
+      res.json({
+        totals: {
+          allTime: totalRevenue,
+          thisYear: revenueThisYear,
+          thisMonth: revenueThisMonth,
+          today: revenueToday,
+          totalTransactions: completedPayments.length,
+        },
+        byTier,
+        byMethod,
+        byCurrency,
+        monthlyTrend: sortedMonthlyTrend,
+        tax: {
+          tin: "1008176770",
+          businessName: "Keyo Technologies",
+          registrationNumber: "80030812159711",
+          address: "P.O. Box 22900, Kampala, Central Division, Nakivuubo Shauriyako Parish, Uganda",
+          vatRate: 18,
+          estimatedVAT,
+          incomeBeforeVAT,
+          taxableRevenue: revenueThisYear,
+          financialYear: `${currentYear}`,
+        },
+        recentPayments: allPayments,
+      });
+    } catch (error) {
+      console.error("Owner revenue error:", error);
+      res.status(500).json({ error: "Failed to fetch revenue data" });
     }
   });
 

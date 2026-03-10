@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft, Video, Settings, UserCheck, UserX, Link2 } from "lucide-react";
+import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft, Video, Settings, UserCheck, UserX, Link2, Building2, Receipt, CreditCard, MapPin, FileText, Landmark, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Switch } from "@/components/ui/switch";
@@ -40,6 +40,43 @@ interface OwnerStats {
 interface TrendData {
   signups: Array<{ date: string; count: number }>;
   generations: Array<{ date: string; count: number }>;
+}
+
+interface RevenueData {
+  totals: {
+    allTime: number;
+    thisYear: number;
+    thisMonth: number;
+    today: number;
+    totalTransactions: number;
+  };
+  byTier: Record<string, { count: number; revenue: number }>;
+  byMethod: Record<string, { count: number; revenue: number }>;
+  byCurrency: Record<string, { count: number; revenue: number }>;
+  monthlyTrend: Array<{ month: string; amount: number }>;
+  tax: {
+    tin: string;
+    businessName: string;
+    registrationNumber: string;
+    address: string;
+    vatRate: number;
+    estimatedVAT: number;
+    incomeBeforeVAT: number;
+    taxableRevenue: number;
+    financialYear: string;
+  };
+  recentPayments: Array<{
+    id: number;
+    userId: string;
+    orderId: string;
+    amount: number;
+    currency: string;
+    tier: string;
+    status: string;
+    paymentMethod: string | null;
+    confirmationCode: string | null;
+    createdAt: string;
+  }>;
 }
 
 function StatCard({ 
@@ -101,12 +138,300 @@ function ContentTypeCard({ type, count }: { type: string; count: number }) {
     activity: "Games",
     storyboard: "Storyboards",
     worksheet: "Worksheets",
+    mindmap: "Mind Maps",
   };
 
   return (
     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
       <span className="text-sm font-medium">{typeLabels[type] || type}</span>
       <Badge variant="secondary">{count}</Badge>
+    </div>
+  );
+}
+
+function formatAmount(amount: number, currency: string = "USD") {
+  if (currency === "UGX") {
+    return `UGX ${amount.toLocaleString()}`;
+  }
+  return `$${(amount / 100).toFixed(2)}`;
+}
+
+function RevenueSection() {
+  const { data: revenue, isLoading } = useQuery<RevenueData>({
+    queryKey: ["/api/owner/revenue"],
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (!revenue) return null;
+
+  const tierColors: Record<string, string> = {
+    weekly: "bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800",
+    monthly: "bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800",
+    yearly: "bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800",
+  };
+
+  const statusColors: Record<string, string> = {
+    completed: "bg-green-500",
+    pending: "bg-yellow-500",
+    failed: "bg-red-500",
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Revenue"
+          value={formatAmount(revenue.totals.allTime)}
+          description={`${revenue.totals.totalTransactions} transactions`}
+          icon={DollarSign}
+        />
+        <StatCard
+          title="Revenue This Year"
+          value={formatAmount(revenue.totals.thisYear)}
+          description={`FY ${revenue.tax.financialYear}`}
+          icon={TrendingUp}
+        />
+        <StatCard
+          title="Revenue This Month"
+          value={formatAmount(revenue.totals.thisMonth)}
+          description="Last 30 days"
+          icon={Calendar}
+        />
+        <StatCard
+          title="Revenue Today"
+          value={formatAmount(revenue.totals.today)}
+          description="Today's earnings"
+          icon={Zap}
+        />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5" />
+              Revenue by Tier
+            </CardTitle>
+            <CardDescription>Breakdown by subscription plan</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Object.entries(revenue.byTier).length > 0 ? (
+              Object.entries(revenue.byTier).map(([tier, data]) => (
+                <div key={tier} className={`flex items-center justify-between p-3 rounded-lg border ${tierColors[tier] || "bg-muted/50"}`}>
+                  <div>
+                    <span className="text-sm font-medium capitalize">{tier}</span>
+                    <p className="text-xs text-muted-foreground">{data.count} payments</p>
+                  </div>
+                  <Badge variant="secondary" className="font-mono">{formatAmount(data.revenue)}</Badge>
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground text-center py-4">No revenue data yet</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Payment Methods
+            </CardTitle>
+            <CardDescription>How customers pay</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Object.entries(revenue.byMethod).length > 0 ? (
+              Object.entries(revenue.byMethod).map(([method, data]) => (
+                <div key={method} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <div>
+                    <span className="text-sm font-medium capitalize">{method}</span>
+                    <p className="text-xs text-muted-foreground">{data.count} transactions</p>
+                  </div>
+                  <Badge variant="secondary" className="font-mono">{formatAmount(data.revenue)}</Badge>
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground text-center py-4">No payment data yet</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Monthly Revenue Trend
+            </CardTitle>
+            <CardDescription>Revenue over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {revenue.monthlyTrend.length > 0 ? (
+              <div className="space-y-2">
+                {revenue.monthlyTrend.slice(-6).map((item) => (
+                  <div key={item.month} className="flex items-center justify-between p-2 rounded bg-muted/50">
+                    <span className="text-sm text-muted-foreground">{item.month}</span>
+                    <span className="text-sm font-medium font-mono">{formatAmount(item.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-4">No revenue trend data yet</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-amber-200 dark:border-amber-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-amber-600" />
+              URA Tax Summary
+            </CardTitle>
+            <CardDescription>Uganda Revenue Authority - VAT @ {revenue.tax.vatRate}%</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30">
+                <p className="text-xs text-muted-foreground">Taxable Revenue (FY {revenue.tax.financialYear})</p>
+                <p className="text-lg font-bold font-mono">{formatAmount(revenue.tax.taxableRevenue)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30">
+                <p className="text-xs text-muted-foreground">Estimated VAT ({revenue.tax.vatRate}%)</p>
+                <p className="text-lg font-bold font-mono text-amber-700 dark:text-amber-400">{formatAmount(revenue.tax.estimatedVAT)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-xs text-muted-foreground">Income Before VAT</p>
+                <p className="text-lg font-bold font-mono">{formatAmount(revenue.tax.incomeBeforeVAT)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-xs text-muted-foreground">Total Transactions</p>
+                <p className="text-lg font-bold">{revenue.totals.totalTransactions}</p>
+              </div>
+            </div>
+            <div className="pt-3 border-t space-y-1.5">
+              <div className="flex items-center gap-2 text-sm">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">TIN:</span>
+                <span className="font-mono font-medium">{revenue.tax.tin}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                VAT is calculated as {revenue.tax.vatRate}% of gross revenue (inclusive). Consult your tax advisor for actual filing amounts.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-blue-200 dark:border-blue-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-blue-600" />
+              Business Registration
+            </CardTitle>
+            <CardDescription>Keyo Technologies - URSB Registered</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2.5">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Business Name</p>
+                  <p className="text-sm font-medium">Keyo Technologies</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Registration Number (URSB)</p>
+                  <p className="text-sm font-mono font-medium">80030812159711</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Landmark className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground">TIN (Uganda Revenue Authority)</p>
+                  <p className="text-sm font-mono font-medium">1008176770</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Owner / Director</p>
+                  <p className="text-sm font-medium">Abass Kayondo (kayondoabass@gmail.com)</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Registered Office</p>
+                  <p className="text-sm font-medium">P.O. Box 22900, Kampala</p>
+                  <p className="text-xs text-muted-foreground">Central Division, Nakivuubo Shauriyako Parish, Shauriyako A Village, Uganda</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5" />
+            Recent Payments
+          </CardTitle>
+          <CardDescription>Last 50 payment transactions (all statuses)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {revenue.recentPayments.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" data-testid="table-recent-payments">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Date</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Order ID</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Tier</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Amount</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Method</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Status</th>
+                    <th className="pb-2 font-medium text-muted-foreground">Confirmation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {revenue.recentPayments.map((payment) => (
+                    <tr key={payment.id} className="border-b last:border-0" data-testid={`payment-row-${payment.id}`}>
+                      <td className="py-2.5 pr-4 text-muted-foreground whitespace-nowrap">
+                        {new Date(payment.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="py-2.5 pr-4 font-mono text-xs">{payment.orderId.slice(0, 12)}...</td>
+                      <td className="py-2.5 pr-4">
+                        <Badge variant="outline" className="capitalize">{payment.tier}</Badge>
+                      </td>
+                      <td className="py-2.5 pr-4 font-mono font-medium">{formatAmount(payment.amount, payment.currency)}</td>
+                      <td className="py-2.5 pr-4 capitalize">{payment.paymentMethod || "-"}</td>
+                      <td className="py-2.5 pr-4">
+                        <Badge className={statusColors[payment.status] || "bg-gray-500"}>
+                          {payment.status}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 font-mono text-xs">{payment.confirmationCode || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-8">No payments recorded yet</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -250,6 +575,8 @@ export default function OwnerDashboard() {
           loading={loading}
         />
       </div>
+
+      <RevenueSection />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -457,7 +784,6 @@ export default function OwnerDashboard() {
         </Card>
       </div>
 
-      {/* Video Settings Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
