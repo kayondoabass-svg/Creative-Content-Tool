@@ -1993,14 +1993,15 @@ This should look like it was designed by a world-class branding agency. Make it 
           title = worksheetResult.title;
           break;
 
-        case "mindmap":
+        case "mindmap": {
           if (!isPremium && mindmapOptions?.imageQuality && ['hd', '4k'].includes(mindmapOptions.imageQuality)) {
-            mindmapOptions.imageQuality = '2d';
+            if (mindmapOptions) mindmapOptions.imageQuality = '2d';
           }
           const mindmapResult = await generateMindmap(prompt, gradeLevel, subject, mindmapOptions);
           generatedContent = JSON.stringify(mindmapResult);
           title = mindmapResult.title;
           break;
+        }
 
         default:
           return res.status(400).json({ error: "Invalid content type" });
@@ -3038,12 +3039,13 @@ function escapeXml(text: string): string {
     .replace(/'/g, '&apos;');
 }
 
-async function generateMindmap(prompt: string, gradeLevel?: string, subject?: string, mindmapOptions?: { branchCount?: number; imageStyle?: string; imageQuality?: string; contentStyle?: string }) {
+async function generateMindmap(prompt: string, gradeLevel?: string, subject?: string, mindmapOptions?: { branchCount?: number; imageStyle?: string; imageQuality?: string; contentStyle?: string; layoutStyle?: string }) {
   const context = buildContext(gradeLevel, subject);
   const branchCount = mindmapOptions?.branchCount || 5;
   const imageStyle = mindmapOptions?.imageStyle || "animation";
   const contentStyle = mindmapOptions?.contentStyle || "imagesAndText";
   const imageQuality = mindmapOptions?.imageQuality || "2d";
+  const layoutStyle = mindmapOptions?.layoutStyle || "radial";
 
   const imageStyleDesc = imageStyle === "reallife" 
     ? "a realistic, high-quality photograph" 
@@ -3182,7 +3184,7 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
     }
   }
 
-  mindmapData.options = { imageStyle, imageQuality, contentStyle, branchCount };
+  mindmapData.options = { layoutStyle, imageStyle, imageQuality, contentStyle, branchCount };
   return mindmapData;
 }
 
