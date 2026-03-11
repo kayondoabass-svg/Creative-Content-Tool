@@ -612,11 +612,12 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2 block">Map Style</FormLabel>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
                         { value: "radial", label: "Radial", desc: "Colorful spider map", icon: "🕷️" },
                         { value: "sketch", label: "Sketch", desc: "Hand-drawn style", icon: "✏️" },
                         { value: "infographic", label: "Infographic", desc: "Bold circles", icon: "🔵" },
+                        { value: "pictureboard", label: "Picture Board", desc: "Vocabulary cards for young learners", icon: "🖼️" },
                       ].map((opt) => (
                         <button
                           key={opt.value}

@@ -397,6 +397,81 @@ function InfographicMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
   );
 }
 
+// ── Picture Board layout — vocabulary grid for young learners ──────────────
+function PictureBoard({ data }: { data: MindmapData }) {
+  const branches = data.branches || [];
+  const CARD_W = 160;
+  const CARD_H = 190;
+  const GAP = 20;
+  const COLS = Math.min(4, branches.length);
+  const ROWS = Math.ceil(branches.length / COLS);
+  const HEADER_H = 90;
+  const SVG_W = COLS * (CARD_W + GAP) + GAP;
+  const SVG_H = HEADER_H + ROWS * (CARD_H + GAP) + GAP;
+
+  const COLORS = ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD","#FF8C42","#87CEEB","#F9A8D4","#86EFAC","#FCD34D","#A5B4FC"];
+
+  return (
+    <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full" style={{ background: "#fffef5", display: "block" }}>
+      <defs>
+        {branches.map((_, i) => (
+          <clipPath key={i} id={`pb-img-${i}`}>
+            <rect x={0} y={0} width={CARD_W - 16} height={CARD_H - 56} rx={10} />
+          </clipPath>
+        ))}
+        <clipPath id="pb-center-img">
+          <circle cx={30} cy={30} r={28} />
+        </clipPath>
+      </defs>
+
+      {/* Header bar */}
+      <rect x={0} y={0} width={SVG_W} height={HEADER_H} fill="#7c3aed" />
+      {data.centralImage && (
+        <image href={data.centralImage} x={GAP - 2} y={10} width={60} height={60} clipPath="url(#pb-center-img)" preserveAspectRatio="xMidYMid slice" />
+      )}
+      <text x={data.centralImage ? GAP + 70 : SVG_W / 2} y={HEADER_H / 2 - 6} fontFamily="system-ui, sans-serif" fontSize={22} fontWeight="bold" fill="white" textAnchor={data.centralImage ? "start" : "middle"} dominantBaseline="middle">{data.centralTopic || data.title}</text>
+      <text x={data.centralImage ? GAP + 70 : SVG_W / 2} y={HEADER_H / 2 + 20} fontFamily="system-ui, sans-serif" fontSize={13} fill="rgba(255,255,255,0.75)" textAnchor={data.centralImage ? "start" : "middle"}>Vocabulary Picture Board</text>
+
+      {/* Vocabulary cards */}
+      {branches.map((b, i) => {
+        const col = i % COLS;
+        const row = Math.floor(i / COLS);
+        const cx = GAP + col * (CARD_W + GAP);
+        const cy = HEADER_H + GAP + row * (CARD_H + GAP);
+        const color = b.color || COLORS[i % COLORS.length];
+        const imgX = cx + 8;
+        const imgY = cy + 8;
+        const imgW = CARD_W - 16;
+        const imgH = CARD_H - 56;
+        return (
+          <g key={i}>
+            {/* Card shadow */}
+            <rect x={cx + 3} y={cy + 4} width={CARD_W} height={CARD_H} rx={14} fill="rgba(0,0,0,0.1)" />
+            {/* Card */}
+            <rect x={cx} y={cy} width={CARD_W} height={CARD_H} rx={14} fill="white" stroke={color} strokeWidth={3} />
+            {/* Image area */}
+            {b.image ? (
+              <>
+                <rect x={imgX} y={imgY} width={imgW} height={imgH} rx={10} fill="#f8f8f8" />
+                <image href={b.image} x={imgX} y={imgY} width={imgW} height={imgH} clipPath={`url(#pb-img-${i})`} preserveAspectRatio="xMidYMid slice" />
+              </>
+            ) : (
+              <>
+                <rect x={imgX} y={imgY} width={imgW} height={imgH} rx={10} fill={`${color}25`} />
+                <text x={cx + CARD_W / 2} y={imgY + imgH / 2} fontFamily="system-ui" fontSize={48} textAnchor="middle" dominantBaseline="middle" fill={color}>{b.label.charAt(0)}</text>
+              </>
+            )}
+            {/* Label bar */}
+            <rect x={cx} y={cy + CARD_H - 44} width={CARD_W} height={44} rx={14} fill={color} />
+            <rect x={cx} y={cy + CARD_H - 44} width={CARD_W} height={20} fill={color} />
+            <text x={cx + CARD_W / 2} y={cy + CARD_H - 18} fontFamily="system-ui, sans-serif" fontSize={15} fontWeight="bold" fill="white" textAnchor="middle" dominantBaseline="middle">{b.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export function MindmapCanvas({ data }: { data: MindmapData }) {
   const pos = useMemo(() => computeLayout(data.branches || []), [data.branches]);
   const style = data.options?.layoutStyle || "radial";
@@ -407,6 +482,8 @@ export function MindmapCanvas({ data }: { data: MindmapData }) {
         <SketchMap data={data} pos={pos} />
       ) : style === "infographic" ? (
         <InfographicMap data={data} pos={pos} />
+      ) : style === "pictureboard" ? (
+        <PictureBoard data={data} />
       ) : (
         <RadialMap data={data} pos={pos} />
       )}

@@ -2930,6 +2930,14 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
   return worksheetData;
 }
 
+async function fetchImageAsBase64(url: string): Promise<string> {
+  const response = await fetch(url);
+  const buffer = await response.arrayBuffer();
+  const base64 = Buffer.from(buffer).toString("base64");
+  const contentType = response.headers.get("content-type") || "image/png";
+  return `data:${contentType};base64,${base64}`;
+}
+
 function buildContext(gradeLevel?: string, subject?: string): string {
   const parts = [];
   if (gradeLevel) parts.push(`Target grade level: ${gradeLevel}`);
@@ -3035,12 +3043,28 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
           ]
         }`;
 
+  const isPictureBoard = layoutStyle === "pictureboard";
+  const isYoungLearner = isPictureBoard || (gradeLevel && ["kindergarten", "grade 1", "grade 2", "grade 3", "primary", "nursery", "pre-k", "year 1", "year 2", "year 3", "p1", "p2", "p3"].some(l => gradeLevel.toLowerCase().includes(l)));
+
+  const learnerGuidance = isYoungLearner
+    ? `VERY IMPORTANT - This is for YOUNG LEARNERS (ages 3-8). Think like a language teacher introducing new vocabulary visually:
+        - Each branch MUST be a concrete, visible THING that a child can see and touch (e.g. for Transport: Car, Bus, Boat, Airplane, Bicycle — not "Road Transport")
+        - Labels should be single simple nouns a child can learn (1-2 words max)
+        - imagePrompt must describe ONE single clear object a child would instantly recognize (e.g. "a bright red car", "a yellow school bus", "a blue boat on water")
+        - Sub-topics should also be simple concrete nouns or actions children can relate to`
+    : `Think like a teacher organizing knowledge clearly:
+        - Branch labels should be clear category names (2-4 words)
+        - imagePrompt should represent the category with a clear, recognizable visual
+        - Sub-topics can include more detail and abstract concepts`;
+
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
         role: "system",
-        content: `You are an expert educational mind map creator. Create colorful, engaging mind maps for teachers and students. ${context}
+        content: `You are an expert educational mind map creator for teachers. ${context}
+        
+        ${learnerGuidance}
         
         CRITICAL: All spelling must be 100% correct. Double-check every word.
         
@@ -3052,8 +3076,7 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
         - Each main branch should have 2-4 sub-topics
         - Sub-topics can have 1-3 details each
         - Use distinct, vibrant colors for each main branch (hex colors like #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7, #DDA0DD, #FF8C42, #87CEEB)
-        - Keep labels concise (1-4 words each)
-        - Make content age-appropriate and educational
+        - Keep labels concise and age-appropriate
         - Organize information logically and hierarchically
         ${imagePromptInstruction}`
       },
@@ -3092,15 +3115,18 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
         try {
           const styleAddition = imageStyle === "reallife" 
             ? " Realistic photograph, high quality, professional photography." 
-            : " Cute cartoon illustration, colorful, educational style.";
+            : " Cute cartoon illustration, colorful, educational style, bright colors.";
           const imgResponse = await openai.images.generate({
             model: "dall-e-3",
-            prompt: item.prompt + styleAddition + " IMPORTANT: Do NOT include any text, words, letters, numbers, or labels in the image.",
+            prompt: item.prompt + styleAddition + " IMPORTANT: Do NOT include any text, words, letters, numbers, or labels in the image. Show ONE clear recognizable object or scene.",
             n: 1,
             size: dalleSize,
             quality: dalleQuality,
           });
-          return { key: item.key, url: imgResponse.data[0]?.url || null };
+          const dalleUrl = imgResponse.data[0]?.url || null;
+          if (!dalleUrl) return { key: item.key, url: null };
+          const b64 = await fetchImageAsBase64(dalleUrl);
+          return { key: item.key, url: b64 };
         } catch (err) {
           console.error(`Failed to generate mind map image for ${item.key}:`, err);
           return { key: item.key, url: null };
