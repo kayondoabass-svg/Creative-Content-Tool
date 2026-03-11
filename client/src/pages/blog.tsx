@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen, Clock, Lightbulb, GraduationCap, Sparkles, Users, Brain, Target, Palette, Gamepad2, Presentation, FileText, Video, Image, FileSpreadsheet, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock, Lightbulb, GraduationCap, Sparkles, Users, Brain, Target, Palette, Gamepad2, Presentation, FileText, Video, Image, FileSpreadsheet, ClipboardList, Network, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 import { Footer } from "@/components/footer";
 import { useTranslation } from "react-i18next";
@@ -72,6 +72,50 @@ const articles = [
     readTime: "8 min",
     contentKeys: ["blog.article6P1", "blog.article6P2", "blog.article6P3", "blog.article6P4", "blog.article6P5", "blog.article6P6"],
     subtitleKeys: ["blog.article6Sub1", "blog.article6Sub2", "blog.article6Sub3"],
+  },
+  {
+    id: "lesson-planning",
+    icon: ClipboardList,
+    color: "from-violet-500 to-purple-500",
+    category: "blog.categoryTeaching",
+    titleKey: "blog.article7Title",
+    excerptKey: "blog.article7Excerpt",
+    readTime: "7 min",
+    contentKeys: ["blog.article7P1", "blog.article7P2", "blog.article7P3", "blog.article7P4", "blog.article7P5", "blog.article7P6"],
+    subtitleKeys: ["blog.article7Sub1", "blog.article7Sub2", "blog.article7Sub3"],
+  },
+  {
+    id: "vocabulary-visual",
+    icon: Image,
+    color: "from-rose-500 to-pink-500",
+    category: "blog.categoryTeaching",
+    titleKey: "blog.article8Title",
+    excerptKey: "blog.article8Excerpt",
+    readTime: "9 min",
+    contentKeys: ["blog.article8P1", "blog.article8P2", "blog.article8P3", "blog.article8P4", "blog.article8P5", "blog.article8P6"],
+    subtitleKeys: ["blog.article8Sub1", "blog.article8Sub2", "blog.article8Sub3"],
+  },
+  {
+    id: "worksheet-design",
+    icon: FileSpreadsheet,
+    color: "from-orange-500 to-amber-500",
+    category: "blog.categoryStrategy",
+    titleKey: "blog.article9Title",
+    excerptKey: "blog.article9Excerpt",
+    readTime: "8 min",
+    contentKeys: ["blog.article9P1", "blog.article9P2", "blog.article9P3", "blog.article9P4", "blog.article9P5", "blog.article9P6"],
+    subtitleKeys: ["blog.article9Sub1", "blog.article9Sub2", "blog.article9Sub3"],
+  },
+  {
+    id: "mind-mapping",
+    icon: Network,
+    color: "from-teal-500 to-green-500",
+    category: "blog.categoryResearch",
+    titleKey: "blog.article10Title",
+    excerptKey: "blog.article10Excerpt",
+    readTime: "10 min",
+    contentKeys: ["blog.article10P1", "blog.article10P2", "blog.article10P3", "blog.article10P4", "blog.article10P5", "blog.article10P6"],
+    subtitleKeys: ["blog.article10Sub1", "blog.article10Sub2", "blog.article10Sub3"],
   },
 ];
 

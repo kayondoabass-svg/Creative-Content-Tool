@@ -36,6 +36,74 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // ========== SEO & MONETIZATION FILES ==========
+  // Served explicitly so they always work in production regardless of static file setup
+
+  app.get("/ads.txt", (_req, res) => {
+    res.setHeader("Content-Type", "text/plain");
+    res.send("google.com, pub-8935590092792147, DIRECT, f08c47fec0942fa0");
+  });
+
+  app.get("/robots.txt", (_req, res) => {
+    res.setHeader("Content-Type", "text/plain");
+    res.send(
+`User-agent: *
+Allow: /
+Allow: /blog
+Allow: /about
+Allow: /features
+Allow: /how-it-works
+Allow: /pricing
+Allow: /contact
+Allow: /privacy
+Allow: /terms
+Allow: /refund
+Disallow: /api/
+Disallow: /owner-dashboard
+Disallow: /owner-expenses
+Sitemap: https://www.brightboardapp.com/sitemap.xml`
+    );
+  });
+
+  app.get("/sitemap.xml", (_req, res) => {
+    const base = "https://www.brightboardapp.com";
+    const now = new Date().toISOString().split("T")[0];
+    const pages = [
+      { url: "/", priority: "1.0", changefreq: "daily" },
+      { url: "/blog", priority: "0.9", changefreq: "weekly" },
+      { url: "/blog/ai-classroom", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/engagement-strategies", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/visual-learning", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/gamification", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/time-saving", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/inclusive-education", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/lesson-planning", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/vocabulary-visual", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/worksheet-design", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/mind-mapping", priority: "0.8", changefreq: "monthly" },
+      { url: "/features", priority: "0.8", changefreq: "monthly" },
+      { url: "/how-it-works", priority: "0.8", changefreq: "monthly" },
+      { url: "/pricing", priority: "0.7", changefreq: "weekly" },
+      { url: "/about", priority: "0.7", changefreq: "monthly" },
+      { url: "/contact", priority: "0.6", changefreq: "monthly" },
+      { url: "/privacy", priority: "0.5", changefreq: "yearly" },
+      { url: "/terms", priority: "0.5", changefreq: "yearly" },
+      { url: "/refund", priority: "0.5", changefreq: "yearly" },
+    ];
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${pages.map(p => `  <url>
+    <loc>${base}${p.url}</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join("\n")}
+</urlset>`;
+    res.setHeader("Content-Type", "application/xml");
+    res.send(xml);
+  });
+
   // ========== CUSTOM AUTHENTICATION ROUTES ==========
   
   // Sign up with email/password
