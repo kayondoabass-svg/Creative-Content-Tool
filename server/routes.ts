@@ -40,6 +40,11 @@ export async function registerRoutes(
   // ========== SEO & MONETIZATION FILES ==========
   // Served explicitly so they always work in production regardless of static file setup
 
+  app.get("/googlecea605fb996bd1af.html", (_req, res) => {
+    res.setHeader("Content-Type", "text/html");
+    res.send("google-site-verification: googlecea605fb996bd1af.html");
+  });
+
   app.get("/ads.txt", (_req, res) => {
     res.setHeader("Content-Type", "text/plain");
     res.send("google.com, pub-8935590092792147, DIRECT, f08c47fec0942fa0");
