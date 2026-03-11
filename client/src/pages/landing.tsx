@@ -9,7 +9,7 @@ import {
   ChevronLeft, ChevronRight, Shield, Clock, CreditCard, Users, 
   FileCheck, Play, Pause, Star, Gamepad2, Globe, Zap,
   GraduationCap, School, Award, Lightbulb, Mail, CheckCircle, 
-  RefreshCw, X, ArrowRight
+  RefreshCw, X, ArrowRight, Download, Smartphone, Monitor, Apple
 } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { LanguageSelector } from "@/components/language-selector";
@@ -57,6 +57,8 @@ export default function LandingPage() {
   const [newsletterName, setNewsletterName] = useState("");
   const [newsletterStatus, setNewsletterStatus] = useState<"idle" | "success" | "error">("idle");
   const [newsletterStatusMessage, setNewsletterStatusMessage] = useState("");
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
 
   const dailyTipIndex = (() => {
     const now = new Date();
@@ -117,6 +119,28 @@ export default function LandingPage() {
     }, 5000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", () => setIsAppInstalled(true));
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsAppInstalled(true);
+    }
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") setIsAppInstalled(true);
+      setDeferredPrompt(null);
+    }
+  };
 
   const goToSlide = (index: number) => setCurrentSlide(index);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + showcaseSlidesData.length) % showcaseSlidesData.length);
@@ -208,6 +232,29 @@ export default function LandingPage() {
                   {t('landing.watchDemo')}
                 </a>
               </Button>
+              {!isAppInstalled && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={deferredPrompt ? handleInstallApp : undefined}
+                  asChild={!deferredPrompt}
+                  data-testid="button-install-app-hero"
+                  className="border-teal-500/50 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10"
+                >
+                  {deferredPrompt ? (
+                    <span className="flex items-center gap-2"><Download className="w-4 h-4" /> Install Free App</span>
+                  ) : (
+                    <a href="#install-app" className="flex items-center gap-2">
+                      <Download className="w-4 h-4" /> Install Free App
+                    </a>
+                  )}
+                </Button>
+              )}
+              {isAppInstalled && (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-sm font-medium border border-green-500/20">
+                  <CheckCircle className="w-4 h-4" /> App Installed!
+                </div>
+              )}
             </div>
 
             {/* Trust Badges */}
@@ -617,6 +664,78 @@ export default function LandingPage() {
                   </p>
                 )}
               </div>
+            )}
+          </div>
+        </section>
+
+        {/* Install App Section */}
+        <section id="install-app" className="container mx-auto px-4 py-16">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 bg-teal-500/10 text-teal-600 dark:text-teal-400 px-4 py-2 rounded-full text-sm font-medium mb-4">
+              <Download className="w-4 h-4" />
+              Free App — No App Store Needed
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Install BrightBoard on Your Device</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Add BrightBoard to your phone or computer home screen. Works like a native app — fast, offline-ready, and always one tap away.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-10">
+            <Card className="p-6 text-center hover:shadow-lg transition-shadow border-2 hover:border-teal-500/30">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center mx-auto mb-4 shadow-md">
+                <Apple className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="font-bold text-lg mb-2">iPhone / iPad</h3>
+              <ol className="text-sm text-muted-foreground text-left space-y-2">
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">1</span> Open in <strong>Safari</strong></li>
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">2</span> Tap the <strong>Share</strong> button (box with arrow)</li>
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">3</span> Tap <strong>"Add to Home Screen"</strong></li>
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">4</span> Tap <strong>Add</strong> — done!</li>
+              </ol>
+            </Card>
+
+            <Card className="p-6 text-center hover:shadow-lg transition-shadow border-2 hover:border-teal-500/30">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mx-auto mb-4 shadow-md">
+                <Smartphone className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="font-bold text-lg mb-2">Android Phone</h3>
+              <ol className="text-sm text-muted-foreground text-left space-y-2">
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">1</span> Open in <strong>Chrome</strong></li>
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">2</span> A popup says <strong>"Add to Home Screen"</strong></li>
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">3</span> Or tap <strong>⋮ menu → Install App</strong></li>
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">4</span> Tap <strong>Install</strong> — done!</li>
+              </ol>
+            </Card>
+
+            <Card className="p-6 text-center hover:shadow-lg transition-shadow border-2 hover:border-teal-500/30">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-md">
+                <Monitor className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="font-bold text-lg mb-2">Computer (Windows / Mac)</h3>
+              <ol className="text-sm text-muted-foreground text-left space-y-2">
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">1</span> Open in <strong>Chrome or Edge</strong></li>
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">2</span> Click the <strong>⊕ install icon</strong> in the address bar</li>
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">3</span> Click <strong>Install</strong></li>
+                <li className="flex gap-2"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">4</span> BrightBoard opens like a desktop app!</li>
+              </ol>
+            </Card>
+          </div>
+
+          {/* One-click install for Android/Desktop */}
+          <div className="text-center">
+            {isAppInstalled ? (
+              <div className="inline-flex items-center gap-3 bg-green-500/10 text-green-600 dark:text-green-400 px-6 py-3 rounded-xl font-semibold border border-green-500/20">
+                <CheckCircle className="w-5 h-5" />
+                BrightBoard is installed on this device!
+              </div>
+            ) : deferredPrompt ? (
+              <Button size="lg" onClick={handleInstallApp} data-testid="button-install-app-main" className="bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600 text-white shadow-lg hover:shadow-xl gap-2">
+                <Download className="w-5 h-5" />
+                Install BrightBoard Now — It's Free!
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">Follow the steps above for your device. No App Store or payment needed.</p>
             )}
           </div>
         </section>
