@@ -11,17 +11,21 @@ import {
   GraduationCap, School, Award, Lightbulb, Mail, CheckCircle, 
   RefreshCw, X, ArrowRight, Download, Smartphone, Monitor, Apple
 } from "lucide-react";
+import { SiFacebook } from "react-icons/si";
 import { Footer } from "@/components/footer";
 import { LanguageSelector } from "@/components/language-selector";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+
+const FACEBOOK_URL = "https://www.facebook.com/share/1Degjg2YnK/";
 
 const showcaseSlidesData = [
   { titleKey: "slideImageTitle", descKey: "slideImageDesc", icon: Image, color: "from-pink-500 to-rose-500" },
@@ -172,6 +176,16 @@ export default function LandingPage() {
             <Link href="/how-it-works" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-how-it-works">{t('footer.howItWorks')}</Link>
             <Link href="/blog" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog">{t('footer.blog')}</Link>
             <Link href="/file-tools" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-file-tools">{t('common.fileTools')}</Link>
+            <a
+              href={FACEBOOK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="link-facebook-nav"
+              aria-label="Follow BrightBoard on Facebook"
+              className="hidden sm:flex w-8 h-8 rounded-full bg-[#1877F2] items-center justify-center text-white hover:bg-[#1666d8] transition-colors shadow-sm"
+            >
+              <SiFacebook className="w-4 h-4" />
+            </a>
             <LanguageSelector />
             <ThemeToggle />
             <Button asChild data-testid="button-login">
@@ -759,6 +773,18 @@ export default function LandingPage() {
                 </Button>
                 <Button size="lg" variant="outline" asChild data-testid="button-view-pricing">
                   <Link href="/pricing">{t('landing.ctaViewPricing')}</Link>
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  asChild
+                  data-testid="button-facebook-cta"
+                  className="border-[#1877F2]/40 text-[#1877F2] hover:bg-[#1877F2]/10"
+                >
+                  <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">
+                    <SiFacebook className="w-5 h-5 mr-2" />
+                    Follow on Facebook
+                  </a>
                 </Button>
               </div>
               <div className="flex flex-wrap justify-center gap-6 mt-8 text-sm text-muted-foreground">

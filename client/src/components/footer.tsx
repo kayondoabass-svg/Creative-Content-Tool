@@ -1,6 +1,9 @@
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Mail, Sparkles } from "lucide-react";
+import { Mail } from "lucide-react";
+import { SiFacebook } from "react-icons/si";
+
+const FACEBOOK_URL = "https://www.facebook.com/share/1Degjg2YnK/";
 
 export function Footer() {
   const { t } = useTranslation();
@@ -24,6 +27,26 @@ export function Footer() {
             <p className="text-sm text-muted-foreground mb-4">
               {t('footer.description')}
             </p>
+            <div className="flex items-center gap-3">
+              <a
+                href={FACEBOOK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="link-facebook-footer"
+                className="w-9 h-9 rounded-full bg-[#1877F2] flex items-center justify-center text-white hover:bg-[#1666d8] transition-colors shadow-sm"
+                aria-label="Follow BrightBoard on Facebook"
+              >
+                <SiFacebook className="w-4 h-4" />
+              </a>
+              <a
+                href="mailto:support@brightboardapp.com"
+                data-testid="link-email-footer-icon"
+                className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                aria-label="Email BrightBoard support"
+              >
+                <Mail className="w-4 h-4" />
+              </a>
+            </div>
           </div>
 
           <div>
@@ -125,6 +148,16 @@ export function Footer() {
           <p className="text-sm text-muted-foreground">
             &copy; {currentYear} BrightBoard. All rights reserved.
           </p>
+          <a
+            href={FACEBOOK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="link-facebook-bottom"
+            className="flex items-center gap-2 text-sm text-[#1877F2] hover:text-[#1666d8] transition-colors font-medium"
+          >
+            <SiFacebook className="w-4 h-4" />
+            Follow us on Facebook
+          </a>
           <p className="text-sm text-muted-foreground">
             Made with love for educators worldwide
           </p>
