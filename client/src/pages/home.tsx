@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Image, Presentation, FileText, Film, ClipboardList, Network } from "lucide-react";
 import { ContentTypeCard } from "@/components/content-type-card";
 import { PromptInput } from "@/components/prompt-input";
 import { GeneratedContentDisplay } from "@/components/generated-content-display";
+import { GenerationProgress } from "@/components/generation-progress";
 import { HistorySidebar } from "@/components/history-sidebar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -82,55 +83,98 @@ export default function Home() {
     }
   }, [searchString]);
 
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState("");
+  const [generationPercent, setGenerationPercent] = useState(0);
+  const [queuePosition, setQueuePosition] = useState(0);
+
   const { data: history = [] } = useQuery<GeneratedContent[]>({
     queryKey: ["/api/content"],
   });
 
-  const generateMutation = useMutation({
-    mutationFn: async (data: { type: ContentType; prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }; worksheetOptions?: { colorMode?: string }; referenceImage?: string; imageOptions?: { style?: string; quality?: string; layout?: string }; textOptions?: { style?: string }; activityOptions?: { gameType?: string }; includeLogo?: boolean; mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string } }) => {
-      const res = await apiRequest("POST", "/api/generate", data);
+  // Poll job status while generating
+  const { data: jobStatus } = useQuery<any>({
+    queryKey: ["/api/generate/job", jobId],
+    queryFn: async () => {
+      if (!jobId) return null;
+      const res = await fetch(`/api/generate/job/${jobId}`);
+      if (!res.ok) throw new Error("Job not found");
       return res.json();
     },
-    onSuccess: (data) => {
-      setGeneratedContent(data.content);
-      setSelectedHistoryItem(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/content"] });
-      toast({
-        title: t("home.contentCreated"),
-        description: t("home.contentReady"),
-      });
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const d = query.state.data as any;
+      if (d?.status === "complete" || d?.status === "error") return false;
+      return 1500;
     },
-    onError: (error: Error) => {
+    staleTime: 0,
+  });
+
+  // Handle job status changes
+  useEffect(() => {
+    if (!jobStatus) return;
+    setGenerationStep(jobStatus.step || "");
+    setGenerationPercent(jobStatus.percent || 0);
+    setQueuePosition(jobStatus.queuePosition || 0);
+
+    if (jobStatus.status === "complete") {
+      setIsGenerating(false);
+      setJobId(null);
+      if (jobStatus.limitReached || (jobStatus.error && !jobStatus.result)) {
+        toast({
+          title: t("home.generationFailed"),
+          description: jobStatus.error || t("home.tryAgain"),
+          variant: "destructive",
+        });
+      } else if (jobStatus.result) {
+        setGeneratedContent(jobStatus.result.content);
+        setSelectedHistoryItem(null);
+        queryClient.invalidateQueries({ queryKey: ["/api/content"] });
+        toast({ title: t("home.contentCreated"), description: t("home.contentReady") });
+      }
+    }
+    if (jobStatus.status === "error") {
+      setIsGenerating(false);
+      setJobId(null);
       toast({
         title: t("home.generationFailed"),
-        description: error.message || t("home.tryAgain"),
+        description: jobStatus.error || t("home.tryAgain"),
         variant: "destructive",
       });
-    },
-  });
+    }
+  }, [jobStatus]);
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/content/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/content"] });
-      toast({
-        title: t("home.deleted"),
-        description: t("home.contentRemoved"),
-      });
-    },
-  });
+  const handleDelete = async (id: number) => {
+    await apiRequest("DELETE", `/api/content/${id}`);
+    queryClient.invalidateQueries({ queryKey: ["/api/content"] });
+    toast({ title: t("home.deleted"), description: t("home.contentRemoved") });
+  };
+
+  const startGeneration = async (payload: Record<string, any>) => {
+    setIsGenerating(true);
+    setGenerationStep("Starting up...");
+    setGenerationPercent(0);
+    setQueuePosition(0);
+    try {
+      const res = await apiRequest("POST", "/api/generate", payload);
+      const { jobId: newJobId, error } = await res.json();
+      if (error) throw new Error(error);
+      setJobId(newJobId);
+    } catch (err: any) {
+      setIsGenerating(false);
+      toast({ title: t("home.generationFailed"), description: err.message || t("home.tryAgain"), variant: "destructive" });
+    }
+  };
 
   const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string }) => {
+    const payload = { type: selectedType, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, includeLogo, mindmapOptions };
     setLastPrompt({ prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, includeLogo, mindmapOptions });
-    generateMutation.mutate({ type: selectedType, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, includeLogo, mindmapOptions });
+    startGeneration(payload);
   };
 
   const handleRegenerate = () => {
-    if (lastPrompt) {
-      generateMutation.mutate({ type: selectedType, ...lastPrompt });
-    }
+    if (lastPrompt) startGeneration({ type: selectedType, ...lastPrompt });
   };
 
   const handleSelectHistory = (item: GeneratedContent) => {
@@ -181,17 +225,29 @@ export default function Home() {
           <PromptInput
             selectedType={selectedType}
             onGenerate={handleGenerate}
-            isGenerating={generateMutation.isPending}
+            isGenerating={isGenerating}
             defaultGameType={selectedGameType}
           />
 
+          {/* Live Generation Progress */}
+          {isGenerating && (
+            <GenerationProgress
+              step={generationStep}
+              percent={generationPercent}
+              queuePosition={queuePosition}
+              contentType={selectedType}
+            />
+          )}
+
           {/* Generated Content */}
-          <GeneratedContentDisplay
-            type={selectedHistoryItem?.type as ContentType || selectedType}
-            content={displayContent}
-            isLoading={generateMutation.isPending}
-            onRegenerate={lastPrompt ? handleRegenerate : undefined}
-          />
+          {!isGenerating && (
+            <GeneratedContentDisplay
+              type={selectedHistoryItem?.type as ContentType || selectedType}
+              content={displayContent}
+              isLoading={false}
+              onRegenerate={lastPrompt ? handleRegenerate : undefined}
+            />
+          )}
         </div>
       </div>
 
@@ -203,7 +259,7 @@ export default function Home() {
         <HistorySidebar
           history={history}
           onSelect={handleSelectHistory}
-          onDelete={(id) => deleteMutation.mutate(id)}
+          onDelete={handleDelete}
           selectedId={selectedHistoryItem?.id}
         />
       </div>

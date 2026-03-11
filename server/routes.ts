@@ -10,6 +10,7 @@ import PptxGenJS from "pptxgenjs";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { generateVideoFromStoryboard } from "./videoService";
+import { jobQueue } from "./jobQueue";
 
 // Custom authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -1845,267 +1846,202 @@ This should look like it was designed by a world-class branding agency. Make it 
     }
   });
 
-  // Generate content (requires authentication)
+  // Job status polling endpoint
+  app.get("/api/generate/job/:jobId", (req, res) => {
+    const job = jobQueue.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: "Job not found or expired" });
+    res.json(job);
+  });
+
+  // Queue stats (public monitoring)
+  app.get("/api/queue/stats", (_req, res) => {
+    res.json(jobQueue.stats);
+  });
+
+  // Generate content (requires authentication) — async queue-based
   app.post("/api/generate", async (req, res) => {
     try {
-      const validatedData = generateContentSchema.parse(req.body);
-      let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, mindmapOptions, includeLogo } = validatedData;
-      
-      // Get user info - require authentication (custom session auth)
+      // Auth must happen synchronously before returning jobId
       const sessionUserId = (req as any).session?.userId;
       const sessionUser = (req as any).session?.user;
-      
-      // Also check for legacy Replit Auth format
       const legacyUser = (req as any).user;
       const legacyUserId = legacyUser?.claims?.sub;
-      
       const userId = sessionUserId || legacyUserId;
-      
+
       if (!userId) {
         return res.status(401).json({ error: "Please sign in to generate content" });
       }
-      
-      // Check subscription status
-      const subscriptionStatus = await stripeService.getSubscriptionStatus(userId);
-      
-      // CEO bypass - founder always gets premium access
-      const CEO_EMAILS = ["kayondoabass@gmail.com"];
+
+      // Validate request body synchronously
+      let validatedData: any;
+      try {
+        validatedData = generateContentSchema.parse(req.body);
+      } catch (e: any) {
+        return res.status(400).json({ error: "Invalid request data" });
+      }
+
+      // Create job and return immediately
+      const jobId = jobQueue.createJob();
+      res.json({ jobId });
+
+      // Capture values for background closure
       const userEmail = sessionUser?.email || legacyUser?.claims?.email;
-      const isCEO = userEmail && CEO_EMAILS.includes(userEmail.toLowerCase());
-      const isPremium = isCEO || subscriptionStatus.isPremium;
-      
-      // Check free tier usage limits for non-premium users
-      if (!isPremium) {
-        const usage = await stripeService.getUserUsage(userId);
-        
-        if (type === 'image' && usage.imageCount >= FREE_LIMITS.image) {
-          return res.status(403).json({ 
-            error: `You've reached your daily limit of ${FREE_LIMITS.image} images. Upgrade to premium for unlimited generations!`,
-            limitReached: true,
-            type: 'image'
-          });
-        }
-        if (type === 'presentation' && usage.presentationCount >= FREE_LIMITS.presentation) {
-          return res.status(403).json({ 
-            error: `You've reached your daily limit of ${FREE_LIMITS.presentation} presentations. Upgrade to premium for unlimited generations!`,
-            limitReached: true,
-            type: 'presentation'
-          });
-        }
-        if (type === 'storyboard' && usage.videoCount >= FREE_LIMITS.storyboard) {
-          return res.status(403).json({ 
-            error: `You've reached your daily limit of ${FREE_LIMITS.storyboard} video storyboard. Upgrade to premium for unlimited generations!`,
-            limitReached: true,
-            type: 'storyboard'
-          });
-        }
-      }
-      
-      // Check if user is trying to use premium features
-      const premiumQualities = ['hd', '4k'];
-      const hasPremiumVideoQuality = videoOptions?.quality && premiumQualities.includes(videoOptions.quality);
-      const hasPremiumPresentationQuality = presentationOptions?.imageQuality && premiumQualities.includes(presentationOptions.imageQuality);
-      const hasPremiumImageQuality = imageOptions?.quality && premiumQualities.includes(imageOptions.quality);
-      const hasPremiumTransitions = presentationOptions?.transition && presentationOptions.transition !== 'none';
-      const hasPremiumDelay = presentationOptions?.transitionDelay && presentationOptions.transitionDelay > 0;
-      const hasPremiumTapToReveal = presentationOptions?.tapToReveal;
-      
-      const usesPremiumFeatures = hasPremiumVideoQuality || hasPremiumPresentationQuality || hasPremiumImageQuality ||
-        hasPremiumTransitions || hasPremiumDelay || hasPremiumTapToReveal;
-      
-      if (usesPremiumFeatures && !isPremium) {
-        // Downgrade to free tier options
-        if (videoOptions) {
-          videoOptions.quality = '2d';
-        }
-        if (presentationOptions) {
-          presentationOptions.imageQuality = '2d';
-          presentationOptions.transition = 'none';
-          presentationOptions.transitionDelay = 0;
-          presentationOptions.tapToReveal = false;
-        }
-        if (imageOptions) {
-          imageOptions.quality = '2d';
-        }
-      }
-      
-      // Validate referenceImage if provided
-      if (referenceImage) {
-        // Check that it's a valid data URL with image MIME type
-        const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp);base64,/;
-        if (!dataUrlPattern.test(referenceImage)) {
-          return res.status(400).json({ error: "Invalid image format. Please upload a PNG, JPEG, GIF, or WebP image." });
-        }
-        // Limit size to ~10MB base64 (roughly 13.3MB encoded)
-        if (referenceImage.length > 15 * 1024 * 1024) {
-          return res.status(400).json({ error: "Image too large. Please use an image under 10MB." });
-        }
-      }
+      const CEO_EMAILS = ["kayondoabass@gmail.com"];
+      const isCEO = !!(userEmail && CEO_EMAILS.includes(userEmail.toLowerCase()));
 
-      let generatedContent: string;
-      let title: string;
+      // Enqueue background processing
+      jobQueue.enqueue(jobId, async () => {
+        const onProgress = (step: string, percent: number) =>
+          jobQueue.updateJob(jobId, { step, percent });
 
-      switch (type) {
-        case "image":
-          const imageResult = await generateImage(prompt, gradeLevel, subject, imageOptions);
-          generatedContent = JSON.stringify(imageResult);
-          title = imageResult.title;
-          break;
+        let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, mindmapOptions, includeLogo } = validatedData;
 
-        case "presentation":
-          let effectiveSlideCount = slideCount;
-          let slideLimitReached = false;
-          if (!isPremium && effectiveSlideCount && effectiveSlideCount > 4) {
-            effectiveSlideCount = 4;
-            slideLimitReached = true;
+        onProgress("Checking your account...", 5);
+
+        // Check subscription status
+        const subscriptionStatus = await stripeService.getSubscriptionStatus(userId);
+        const isPremium = isCEO || subscriptionStatus.isPremium;
+
+        // Check free tier usage limits
+        if (!isPremium) {
+          const usage = await stripeService.getUserUsage(userId);
+          if (type === 'image' && usage.imageCount >= FREE_LIMITS.image) {
+            return { error: `You've reached your daily limit of ${FREE_LIMITS.image} images. Upgrade to premium for unlimited generations!`, limitReached: true, limitType: 'image' };
           }
-          const presentationResult = await generatePresentation(prompt, gradeLevel, subject, effectiveSlideCount, presentationOptions, referenceImage);
-          if (slideLimitReached) {
-            (presentationResult as any).slideLimitReached = true;
-            (presentationResult as any).requestedSlides = slideCount;
-            (presentationResult as any).maxFreeSlides = 4;
+          if (type === 'presentation' && usage.presentationCount >= FREE_LIMITS.presentation) {
+            return { error: `You've reached your daily limit of ${FREE_LIMITS.presentation} presentations. Upgrade to premium for unlimited generations!`, limitReached: true, limitType: 'presentation' };
           }
-          generatedContent = JSON.stringify(presentationResult);
-          title = presentationResult.title;
-          break;
-
-        case "text":
-          const textResult = await generateText(prompt, gradeLevel, subject, textOptions);
-          generatedContent = JSON.stringify(textResult);
-          title = textResult.title;
-          break;
-
-        case "activity":
-          const activityResult = await generateActivity(prompt, gradeLevel, subject, activityOptions);
-          generatedContent = JSON.stringify(activityResult);
-          title = activityResult.title;
-          break;
-
-        case "storyboard":
-          const storyboardResult = await generateStoryboard(prompt, gradeLevel, subject, videoOptions);
-          generatedContent = JSON.stringify(storyboardResult);
-          title = storyboardResult.title;
-          break;
-
-        case "worksheet":
-          const worksheetResult = await generateWorksheet(prompt, gradeLevel, subject, worksheetOptions);
-          generatedContent = JSON.stringify(worksheetResult);
-          title = worksheetResult.title;
-          break;
-
-        case "mindmap": {
-          if (!isPremium && mindmapOptions?.imageQuality && ['hd', '4k'].includes(mindmapOptions.imageQuality)) {
-            if (mindmapOptions) mindmapOptions.imageQuality = '2d';
+          if (type === 'storyboard' && usage.videoCount >= FREE_LIMITS.storyboard) {
+            return { error: `You've reached your daily limit of ${FREE_LIMITS.storyboard} video storyboard. Upgrade to premium for unlimited generations!`, limitReached: true, limitType: 'storyboard' };
           }
-          const mindmapResult = await generateMindmap(prompt, gradeLevel, subject, mindmapOptions);
-          generatedContent = JSON.stringify(mindmapResult);
-          title = mindmapResult.title;
-          break;
         }
 
-        default:
-          return res.status(400).json({ error: "Invalid content type" });
-      }
+        // Downgrade premium features for free users
+        const premiumQualities = ['hd', '4k'];
+        const usesPremiumFeatures =
+          (videoOptions?.quality && premiumQualities.includes(videoOptions.quality)) ||
+          (presentationOptions?.imageQuality && premiumQualities.includes(presentationOptions.imageQuality)) ||
+          (imageOptions?.quality && premiumQualities.includes(imageOptions.quality)) ||
+          (presentationOptions?.transition && presentationOptions.transition !== 'none') ||
+          (presentationOptions?.transitionDelay && presentationOptions.transitionDelay > 0) ||
+          presentationOptions?.tapToReveal;
 
-      // Add watermark flag for free users (and logo for all content)
-      if (type === 'image' || type === 'presentation' || type === 'storyboard' || type === 'activity' || type === 'worksheet' || type === 'text' || type === 'mindmap') {
+        if (usesPremiumFeatures && !isPremium) {
+          if (videoOptions) videoOptions.quality = '2d';
+          if (presentationOptions) { presentationOptions.imageQuality = '2d'; presentationOptions.transition = 'none'; presentationOptions.transitionDelay = 0; presentationOptions.tapToReveal = false; }
+          if (imageOptions) imageOptions.quality = '2d';
+        }
+
+        // Validate referenceImage
+        if (referenceImage) {
+          const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp);base64,/;
+          if (!dataUrlPattern.test(referenceImage)) throw new Error("Invalid image format.");
+          if (referenceImage.length > 15 * 1024 * 1024) throw new Error("Image too large. Please use an image under 10MB.");
+        }
+
+        let generatedContent: string;
+        let title: string;
+
+        switch (type) {
+          case "image": {
+            onProgress("Generating your image with AI...", 30);
+            const imageResult = await generateImage(prompt, gradeLevel, subject, imageOptions);
+            generatedContent = JSON.stringify(imageResult);
+            title = imageResult.title;
+            break;
+          }
+          case "presentation": {
+            onProgress("Planning your slide structure...", 20);
+            let effectiveSlideCount = slideCount;
+            let slideLimitReached = false;
+            if (!isPremium && effectiveSlideCount && effectiveSlideCount > 4) { effectiveSlideCount = 4; slideLimitReached = true; }
+            onProgress("Generating slide content and images...", 45);
+            const presentationResult = await generatePresentation(prompt, gradeLevel, subject, effectiveSlideCount, presentationOptions, referenceImage);
+            if (slideLimitReached) { (presentationResult as any).slideLimitReached = true; (presentationResult as any).requestedSlides = slideCount; (presentationResult as any).maxFreeSlides = 4; }
+            generatedContent = JSON.stringify(presentationResult);
+            title = presentationResult.title;
+            break;
+          }
+          case "text": {
+            onProgress("Writing your content...", 35);
+            const textResult = await generateText(prompt, gradeLevel, subject, textOptions);
+            generatedContent = JSON.stringify(textResult);
+            title = textResult.title;
+            break;
+          }
+          case "activity": {
+            onProgress("Building your interactive activity...", 35);
+            const activityResult = await generateActivity(prompt, gradeLevel, subject, activityOptions);
+            generatedContent = JSON.stringify(activityResult);
+            title = activityResult.title;
+            break;
+          }
+          case "storyboard": {
+            onProgress("Creating your video storyboard...", 25);
+            const storyboardResult = await generateStoryboard(prompt, gradeLevel, subject, videoOptions);
+            generatedContent = JSON.stringify(storyboardResult);
+            title = storyboardResult.title;
+            break;
+          }
+          case "worksheet": {
+            onProgress("Designing your worksheet...", 35);
+            const worksheetResult = await generateWorksheet(prompt, gradeLevel, subject, worksheetOptions);
+            generatedContent = JSON.stringify(worksheetResult);
+            title = worksheetResult.title;
+            break;
+          }
+          case "mindmap": {
+            onProgress("Generating your mind map...", 30);
+            if (!isPremium && mindmapOptions?.imageQuality && ['hd', '4k'].includes(mindmapOptions.imageQuality)) {
+              mindmapOptions.imageQuality = '2d';
+            }
+            const mindmapResult = await generateMindmap(prompt, gradeLevel, subject, mindmapOptions);
+            generatedContent = JSON.stringify(mindmapResult);
+            title = mindmapResult.title;
+            break;
+          }
+          default:
+            throw new Error("Invalid content type");
+        }
+
+        onProgress("Finalising your content...", 88);
+
+        // Add watermark/logo
         const parsed = JSON.parse(generatedContent);
         parsed.showLogo = true;
-        if (!isPremium) {
-          parsed.watermark = "brightboardapp.com";
-        }
+        if (!isPremium) parsed.watermark = "brightboardapp.com";
         generatedContent = JSON.stringify(parsed);
-      }
 
-      // Save to storage
-      const saved = await storage.createContent({
-        type,
-        prompt,
-        title,
-        content: generatedContent,
+        // Save to storage
+        const saved = await storage.createContent({ type, prompt, title, content: generatedContent });
+
+        onProgress("Saving to your library...", 95);
+
+        // Increment usage counters for free users
+        if (!isPremium) {
+          if (type === 'image') await stripeService.incrementUsage(userId, 'image');
+          else if (type === 'presentation') await stripeService.incrementUsage(userId, 'presentation');
+          else if (type === 'storyboard') await stripeService.incrementUsage(userId, 'video');
+        }
+
+        await stripeService.trackFeatureUsage(userId, type);
+
+        // Log costs
+        const costMap: Record<string, number> = { image: 5, text: 2, activity: 2, worksheet: 2, mindmap: 2 };
+        let estimatedCostCents = costMap[type] ?? 2;
+        let costDescription = `${type} generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
+        if (type === 'presentation') { const sn = slideCount || 5; estimatedCostCents = sn * 5 + 2; costDescription = `Presentation (${sn} slides): "${title?.substring(0, 50)}..."`; }
+        if (type === 'storyboard') { const fc = ({ "30sec":3,"1min":6,"2min":10,"3min":12,"4min":15,"5min":18,"10min":25,"30min":50 } as any)[videoOptions?.length||"1min"]||6; estimatedCostCents = fc*5+2; costDescription = `Storyboard (${fc} frames): "${title?.substring(0,50)}..."`; }
+        if (estimatedCostCents > 0) {
+          await logAutomaticExpense("openai", costDescription, estimatedCostCents, { contentType: type, contentId: saved.id, userId, slideCount, videoOptions });
+        }
+
+        return { data: saved };
       });
 
-      // Increment usage counters for free users
-      if (!isPremium) {
-        if (type === 'image') {
-          await stripeService.incrementUsage(userId, 'image');
-        } else if (type === 'presentation') {
-          await stripeService.incrementUsage(userId, 'presentation');
-        } else if (type === 'storyboard') {
-          await stripeService.incrementUsage(userId, 'video');
-        }
-      }
-
-      // Track feature usage for analytics
-      await stripeService.trackFeatureUsage(userId, type);
-
-      // Log OpenAI API costs automatically
-      // Cost estimates (in cents):
-      // - Image generation (DALL-E 3): ~5 cents per image
-      // - Text generation (GPT-4o): ~2 cents per generation
-      // - Presentation: ~5 cents per slide (image) + 2 cents base
-      // - Storyboard: ~5 cents per frame image + 2 cents base
-      // - Worksheet: ~2 cents per generation
-      // - Activity: ~2 cents per generation
-      let estimatedCostCents = 0;
-      let costDescription = "";
-      
-      switch (type) {
-        case "image":
-          estimatedCostCents = 5;
-          costDescription = `Image generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
-          break;
-        case "presentation":
-          const slideNum = slideCount || 5;
-          estimatedCostCents = (slideNum * 5) + 2; // 5 cents per slide image + 2 cents GPT
-          costDescription = `Presentation (${slideNum} slides): "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
-          break;
-        case "storyboard":
-          const expenseFrameCount = {
-            "30sec": 3,
-            "1min": 6,
-            "2min": 10,
-            "3min": 12,
-            "4min": 15,
-            "5min": 18,
-            "10min": 25,
-            "30min": 50,
-          }[videoOptions?.length || "1min"] || 6;
-          estimatedCostCents = (expenseFrameCount * 5) + 2; // 5 cents per frame image + 2 cents GPT
-          costDescription = `Storyboard (${expenseFrameCount} frames): "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
-          break;
-        case "text":
-          estimatedCostCents = 2;
-          costDescription = `Text generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
-          break;
-        case "activity":
-          estimatedCostCents = 2;
-          costDescription = `Activity/Game generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
-          break;
-        case "worksheet":
-          estimatedCostCents = 2;
-          costDescription = `Worksheet generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
-          break;
-        case "mindmap":
-          estimatedCostCents = 2;
-          costDescription = `Mind map generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
-          break;
-      }
-      
-      if (estimatedCostCents > 0) {
-        await logAutomaticExpense("openai", costDescription, estimatedCostCents, {
-          contentType: type,
-          contentId: saved.id,
-          userId: userId,
-          slideCount: slideCount,
-          videoOptions: videoOptions,
-        });
-      }
-
-      res.json(saved);
     } catch (error: any) {
-      console.error("Error generating content:", error);
-      res.status(500).json({ error: error.message || "Failed to generate content" });
+      console.error("Error starting generation:", error);
+      if (!res.headersSent) res.status(500).json({ error: error.message || "Failed to start generation" });
     }
   });
 
