@@ -3180,9 +3180,6 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
       });
     }
 
-    const dalleSize = (imageQuality === "hd" || imageQuality === "4k") ? "1024x1024" : "1024x1024";
-    const dalleQuality = (imageQuality === "hd" || imageQuality === "4k") ? "hd" : "standard";
-
     const imageResults = await Promise.all(
       imagePrompts.map(async (item) => {
         try {
@@ -3190,16 +3187,20 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
             ? " Realistic photograph, high quality, professional photography." 
             : " Cute cartoon illustration, colorful, educational style, bright colors.";
           const imgResponse = await openai.images.generate({
-            model: "dall-e-3",
+            model: "gpt-image-1",
             prompt: item.prompt + styleAddition + " IMPORTANT: Do NOT include any text, words, letters, numbers, or labels in the image. Show ONE clear recognizable object or scene.",
             n: 1,
-            size: dalleSize,
-            quality: dalleQuality,
+            size: "1024x1024",
           });
-          const dalleUrl = imgResponse.data[0]?.url || null;
-          if (!dalleUrl) return { key: item.key, url: null };
-          const b64 = await fetchImageAsBase64(dalleUrl);
-          return { key: item.key, url: b64 };
+          const imageData = imgResponse.data[0];
+          if (!imageData) return { key: item.key, url: null };
+          if (imageData.b64_json) {
+            return { key: item.key, url: `data:image/png;base64,${imageData.b64_json}` };
+          } else if (imageData.url) {
+            const b64 = await fetchImageAsBase64(imageData.url);
+            return { key: item.key, url: b64 };
+          }
+          return { key: item.key, url: null };
         } catch (err) {
           console.error(`Failed to generate mind map image for ${item.key}:`, err);
           return { key: item.key, url: null };
