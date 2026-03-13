@@ -11,6 +11,7 @@ import { GamePlayerModal } from "./game-player-modal";
 import { BrightBoardLogo } from "./brightboard-logo";
 import { MindmapCanvas } from "./mindmap-canvas";
 import pptxgen from "pptxgenjs";
+import JSZip from "jszip";
 import { apiRequest } from "@/lib/queryClient";
 
 interface GeneratedContentDisplayProps {
@@ -188,7 +189,10 @@ export function GeneratedContentDisplay({
     try {
       const data = JSON.parse(content);
       const slides: Slide[] = data.slides || [];
-      
+      const tapToReveal: boolean = !!data.tapToReveal;
+      const transition: string = data.transition || "none";
+      const transitionDelay: number = data.transitionDelay || 0;
+
       if (slides.length === 0) {
         toast({
           title: "No slides found",
@@ -206,128 +210,108 @@ export function GeneratedContentDisplay({
       const layout = data.layout || "single";
       const slideData = slides as (Slide & { images?: string[] })[];
 
-      slideData.forEach((slide) => {
+      const addSlideContent = (slide: Slide & { images?: string[] }, visibleBullets: string[]) => {
         const pptSlide = pptx.addSlide();
-        const hasImage = slide.image || (slide.images && slide.images.length > 0);
-        const hasContent = slide.content && slide.content.length > 0;
-        
-        // Title
+        const hasImage = !!(slide.image || (slide.images && slide.images.length > 0));
+        const hasContent = visibleBullets.length > 0;
+
         pptSlide.addText(slide.title || "Slide", {
-          x: 0.5,
-          y: 0.3,
-          w: 9,
-          h: 0.7,
-          fontSize: 32,
-          bold: true,
-          color: "363636",
+          x: 0.5, y: 0.3, w: 9, h: 0.7,
+          fontSize: 32, bold: true, color: "363636",
         });
 
-        // Layout with image on left, content on right (or just content if no image)
-        // 16:9 slide is 10" x 5.625" - use 90%+ of available space
         if (hasImage && layout === "single" && slide.image) {
           if (hasContent) {
-            // Image on left (larger), content on right
-            pptSlide.addImage({
-              data: slide.image,
-              x: 0.3,
-              y: 1.1,
-              w: 4.8,
-              h: 4.2,
-            });
-            
-            const bulletPoints = slide.content.map(point => ({
-              text: point,
-              options: { bullet: true, fontSize: 18, color: "555555", breakLine: true }
-            }));
-            pptSlide.addText(bulletPoints, {
-              x: 5.3,
-              y: 1.1,
-              w: 4.4,
-              h: 4.2,
-              valign: "top",
-            });
+            pptSlide.addImage({ data: slide.image, x: 0.3, y: 1.1, w: 4.8, h: 4.2 });
+            pptSlide.addText(
+              visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 18, color: "555555", breakLine: true } })),
+              { x: 5.3, y: 1.1, w: 4.4, h: 4.2, valign: "top" }
+            );
           } else {
-            // Image only - center and fill most of the slide
-            pptSlide.addImage({
-              data: slide.image,
-              x: 0.5,
-              y: 1.1,
-              w: 9,
-              h: 4.3,
-              sizing: { type: "contain", w: 9, h: 4.3 },
-            });
+            pptSlide.addImage({ data: slide.image, x: 0.5, y: 1.1, w: 9, h: 4.3, sizing: { type: "contain", w: 9, h: 4.3 } });
           }
         } else if (hasImage && layout === "grid" && slide.images && slide.images.length > 0) {
-          // Grid of images (2x2) - larger images
           const imgSize = 2.15;
-          const gridPositions = [
-            { x: 0.3, y: 1.1 },
-            { x: 2.6, y: 1.1 },
-            { x: 0.3, y: 3.35 },
-            { x: 2.6, y: 3.35 },
-          ];
-          
+          const gridPos = [{ x: 0.3, y: 1.1 }, { x: 2.6, y: 1.1 }, { x: 0.3, y: 3.35 }, { x: 2.6, y: 3.35 }];
           slide.images.slice(0, 4).forEach((img, idx) => {
-            pptSlide.addImage({
-              data: img,
-              x: gridPositions[idx].x,
-              y: gridPositions[idx].y,
-              w: imgSize,
-              h: imgSize,
-            });
+            pptSlide.addImage({ data: img, x: gridPos[idx].x, y: gridPos[idx].y, w: imgSize, h: imgSize });
           });
-          
-          // Content on right of grid
           if (hasContent) {
-            const bulletPoints = slide.content.map(point => ({
-              text: point,
-              options: { bullet: true, fontSize: 16, color: "555555", breakLine: true }
-            }));
-            pptSlide.addText(bulletPoints, {
-              x: 5.0,
-              y: 1.1,
-              w: 4.7,
-              h: 4.2,
-              valign: "top",
-            });
+            pptSlide.addText(
+              visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 16, color: "555555", breakLine: true } })),
+              { x: 5.0, y: 1.1, w: 4.7, h: 4.2, valign: "top" }
+            );
           }
         } else if (hasContent) {
-          // No image, just content
-          const bulletPoints = slide.content.map(point => ({
-            text: point,
-            options: { bullet: true, fontSize: 20, color: "555555", breakLine: true }
-          }));
-          pptSlide.addText(bulletPoints, {
-            x: 0.5,
-            y: 1.2,
-            w: 9,
-            h: 4,
-            valign: "top",
-          });
+          pptSlide.addText(
+            visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 20, color: "555555", breakLine: true } })),
+            { x: 0.5, y: 1.2, w: 9, h: 4, valign: "top" }
+          );
         }
 
-        // Speaker notes
-        if (slide.notes) {
-          pptSlide.addNotes(slide.notes);
-        }
+        if (slide.notes) pptSlide.addNotes(slide.notes);
 
-        // BrightBoard logo text on every slide (bottom-right corner)
         pptSlide.addText("brightboardapp.com", {
-          x: 7.2,
-          y: 5.2,
-          w: 2.5,
-          h: 0.3,
-          fontSize: 9,
-          color: "999999",
-          align: "right",
-          italic: true,
+          x: 7.2, y: 5.2, w: 2.5, h: 0.3,
+          fontSize: 9, color: "999999", align: "right", italic: true,
         });
+      };
+
+      slideData.forEach((slide) => {
+        const allBullets = slide.content || [];
+        if (tapToReveal && allBullets.length > 1) {
+          // Build slides: one slide per reveal step (each shows one more bullet)
+          for (let i = 1; i <= allBullets.length; i++) {
+            addSlideContent(slide, allBullets.slice(0, i));
+          }
+        } else {
+          addSlideContent(slide, allBullets);
+        }
       });
 
-      await pptx.writeFile({ fileName: `${data.title || "presentation"}.pptx` });
+      // Generate the PPTX as a Blob, then post-process with JSZip to inject transitions
+      const needsPostProcess = transition && transition !== "none" || transitionDelay > 0;
+      if (needsPostProcess) {
+        const pptxBlob = await pptx.write({ outputType: "blob" }) as Blob;
+        const zip = await JSZip.loadAsync(pptxBlob);
+
+        // Map transition name to OpenXML element
+        const transitionElementMap: Record<string, string> = {
+          fade:  "<p:fade/>",
+          slide: '<p:push dir="l"/>',
+          zoom:  "<p:zoom/>",
+          flip:  "<p:flip/>",
+        };
+        const transEl = transitionElementMap[transition] || "<p:fade/>";
+        // advTm in ms; advClick="1" so manual advance still works; advAuto for auto-advance
+        const advAttr = transitionDelay > 0 ? ` advTm="${transitionDelay * 1000}"` : "";
+        const transitionXml = `<p:transition dur="400" advClick="1"${advAttr}>${transEl}</p:transition>`;
+
+        // Inject into each slide XML
+        const slideFiles = Object.keys(zip.files).filter(f => /^ppt\/slides\/slide[0-9]+\.xml$/.test(f));
+        await Promise.all(slideFiles.map(async (filePath) => {
+          let xml = await zip.files[filePath].async("string");
+          // Insert before closing </p:sld> tag
+          xml = xml.replace(/<\/p:sld>/, `${transitionXml}</p:sld>`);
+          zip.file(filePath, xml);
+        }));
+
+        const modifiedBlob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
+        const url = URL.createObjectURL(modifiedBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${data.title || "presentation"}.pptx`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      } else {
+        await pptx.writeFile({ fileName: `${data.title || "presentation"}.pptx` });
+      }
+
       toast({
         title: "Download started",
-        description: "Your PowerPoint file is being downloaded.",
+        description: tapToReveal
+          ? "Downloaded with tap-to-reveal build slides — advance slides in PowerPoint to reveal each point."
+          : "Your PowerPoint file is being downloaded.",
       });
     } catch (error) {
       console.error("Error generating PPT:", error);
