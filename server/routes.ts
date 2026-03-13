@@ -2430,7 +2430,42 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   const imagesPerSlide = layout === "grid" ? 4 : 1;
   
   let contentInstructions = "";
-  if (style === "textOnly") {
+  if (tapToReveal) {
+    contentInstructions = `
+GAME MODE — TAP TO REVEAL:
+This presentation will be played as an interactive classroom game. Each bullet point is revealed ONE AT A TIME when the teacher taps. Design each slide so that the reveal is exciting and makes students think before seeing the answer.
+
+CREATIVE GAME FORMATS — vary the format across slides to keep it fresh:
+
+1. QUIZ: Title = "Round 1: [Topic] Quiz 🎯"
+   Bullets = ["❓ Question: [question here]", "💡 Hint: [a clue]", "✅ Answer: [answer] — Well done if you got it!"]
+
+2. CLUE GAME (Guess What/Who): Title = "Guess the [Animal/Country/Person]! 🔍"
+   Bullets = ["🔎 Clue 1: [first clue]", "🔎 Clue 2: [second clue]", "🔎 Clue 3: [third clue]", "🎉 Answer: [answer]!"]
+
+3. TRUE OR FALSE: Title = "True or False? 🤔"
+   Bullets = ["📢 Statement: [statement]", "⏳ Think... is it TRUE or FALSE?", "✅ Answer: [TRUE/FALSE]! [brief explanation]"]
+
+4. FILL IN THE BLANK: Title = "Complete the Sentence! ✏️"
+   Bullets = ["📖 '[sentence with ___]'", "💭 Think of the missing word...", "✅ The answer is: [word]! [fun fact about it]"]
+
+5. CHALLENGE ROUND: Title = "[Number]: Spot the Odd One Out! 🧐"
+   Bullets = ["🔵 [item A]", "🔵 [item B]", "🟡 [item C — the odd one]", "🔵 [item D]", "✅ [item C] is the odd one — because [reason]!"]
+
+6. FUN FACT REVEAL: Title = "Did You Know? 🌟"
+   Bullets = ["🤔 [intriguing question or surprising fact setup]", "🔮 [another clue or related fact]", "🤯 Mind-blowing answer: [surprising fact]!"]
+
+RULES:
+- Every slide MUST be a different game format — do NOT repeat the same format twice in a row
+- Use emojis liberally to make it visually exciting
+- Make bullet points SHORT — max 10 words each
+- The LAST bullet on every slide must be the answer/reveal
+- Speaker notes should tell the teacher how to run that game moment (e.g. "Ask class to vote before revealing")
+${style !== "textOnly" ? `- Include ${imagesPerSlide} fun, colourful image description(s) per slide that match the game theme` : ""}
+- Keep language age-appropriate for the grade level
+- The whole presentation should feel like a fun game show, not a normal lesson!
+    `;
+  } else if (style === "textOnly") {
     contentInstructions = "Each slide should have a title, 3-5 bullet points, and speaker notes. No images needed.";
   } else if (style === "imagesOnly") {
     contentInstructions = `Each slide should have only a title and ${imagesPerSlide} detailed image description(s). No bullet points - the images tell the story. Include speaker notes for the teacher.`;
@@ -2453,7 +2488,9 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
       }`;
   
   // Build user message - include reference image if provided
-  let userMessage: any = `Create an engaging educational presentation about: ${prompt}. Create exactly ${numSlides} slides.`;
+  let userMessage: any = tapToReveal
+    ? `Create a fun, interactive TAP TO REVEAL classroom game presentation about: ${prompt}. Create exactly ${numSlides} slides. Each slide is a different game challenge — mix quiz questions, clue games, true/false, fill-in-the-blank, and fun fact reveals. Make it feel like a game show!`
+    : `Create an engaging educational presentation about: ${prompt}. Create exactly ${numSlides} slides.`;
   
   if (referenceImage) {
     userMessage = [
