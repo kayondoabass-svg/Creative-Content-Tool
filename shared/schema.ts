@@ -68,6 +68,7 @@ export const mindmapOptionsSchema = z.object({
   imageQuality: z.enum(["2d", "hd", "4k"]).optional(),
   contentStyle: z.enum(["imagesAndText", "imagesOnly", "textOnly"]).optional(),
   layoutStyle: z.enum(["radial", "sketch", "infographic", "pictureboard"]).optional(),
+  referenceImages: z.array(z.string()).max(4).optional(),
 });
 
 export type MindmapOptions = z.infer<typeof mindmapOptionsSchema>;

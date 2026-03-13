@@ -16,7 +16,7 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string }) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }) => void;
   isGenerating: boolean;
   defaultGameType?: string | null;
 }
@@ -208,6 +208,13 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevSelectedType = useRef(selectedType);
+
+  const [mindmapCentralTopic, setMindmapCentralTopic] = useState("");
+  const [mindmapBranches, setMindmapBranches] = useState("");
+  const [mindmapKeyPoints, setMindmapKeyPoints] = useState("");
+  const [mindmapImages, setMindmapImages] = useState<(string | null)[]>([null]);
+  const [mindmapImageSlots, setMindmapImageSlots] = useState<1 | 4>(1);
+  const mindmapImageRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   const {
     isListening,
@@ -287,6 +294,53 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     }
   }, [defaultGameType, selectedType, form]);
 
+  useEffect(() => {
+    if (selectedType === "mindmap" && mindmapCentralTopic.trim()) {
+      let builtPrompt = mindmapCentralTopic.trim();
+      if (mindmapBranches.trim()) builtPrompt += `\nMain Branches: ${mindmapBranches.trim()}`;
+      if (mindmapKeyPoints.trim()) builtPrompt += `\nKey Details: ${mindmapKeyPoints.trim()}`;
+      form.setValue("prompt", builtPrompt);
+    } else if (selectedType === "mindmap") {
+      form.setValue("prompt", "");
+    }
+  }, [mindmapCentralTopic, mindmapBranches, mindmapKeyPoints, selectedType, form]);
+
+  const handleMindmapImageUpload = (slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Image too large. Please use an image under 10MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setMindmapImages(prev => {
+        const updated = [...prev];
+        updated[slotIndex] = base64;
+        return updated;
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeMindmapImage = (slotIndex: number) => {
+    setMindmapImages(prev => {
+      const updated = [...prev];
+      updated[slotIndex] = null;
+      return updated;
+    });
+    if (mindmapImageRefs.current[slotIndex]) {
+      mindmapImageRefs.current[slotIndex]!.value = "";
+    }
+  };
+
+  const handleMindmapSlotChange = (slots: 1 | 4) => {
+    setMindmapImageSlots(slots);
+    setMindmapImages(Array(slots).fill(null));
+    mindmapImageRefs.current.forEach(ref => { if (ref) ref.value = ""; });
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -349,6 +403,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       imageStyle: values.mindmapImageStyle,
       imageQuality: values.mindmapImageQuality,
       contentStyle: values.mindmapContentStyle,
+      referenceImages: mindmapImages.filter((img): img is string => img !== null),
     } : undefined;
     
     onGenerate(
@@ -716,6 +771,59 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* Reference image upload */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Attach Reference Images <span className="normal-case font-normal">(optional — helps AI understand your topic)</span></p>
+                  <div className="flex gap-1">
+                    {([1, 4] as const).map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => handleMindmapSlotChange(n)}
+                        className={`px-2 py-0.5 rounded text-xs font-semibold border transition-all ${mindmapImageSlots === n ? "border-primary bg-primary/10 text-primary" : "border-muted text-muted-foreground hover:border-primary/40"}`}
+                      >
+                        {n} {n === 1 ? "image" : "images"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className={`grid gap-2 ${mindmapImageSlots === 4 ? "grid-cols-4" : "grid-cols-1"}`}>
+                  {Array.from({ length: mindmapImageSlots }).map((_, i) => (
+                    <div key={i} className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        ref={(el) => { mindmapImageRefs.current[i] = el; }}
+                        onChange={(e) => handleMindmapImageUpload(i, e)}
+                      />
+                      {mindmapImages[i] ? (
+                        <div className="relative rounded-lg overflow-hidden border border-primary/30" style={{ height: mindmapImageSlots === 4 ? 72 : 80 }}>
+                          <img src={mindmapImages[i]!} alt={`Reference ${i + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeMindmapImage(i)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-black/80"
+                          >×</button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => mindmapImageRefs.current[i]?.click()}
+                          className="w-full rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-primary"
+                          style={{ height: mindmapImageSlots === 4 ? 72 : 80 }}
+                          data-testid={`button-mindmap-upload-${i}`}
+                        >
+                          <ImageIcon className="w-5 h-5" />
+                          {mindmapImageSlots === 1 && <span className="text-xs">Click to upload</span>}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -1179,52 +1287,94 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
             </div>
           )}
 
-          <FormField
-            control={form.control}
-            name="prompt"
-            render={({ field }) => (
-              <FormItem>
-                <div className="relative">
-                  <FormControl>
-                    <Textarea
-                      placeholder={isListening ? t('home.listening') : t(`home.placeholder${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}` as any)}
-                      className="min-h-[100px] text-base resize-none pr-12"
-                      onKeyDown={handleKeyDown}
-                      data-testid="input-prompt"
-                      {...field}
-                      value={isListening && interimTranscript ? `${field.value} ${interimTranscript}` : field.value}
-                    />
-                  </FormControl>
-                  {speechSupported && (
-                    <Button
-                      type="button"
-                      variant={isListening ? "destructive" : "outline"}
-                      size="icon"
-                      className="absolute right-2 top-2"
-                      onClick={isListening ? stopListening : startListening}
-                      disabled={isGenerating}
-                      data-testid="button-voice-record"
-                    >
-                      {isListening ? (
-                        <Square className="h-4 w-4" />
-                      ) : (
-                        <Mic className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )}
+          {selectedType === "mindmap" ? (
+            <div className="space-y-3 p-3 bg-muted/30 rounded-lg border border-border/50">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mind Map Topic</p>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Central Topic <span className="text-destructive">*</span></label>
+                  <input
+                    type="text"
+                    value={mindmapCentralTopic}
+                    onChange={(e) => setMindmapCentralTopic(e.target.value)}
+                    placeholder="e.g. The Water Cycle, Fractions, Ancient Egypt, Transport"
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    data-testid="input-mindmap-central-topic"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">The main concept that goes in the centre of the map</p>
                 </div>
-                {isListening && (
-                  <p className="text-sm text-primary animate-pulse flex items-center gap-2 mt-2" data-testid="text-recording-status">
-                    <span className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
-                    {t('home.recording')}
-                  </p>
-                )}
-                {speechError && (
-                  <p className="text-sm text-destructive mt-2" data-testid="text-speech-error">{speechError}</p>
-                )}
-              </FormItem>
-            )}
-          />
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Main Branches <span className="text-muted-foreground font-normal">(optional)</span></label>
+                  <input
+                    type="text"
+                    value={mindmapBranches}
+                    onChange={(e) => setMindmapBranches(e.target.value)}
+                    placeholder="e.g. Evaporation, Condensation, Precipitation, Collection"
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    data-testid="input-mindmap-branches"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Separate branches with commas — leave blank for AI to decide</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Key Points or Notes <span className="text-muted-foreground font-normal">(optional)</span></label>
+                  <Textarea
+                    value={mindmapKeyPoints}
+                    onChange={(e) => setMindmapKeyPoints(e.target.value)}
+                    placeholder="Any specific facts, sub-topics, vocabulary, or details you want included..."
+                    className="min-h-[70px] text-sm resize-none"
+                    data-testid="input-mindmap-key-points"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <FormField
+              control={form.control}
+              name="prompt"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="relative">
+                    <FormControl>
+                      <Textarea
+                        placeholder={isListening ? t('home.listening') : t(`home.placeholder${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}` as any)}
+                        className="min-h-[100px] text-base resize-none pr-12"
+                        onKeyDown={handleKeyDown}
+                        data-testid="input-prompt"
+                        {...field}
+                        value={isListening && interimTranscript ? `${field.value} ${interimTranscript}` : field.value}
+                      />
+                    </FormControl>
+                    {speechSupported && (
+                      <Button
+                        type="button"
+                        variant={isListening ? "destructive" : "outline"}
+                        size="icon"
+                        className="absolute right-2 top-2"
+                        onClick={isListening ? stopListening : startListening}
+                        disabled={isGenerating}
+                        data-testid="button-voice-record"
+                      >
+                        {isListening ? (
+                          <Square className="h-4 w-4" />
+                        ) : (
+                          <Mic className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  {isListening && (
+                    <p className="text-sm text-primary animate-pulse flex items-center gap-2 mt-2" data-testid="text-recording-status">
+                      <span className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                      {t('home.recording')}
+                    </p>
+                  )}
+                  {speechError && (
+                    <p className="text-sm text-destructive mt-2" data-testid="text-speech-error">{speechError}</p>
+                  )}
+                </FormItem>
+              )}
+            />
+          )}
 
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-xs text-muted-foreground hidden sm:block">
@@ -1232,7 +1382,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
             </p>
             <Button
               type="submit"
-              disabled={isGenerating || !form.watch("prompt").trim()}
+              disabled={isGenerating || (selectedType === "mindmap" ? !mindmapCentralTopic.trim() : !form.watch("prompt").trim())}
               className="gap-2 ml-auto"
               data-testid="button-generate"
             >

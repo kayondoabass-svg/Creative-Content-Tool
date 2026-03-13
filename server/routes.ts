@@ -3056,13 +3056,14 @@ function escapeXml(text: string): string {
     .replace(/'/g, '&apos;');
 }
 
-async function generateMindmap(prompt: string, gradeLevel?: string, subject?: string, mindmapOptions?: { branchCount?: number; imageStyle?: string; imageQuality?: string; contentStyle?: string; layoutStyle?: string }) {
+async function generateMindmap(prompt: string, gradeLevel?: string, subject?: string, mindmapOptions?: { branchCount?: number; imageStyle?: string; imageQuality?: string; contentStyle?: string; layoutStyle?: string; referenceImages?: string[] }) {
   const context = buildContext(gradeLevel, subject);
   const branchCount = mindmapOptions?.branchCount || 5;
   const imageStyle = mindmapOptions?.imageStyle || "animation";
   const contentStyle = mindmapOptions?.contentStyle || "imagesAndText";
   const imageQuality = mindmapOptions?.imageQuality || "2d";
   const layoutStyle = mindmapOptions?.layoutStyle || "radial";
+  const referenceImages = mindmapOptions?.referenceImages || [];
 
   const imageStyleDesc = imageStyle === "reallife" 
     ? "a realistic, high-quality photograph" 
@@ -3155,7 +3156,12 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
       },
       {
         role: "user",
-        content: `Create an educational mind map about: ${prompt}`
+        content: referenceImages.length > 0
+          ? [
+              { type: "text" as const, text: `Create an educational mind map about: ${prompt}${referenceImages.length > 0 ? "\n\nI have attached reference image(s) below. Use them to understand the topic, visual context, and relevant details for the mind map." : ""}` },
+              ...referenceImages.map((img) => ({ type: "image_url" as const, image_url: { url: img } })),
+            ]
+          : `Create an educational mind map about: ${prompt}`
       }
     ],
     response_format: { type: "json_object" },
