@@ -102,6 +102,49 @@ export function GeneratedContentDisplay({
   };
 
   const handleDownload = () => {
+    if (type === "mindmap") {
+      const container = document.getElementById("mindmap-svg-root");
+      const svg = container?.querySelector("svg");
+      if (!svg) {
+        toast({ title: "Error", description: "Could not find mind map to export.", variant: "destructive" });
+        return;
+      }
+      const viewBox = svg.getAttribute("viewBox") || "0 0 1500 1300";
+      const parts = viewBox.split(" ");
+      const svgW = parseFloat(parts[2]) || 1500;
+      const svgH = parseFloat(parts[3]) || 1300;
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute("width", String(svgW));
+      clone.setAttribute("height", String(svgH));
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+      const svgStr = new XMLSerializer().serializeToString(clone);
+      const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = () => {
+        const scale = 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = svgW * scale;
+        canvas.height = svgH * scale;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0, svgW, svgH);
+        URL.revokeObjectURL(svgUrl);
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `brightboard-mindmap-${Date.now()}.jpg`;
+          a.click();
+        }, "image/jpeg", 0.95);
+      };
+      img.src = svgUrl;
+      return;
+    }
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

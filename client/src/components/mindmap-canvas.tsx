@@ -45,14 +45,14 @@ interface PDetail {
   y: number;
 }
 
-const VW = 1100;
-const VH = 980;
-const CX = 550;
-const CY = 490;
-const BRANCH_R = 232;
-const CHILD_R = 128;
-const DETAIL_R = 68;
-const NODE_R = 44;
+const VW = 1500;
+const VH = 1300;
+const CX = 750;
+const CY = 650;
+const BRANCH_R = 330;
+const CHILD_R = 190;
+const DETAIL_R = 115;
+const NODE_R = 46;
 
 const COLORS = [
   "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
@@ -69,14 +69,14 @@ function computeLayout(branches: MindmapNode[]): PBranch[] {
 
     const children: PChild[] = (branch.children || []).map((child, j) => {
       const nc = (branch.children || []).length;
-      const spread = nc <= 1 ? 0 : nc <= 2 ? 0.36 : nc <= 3 ? 0.30 : 0.24;
+      const spread = nc <= 1 ? 0 : nc <= 2 ? 0.52 : nc <= 3 ? 0.44 : 0.38;
       const ca = angle + (j - (nc - 1) / 2) * spread;
       const cx2 = bx + Math.cos(ca) * CHILD_R;
       const cy2 = by + Math.sin(ca) * CHILD_R;
 
       const details: PDetail[] = (child.children || []).map((gc, k) => {
         const ngc = (child.children || []).length;
-        const ga = ca + (k - (ngc - 1) / 2) * 0.34;
+        const ga = ca + (k - (ngc - 1) / 2) * 0.46;
         return { label: gc.label, x: cx2 + Math.cos(ga) * DETAIL_R, y: cy2 + Math.sin(ga) * DETAIL_R };
       });
 
@@ -190,8 +190,8 @@ function RadialMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
 
       {/* Branch nodes */}
       {pos.map((b, i) => {
-        const lx = b.x + Math.cos(b.angle) * (NODE_R + 16);
-        const ly = b.y + Math.sin(b.angle) * (NODE_R + 18);
+        const lx = b.x + Math.cos(b.angle) * (NODE_R + 26);
+        const ly = b.y + Math.sin(b.angle) * (NODE_R + 28);
         const anchor = Math.cos(b.angle) > 0.2 ? "start" : Math.cos(b.angle) < -0.2 ? "end" : "middle";
         return (
           <g key={`b-${i}`}>
@@ -203,7 +203,7 @@ function RadialMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
             {!b.image && (
               <SvgText x={b.x} y={b.y} text={b.label.charAt(0)} maxChars={1} fs={22} fw="bold" fill="white" />
             )}
-            <SvgText x={lx} y={ly} text={b.label} maxChars={11} fs={12} fw="bold" fill={b.color} anchor={anchor} />
+            <SvgText x={lx} y={ly} text={b.label} maxChars={13} fs={13} fw="bold" fill={b.color} anchor={anchor} />
           </g>
         );
       })}
@@ -357,8 +357,8 @@ function InfographicMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
 
       {/* Branch nodes — large circles with images */}
       {pos.map((b, i) => {
-        const lx = b.x + Math.cos(b.angle) * (52 + 18);
-        const ly = b.y + Math.sin(b.angle) * (52 + 20);
+        const lx = b.x + Math.cos(b.angle) * (52 + 30);
+        const ly = b.y + Math.sin(b.angle) * (52 + 32);
         const anchor = Math.cos(b.angle) > 0.2 ? "start" : Math.cos(b.angle) < -0.2 ? "end" : "middle";
         return (
           <g key={`b-${i}`}>
@@ -477,7 +477,7 @@ export function MindmapCanvas({ data }: { data: MindmapData }) {
   const style = data.options?.layoutStyle || "radial";
 
   return (
-    <div className="w-full overflow-auto rounded-xl">
+    <div id="mindmap-svg-root" className="w-full overflow-auto rounded-xl">
       {style === "sketch" ? (
         <SketchMap data={data} pos={pos} />
       ) : style === "infographic" ? (
