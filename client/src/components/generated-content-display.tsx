@@ -47,12 +47,18 @@ export function GeneratedContentDisplay({
   };
 
   const getPresentationData = () => {
-    if (type !== "presentation") return { slides: [], title: "" };
+    if (type !== "presentation") return { slides: [], title: "", transition: undefined, transitionDelay: undefined, tapToReveal: undefined };
     try {
       const data = JSON.parse(content);
-      return { slides: data.slides || [], title: data.title || "Presentation" };
+      return {
+        slides: data.slides || [],
+        title: data.title || "Presentation",
+        transition: data.transition,
+        transitionDelay: data.transitionDelay,
+        tapToReveal: !!data.tapToReveal,
+      };
     } catch {
-      return { slides: [], title: "" };
+      return { slides: [], title: "", transition: undefined, transitionDelay: undefined, tapToReveal: undefined };
     }
   };
 
@@ -434,14 +440,20 @@ export function GeneratedContentDisplay({
         {renderContent()}
       </div>
       
-      {type === "presentation" && (
-        <SlideshowModal
-          slides={getPresentationData().slides}
-          title={getPresentationData().title}
-          isOpen={showSlideshow}
-          onClose={() => setShowSlideshow(false)}
-        />
-      )}
+      {type === "presentation" && (() => {
+        const pd = getPresentationData();
+        return (
+          <SlideshowModal
+            slides={pd.slides}
+            title={pd.title}
+            isOpen={showSlideshow}
+            onClose={() => setShowSlideshow(false)}
+            transition={pd.transition}
+            transitionDelay={pd.transitionDelay}
+            tapToReveal={pd.tapToReveal}
+          />
+        );
+      })()}
       
       {type === "storyboard" && (
         <VideoExportModal
