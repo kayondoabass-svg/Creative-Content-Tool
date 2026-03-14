@@ -237,10 +237,19 @@ export default function LandingPage() {
               {t('landing.heroDescription')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-              <Button size="lg" asChild data-testid="button-get-started">
-                <Link href="/signup">{t('common.getStarted')}</Link>
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg shadow-primary/30 text-lg font-bold px-8 py-6 h-auto rounded-xl"
+                asChild
+                data-testid="button-get-started"
+              >
+                <Link href="/signup">
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  {t('common.getStarted')} — It's Free
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild data-testid="button-watch-demo">
+              <Button size="lg" variant="outline" asChild data-testid="button-watch-demo" className="px-6 py-6 h-auto rounded-xl">
                 <a href="#demo">
                   <Play className="w-4 h-4 mr-2" />
                   {t('landing.watchDemo')}

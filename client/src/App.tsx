@@ -38,6 +38,7 @@ import BillingPage from "@/pages/billing";
 import Blog from "@/pages/blog";
 import HowItWorks from "@/pages/how-it-works";
 import Features from "@/pages/features";
+import AdsLanding from "@/pages/ads-landing";
 import type { OrganizationSettings } from "@shared/schema";
 
 function Router() {
@@ -53,6 +54,9 @@ function Router() {
 
   return (
     <Switch>
+      {/* Ad landing page - always public */}
+      <Route path="/ads" component={AdsLanding} />
+
       {/* Public pages - accessible without auth */}
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
