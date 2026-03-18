@@ -470,7 +470,7 @@ export async function sendPaymentReceiptEmail(email: string, data: PaymentReceip
   }
 }
 
-export async function sendMarketingBlastEmail(email: string, firstName: string): Promise<boolean> {
+export async function sendMarketingBlastEmail(email: string, firstName: string, country?: string): Promise<boolean> {
   try {
     const { client, fromEmail } = await getResendClient();
     let sender = fromEmail || 'noreply@brightboardapp.com';
@@ -479,6 +479,25 @@ export async function sendMarketingBlastEmail(email: string, firstName: string):
     }
 
     const name = firstName || 'Teacher';
+
+    // Get localized pricing
+    const { getLocalizedPricing } = await import('./pesapalService');
+    const countryCode = country || 'US';
+    const pricing = getLocalizedPricing(countryCode);
+    const monthly = pricing.plans['monthly'];
+    const weekly = pricing.plans['weekly'];
+
+    function formatLocalPrice(amount: number, symbol: string, currency: string): string {
+      if (currency === 'USD') return `$${amount.toFixed(2)}`;
+      if (currency === 'GBP') return `£${amount.toFixed(2)}`;
+      if (currency === 'EUR') return `€${amount.toFixed(2)}`;
+      if (amount >= 1000) return `${symbol} ${amount.toLocaleString()}`;
+      if (Number.isInteger(amount)) return `${symbol} ${amount}`;
+      return `${symbol} ${amount.toFixed(2)}`;
+    }
+
+    const monthlyPrice = formatLocalPrice(monthly.amount, monthly.symbol, monthly.currency);
+    const weeklyPrice = formatLocalPrice(weekly.amount, weekly.symbol, weekly.currency);
 
     const result = await client.emails.send({
       from: sender,
@@ -548,7 +567,7 @@ export async function sendMarketingBlastEmail(email: string, firstName: string):
                 <a href="https://brightboardapp.com/pricing" style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #06b6d4); color: white; text-decoration: none; font-weight: 700; font-size: 16px; padding: 16px 40px; border-radius: 50px; box-shadow: 0 4px 14px rgba(124,58,237,0.4);">
                   Unlock All Features — Upgrade Now
                 </a>
-                <p style="color: #9ca3af; font-size: 13px; margin: 12px 0 0;">Starting at just UGX 14,900/month</p>
+                <p style="color: #9ca3af; font-size: 13px; margin: 12px 0 0;">From just ${weeklyPrice}/week &nbsp;·&nbsp; ${monthlyPrice}/month</p>
               </div>
 
               <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0; text-align: center;">

@@ -220,6 +220,29 @@ const CURRENCY_RATES: Record<string, { rate: number; symbol: string; name: strin
   XOF: { rate: 605, symbol: 'CFA', name: 'West African CFA' },
   EGP: { rate: 49, symbol: 'E£', name: 'Egyptian Pound' },
   MAD: { rate: 10, symbol: 'MAD', name: 'Moroccan Dirham' },
+  // Asia-Pacific
+  VND: { rate: 25400, symbol: '₫', name: 'Vietnamese Dong' },
+  PHP: { rate: 56, symbol: '₱', name: 'Philippine Peso' },
+  IDR: { rate: 16200, symbol: 'Rp', name: 'Indonesian Rupiah' },
+  THB: { rate: 34, symbol: '฿', name: 'Thai Baht' },
+  MYR: { rate: 4.4, symbol: 'RM', name: 'Malaysian Ringgit' },
+  SGD: { rate: 1.34, symbol: 'S$', name: 'Singapore Dollar' },
+  KHR: { rate: 4100, symbol: '៛', name: 'Cambodian Riel' },
+  MMK: { rate: 2100, symbol: 'K', name: 'Myanmar Kyat' },
+  BDT: { rate: 110, symbol: '৳', name: 'Bangladeshi Taka' },
+  PKR: { rate: 278, symbol: 'Rs', name: 'Pakistani Rupee' },
+  LKR: { rate: 305, symbol: 'Rs', name: 'Sri Lankan Rupee' },
+  NPR: { rate: 134, symbol: 'Rs', name: 'Nepalese Rupee' },
+  // Americas
+  BRL: { rate: 5.7, symbol: 'R$', name: 'Brazilian Real' },
+  MXN: { rate: 17.2, symbol: 'MX$', name: 'Mexican Peso' },
+  COP: { rate: 4050, symbol: 'COP$', name: 'Colombian Peso' },
+  ARS: { rate: 980, symbol: 'AR$', name: 'Argentine Peso' },
+  CLP: { rate: 950, symbol: 'CLP$', name: 'Chilean Peso' },
+  PEN: { rate: 3.75, symbol: 'S/', name: 'Peruvian Sol' },
+  // Middle East
+  TRY: { rate: 32, symbol: '₺', name: 'Turkish Lira' },
+  ILS: { rate: 3.7, symbol: '₪', name: 'Israeli Shekel' },
 };
 
 const COUNTRY_CURRENCY: Record<string, string> = {
@@ -233,6 +256,14 @@ const COUNTRY_CURRENCY: Record<string, string> = {
   SN: 'XOF', ML: 'XOF', BF: 'XOF', CI: 'XOF', TG: 'XOF',
   BJ: 'XOF', NE: 'XOF', GW: 'XOF', EG: 'EGP', MA: 'MAD',
   US: 'USD',
+  // Asia-Pacific
+  VN: 'VND', PH: 'PHP', ID: 'IDR', TH: 'THB', MY: 'MYR',
+  SG: 'SGD', KH: 'KHR', MM: 'MMK', BD: 'BDT', PK: 'PKR',
+  LK: 'LKR', NP: 'NPR',
+  // Americas
+  BR: 'BRL', MX: 'MXN', CO: 'COP', AR: 'ARS', CL: 'CLP', PE: 'PEN',
+  // Middle East
+  TR: 'TRY', IL: 'ILS',
 };
 
 export function getCurrencyForCountry(countryCode: string): string {

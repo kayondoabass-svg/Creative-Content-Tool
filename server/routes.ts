@@ -3979,6 +3979,7 @@ export function registerSubscriptionRoutes(app: any) {
         firstName: users.firstName,
         subscriptionTier: users.subscriptionTier,
         subscriptionStatus: users.subscriptionStatus,
+        country: users.country,
       }).from(users)
         .where(
           and(
@@ -3999,7 +4000,7 @@ export function registerSubscriptionRoutes(app: any) {
       for (const user of freeUsers) {
         if (!user.email) continue;
         try {
-          const ok = await sendMarketingBlastEmail(user.email, user.firstName || 'Teacher');
+          const ok = await sendMarketingBlastEmail(user.email, user.firstName || 'Teacher', user.country || 'US');
           if (ok) sent++;
           else failed++;
           // Small delay to avoid rate limits
