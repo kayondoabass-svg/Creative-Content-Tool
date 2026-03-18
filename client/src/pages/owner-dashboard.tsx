@@ -1,10 +1,11 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft, Video, Settings, UserCheck, UserX, Link2, Building2, Receipt, CreditCard, MapPin, FileText, Landmark, ShieldCheck } from "lucide-react";
+import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft, Video, Settings, UserCheck, UserX, Link2, Building2, Receipt, CreditCard, MapPin, FileText, Landmark, ShieldCheck, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
+import { useToast } from "@/hooks/use-toast";
 
 interface OwnerStats {
   users: {
@@ -159,6 +161,27 @@ function formatAmount(amount: number, currency: string = "USD") {
 function RevenueSection() {
   const { data: revenue, isLoading } = useQuery<RevenueData>({
     queryKey: ["/api/owner/revenue"],
+  });
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [recheckingId, setRecheckingId] = useState<string | null>(null);
+
+  const recheckMutation = useMutation({
+    mutationFn: (orderId: string) =>
+      apiRequest("POST", "/api/owner/recheck-payment", { orderId }),
+    onSuccess: async (data: any, orderId) => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/owner/revenue"] });
+      if (data.updated) {
+        toast({ title: `Payment updated → ${data.newStatus}`, description: `PesaPal says: ${data.pesapalStatus}` });
+      } else {
+        toast({ title: "No change", description: `PesaPal still reports: ${data.pesapalStatus}` });
+      }
+      setRecheckingId(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Recheck failed", description: error.message, variant: "destructive" });
+      setRecheckingId(null);
+    },
   });
 
   if (isLoading) {
@@ -401,7 +424,8 @@ function RevenueSection() {
                     <th className="pb-2 pr-4 font-medium text-muted-foreground">Amount</th>
                     <th className="pb-2 pr-4 font-medium text-muted-foreground">Method</th>
                     <th className="pb-2 pr-4 font-medium text-muted-foreground">Status</th>
-                    <th className="pb-2 font-medium text-muted-foreground">Confirmation</th>
+                    <th className="pb-2 pr-4 font-medium text-muted-foreground">Confirmation</th>
+                    <th className="pb-2 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -421,7 +445,28 @@ function RevenueSection() {
                           {payment.status}
                         </Badge>
                       </td>
-                      <td className="py-2.5 font-mono text-xs">{payment.confirmationCode || "-"}</td>
+                      <td className="py-2.5 pr-4 font-mono text-xs">{payment.confirmationCode || "-"}</td>
+                      <td className="py-2.5">
+                        {(payment.status === 'pending' || payment.status === 'failed') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            disabled={recheckingId === payment.orderId}
+                            onClick={() => {
+                              setRecheckingId(payment.orderId);
+                              recheckMutation.mutate(payment.orderId);
+                            }}
+                            data-testid={`button-recheck-${payment.id}`}
+                          >
+                            {recheckingId === payment.orderId ? (
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <><RefreshCw className="w-3 h-3 mr-1" />Recheck</>
+                            )}
+                          </Button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

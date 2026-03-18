@@ -47,3 +47,6 @@ integrations = ["javascript_openai_ai_integrations:2.0.0", "javascript_database:
 [userenv.shared]
 VITE_PADDLE_CLIENT_TOKEN = "${PADDLE_CLIENT_TOKEN}"
 VITE_RECAPTCHA_SITE_KEY = "${RECAPTCHA_SITE_KEY}"
+
+[userenv.production]
+APP_URL = "https://brightboardapp.com"

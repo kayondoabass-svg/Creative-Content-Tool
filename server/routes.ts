@@ -3801,7 +3801,7 @@ export function registerSubscriptionRoutes(app: any) {
         return res.status(400).json({ error: "Invalid tier" });
       }
 
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
       const result = await pesapalService.submitOrder({
         userId: sessionUserId,
         email: sessionUser.email || '',
@@ -3940,6 +3940,58 @@ export function registerSubscriptionRoutes(app: any) {
     } catch (error) {
       console.error("PesaPal IPN error:", error);
       res.status(500).json({ error: "IPN processing failed" });
+    }
+  });
+
+  // Owner: manually recheck a payment's status from PesaPal
+  app.post("/api/owner/recheck-payment", async (req: any, res: any) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const [requestingUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!requestingUser?.isOwner) return res.status(403).json({ error: "Not authorized" });
+
+      const { orderId } = req.body;
+      if (!orderId) return res.status(400).json({ error: "orderId required" });
+
+      const [payment] = await db.select().from(payments).where(eq(payments.orderId, orderId)).limit(1);
+      if (!payment) return res.status(404).json({ error: "Payment not found" });
+      if (!payment.pesapalTrackingId) return res.status(400).json({ error: "No PesaPal tracking ID on this payment" });
+
+      const status = await pesapalService.getTransactionStatus(payment.pesapalTrackingId);
+
+      if (status.paymentStatusDescription === 'Completed' && payment.status !== 'completed') {
+        await pesapalService.updatePaymentStatus(payment.orderId, 'completed', status.paymentMethod, status.confirmationCode);
+        await pesapalService.activateSubscription(payment.userId, payment.tier, payment.pesapalTrackingId);
+        const [user] = await db.select().from(users).where(eq(users.id, payment.userId)).limit(1);
+        if (user?.email && !payment.receiptSentAt) {
+          try {
+            const { sendPaymentReceiptEmail } = await import("./emailService");
+            const endDate = pesapalService.getSubscriptionEndDate(payment.tier);
+            await sendPaymentReceiptEmail(user.email, {
+              orderId: payment.orderId,
+              amount: status.amount,
+              currency: status.currency,
+              planName: payment.tier.charAt(0).toUpperCase() + payment.tier.slice(1),
+              paymentMethod: status.paymentMethod,
+              confirmationCode: status.confirmationCode,
+              date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+              nextBillingDate: endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+              customerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer',
+            });
+            await db.update(payments).set({ receiptSentAt: new Date() }).where(eq(payments.orderId, payment.orderId));
+          } catch (e) { console.error("Receipt email failed:", e); }
+        }
+        return res.json({ updated: true, newStatus: 'completed', pesapalStatus: status.paymentStatusDescription });
+      } else if (status.paymentStatusDescription === 'Failed') {
+        await pesapalService.updatePaymentStatus(payment.orderId, 'failed');
+        return res.json({ updated: true, newStatus: 'failed', pesapalStatus: status.paymentStatusDescription });
+      } else {
+        return res.json({ updated: false, newStatus: payment.status, pesapalStatus: status.paymentStatusDescription, rawStatus: status });
+      }
+    } catch (error: any) {
+      console.error("Recheck payment error:", error);
+      res.status(500).json({ error: error.message || "Failed to recheck payment" });
     }
   });
 
