@@ -49,6 +49,9 @@ export const users = pgTable("users", {
   // Owner/Admin fields
   isOwner: boolean("is_owner").default(false),
   referredBy: varchar("referred_by"),
+  // Social login fields
+  socialProvider: varchar("social_provider"), // 'facebook' | 'tiktok' | 'google'
+  socialId: varchar("social_id"), // provider's user ID
 });
 
 // Email verification codes table

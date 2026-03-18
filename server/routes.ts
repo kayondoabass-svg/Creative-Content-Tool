@@ -315,6 +315,218 @@ ${pages.map(p => `  <url>
     res.json({ siteKey: process.env.RECAPTCHA_SITE_KEY || null });
   });
 
+  // ─── Social OAuth: Facebook ───────────────────────────────────────────────
+
+  app.get("/api/auth/facebook", (req, res) => {
+    const appId = process.env.FACEBOOK_APP_ID;
+    if (!appId) return res.status(503).json({ error: "Facebook login not configured" });
+
+    const state = crypto.randomBytes(16).toString("hex");
+    (req as any).session.oauthState = state;
+
+    const redirectUri = encodeURIComponent(`${process.env.APP_URL || "https://brightboardapp.com"}/api/auth/facebook/callback`);
+    const scope = encodeURIComponent("email,public_profile");
+    res.redirect(`https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`);
+  });
+
+  app.get("/api/auth/facebook/callback", async (req, res) => {
+    try {
+      const { code, state, error: fbError } = req.query as Record<string, string>;
+
+      if (fbError) {
+        return res.redirect("/login?error=facebook_denied");
+      }
+
+      const savedState = (req as any).session.oauthState;
+      if (!state || state !== savedState) {
+        return res.redirect("/login?error=invalid_state");
+      }
+      delete (req as any).session.oauthState;
+
+      const appId = process.env.FACEBOOK_APP_ID!;
+      const appSecret = process.env.FACEBOOK_APP_SECRET!;
+      const redirectUri = encodeURIComponent(`${process.env.APP_URL || "https://brightboardapp.com"}/api/auth/facebook/callback`);
+
+      // Exchange code for access token
+      const tokenRes = await fetch(
+        `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&redirect_uri=${redirectUri}&client_secret=${appSecret}&code=${encodeURIComponent(code)}`
+      );
+      const tokenData = await tokenRes.json() as any;
+      if (!tokenData.access_token) {
+        console.error("Facebook token error:", tokenData);
+        return res.redirect("/login?error=facebook_token_failed");
+      }
+
+      // Get user info from Facebook
+      const userRes = await fetch(
+        `https://graph.facebook.com/me?fields=id,first_name,last_name,email,picture.type(large)&access_token=${tokenData.access_token}`
+      );
+      const fbUser = await userRes.json() as any;
+      if (!fbUser.id) {
+        return res.redirect("/login?error=facebook_user_failed");
+      }
+
+      // Find existing user by socialId+provider, or by email, or create new
+      let [existingUser] = await db.select().from(users).where(
+        and(eq(users.socialProvider, "facebook"), eq(users.socialId, fbUser.id))
+      ).limit(1);
+
+      if (!existingUser && fbUser.email) {
+        const [byEmail] = await db.select().from(users).where(eq(users.email, fbUser.email.toLowerCase())).limit(1);
+        if (byEmail) {
+          // Link Facebook to existing email account
+          await db.update(users).set({ socialProvider: "facebook", socialId: fbUser.id, emailVerified: true }).where(eq(users.id, byEmail.id));
+          existingUser = { ...byEmail, socialProvider: "facebook", socialId: fbUser.id, emailVerified: true };
+        }
+      }
+
+      if (!existingUser) {
+        // Create new user from Facebook
+        const isOwnerEmail = fbUser.email?.toLowerCase() === "kayondoabass@gmail.com";
+        const [newUser] = await db.insert(users).values({
+          email: fbUser.email?.toLowerCase() || null,
+          firstName: fbUser.first_name || "User",
+          lastName: fbUser.last_name || "",
+          profileImageUrl: fbUser.picture?.data?.url || null,
+          socialProvider: "facebook",
+          socialId: fbUser.id,
+          emailVerified: true,
+          isOwner: isOwnerEmail,
+          subscriptionTier: isOwnerEmail ? "yearly" : "free",
+          subscriptionStatus: isOwnerEmail ? "active" : "inactive",
+        }).returning();
+        existingUser = newUser;
+      }
+
+      // Set session
+      (req as any).session.userId = existingUser.id;
+      (req as any).session.user = existingUser;
+      await db.update(users).set({ lastActiveAt: new Date() }).where(eq(users.id, existingUser.id));
+
+      res.redirect("/?social_login=success");
+    } catch (err) {
+      console.error("Facebook callback error:", err);
+      res.redirect("/login?error=facebook_failed");
+    }
+  });
+
+  // ─── Social OAuth: TikTok ─────────────────────────────────────────────────
+
+  app.get("/api/auth/tiktok", (req, res) => {
+    const clientKey = process.env.TIKTOK_CLIENT_KEY;
+    if (!clientKey) return res.status(503).json({ error: "TikTok login not configured" });
+
+    const state = crypto.randomBytes(16).toString("hex");
+    (req as any).session.oauthState = state;
+
+    const redirectUri = encodeURIComponent(`${process.env.APP_URL || "https://brightboardapp.com"}/api/auth/tiktok/callback`);
+    const scope = encodeURIComponent("user.info.basic,user.info.email");
+    const codeVerifier = crypto.randomBytes(32).toString("base64url");
+    const codeChallenge = crypto.createHash("sha256").update(codeVerifier).digest("base64url");
+    (req as any).session.tiktokCodeVerifier = codeVerifier;
+
+    res.redirect(
+      `https://www.tiktok.com/v2/auth/authorize/?client_key=${clientKey}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`
+    );
+  });
+
+  app.get("/api/auth/tiktok/callback", async (req, res) => {
+    try {
+      const { code, state, error: ttError } = req.query as Record<string, string>;
+
+      if (ttError) {
+        return res.redirect("/login?error=tiktok_denied");
+      }
+
+      const savedState = (req as any).session.oauthState;
+      if (!state || state !== savedState) {
+        return res.redirect("/login?error=invalid_state");
+      }
+      const codeVerifier = (req as any).session.tiktokCodeVerifier;
+      delete (req as any).session.oauthState;
+      delete (req as any).session.tiktokCodeVerifier;
+
+      const clientKey = process.env.TIKTOK_CLIENT_KEY!;
+      const clientSecret = process.env.TIKTOK_CLIENT_SECRET!;
+      const redirectUri = `${process.env.APP_URL || "https://brightboardapp.com"}/api/auth/tiktok/callback`;
+
+      // Exchange code for access token
+      const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_key: clientKey,
+          client_secret: clientSecret,
+          code,
+          grant_type: "authorization_code",
+          redirect_uri: redirectUri,
+          code_verifier: codeVerifier,
+        }).toString(),
+      });
+      const tokenData = await tokenRes.json() as any;
+      if (!tokenData.access_token) {
+        console.error("TikTok token error:", tokenData);
+        return res.redirect("/login?error=tiktok_token_failed");
+      }
+
+      // Get user info from TikTok
+      const userRes = await fetch("https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url,email", {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      const ttData = await userRes.json() as any;
+      const ttUser = ttData.data?.user;
+      if (!ttUser?.open_id) {
+        return res.redirect("/login?error=tiktok_user_failed");
+      }
+
+      // Find or create user
+      let [existingUser] = await db.select().from(users).where(
+        and(eq(users.socialProvider, "tiktok"), eq(users.socialId, ttUser.open_id))
+      ).limit(1);
+
+      if (!existingUser && ttUser.email) {
+        const [byEmail] = await db.select().from(users).where(eq(users.email, ttUser.email.toLowerCase())).limit(1);
+        if (byEmail) {
+          await db.update(users).set({ socialProvider: "tiktok", socialId: ttUser.open_id, emailVerified: true }).where(eq(users.id, byEmail.id));
+          existingUser = { ...byEmail, socialProvider: "tiktok", socialId: ttUser.open_id, emailVerified: true };
+        }
+      }
+
+      if (!existingUser) {
+        const nameParts = (ttUser.display_name || "User").split(" ");
+        const [newUser] = await db.insert(users).values({
+          email: ttUser.email?.toLowerCase() || null,
+          firstName: nameParts[0] || "User",
+          lastName: nameParts.slice(1).join(" ") || "",
+          profileImageUrl: ttUser.avatar_url || null,
+          socialProvider: "tiktok",
+          socialId: ttUser.open_id,
+          emailVerified: true,
+          subscriptionTier: "free",
+          subscriptionStatus: "inactive",
+        }).returning();
+        existingUser = newUser;
+      }
+
+      (req as any).session.userId = existingUser.id;
+      (req as any).session.user = existingUser;
+      await db.update(users).set({ lastActiveAt: new Date() }).where(eq(users.id, existingUser.id));
+
+      res.redirect("/?social_login=success");
+    } catch (err) {
+      console.error("TikTok callback error:", err);
+      res.redirect("/login?error=tiktok_failed");
+    }
+  });
+
+  // ─── Social login availability (for frontend) ─────────────────────────────
+  app.get("/api/auth/social-providers", (_req, res) => {
+    res.json({
+      facebook: !!process.env.FACEBOOK_APP_ID,
+      tiktok: !!process.env.TIKTOK_CLIENT_KEY,
+    });
+  });
+
   // Public stats endpoint for landing page
   app.get("/api/public/stats", async (req, res) => {
     try {

@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { SiFacebook, SiTiktok } from "react-icons/si";
 
 declare global {
   interface Window {
@@ -18,6 +20,9 @@ declare global {
 export default function SignupPage() {
   const [, setLocation] = useLocation();
   const { signup, isSigningUp, verifyEmail, isVerifying, resendCode, isResendingCode, isAuthenticated } = useAuth();
+  const { data: socialProviders } = useQuery<{ facebook: boolean; tiktok: boolean }>({
+    queryKey: ["/api/auth/social-providers"],
+  });
   const { toast } = useToast();
   
   const [step, setStep] = useState<"signup" | "verify">("signup");
@@ -303,6 +308,38 @@ export default function SignupPage() {
               )}
             </Button>
             
+            {(socialProviders?.facebook || socialProviders?.tiktok) && (
+              <>
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or sign up with</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {socialProviders?.facebook && (
+                    <a href="/api/auth/facebook" data-testid="button-signup-facebook">
+                      <Button type="button" variant="outline" className="w-full flex items-center gap-2 border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2] hover:text-white transition-colors">
+                        <SiFacebook className="w-4 h-4" />
+                        Sign up with Facebook
+                      </Button>
+                    </a>
+                  )}
+                  {socialProviders?.tiktok && (
+                    <a href="/api/auth/tiktok" data-testid="button-signup-tiktok">
+                      <Button type="button" variant="outline" className="w-full flex items-center gap-2 border-black text-black dark:border-white dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors">
+                        <SiTiktok className="w-4 h-4" />
+                        Sign up with TikTok
+                      </Button>
+                    </a>
+                  )}
+                </div>
+              </>
+            )}
+
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <button 
