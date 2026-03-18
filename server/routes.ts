@@ -3177,7 +3177,14 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
         
         ${learnerGuidance}
         
-        CRITICAL: All spelling must be 100% correct. Double-check every word.
+        CRITICAL SPELLING AND LABEL RULES — READ CAREFULLY:
+        - Every single word in every label MUST be spelled correctly in full. No abbreviations, no truncations, no shortcuts.
+        - BAD examples: "Mats" (should be "Maths"), "Sci" (should be "Science"), "Hist" (should be "History"), "Lang" (should be "Languages"), "Env" (should be "Environment")
+        - GOOD examples: "Mathematics", "Science", "History", "Languages", "Environment"
+        - Never shorten a word to fit. Write it out completely.
+        - After writing each label, read it back and confirm it is a correctly spelled English word.
+        - Do NOT use acronyms unless they are universally understood (e.g. "DNA", "USA").
+        - Common subjects must be spelled: Mathematics (not Maths/Math unless used as a display label), Science, History, Geography, Languages, Art, Music, Technology, Physical Education
         
         Return a JSON object with this exact structure:
         ${jsonStructure}
@@ -3187,7 +3194,7 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
         - Each main branch should have 2-4 sub-topics
         - Sub-topics can have 1-3 details each
         - Use distinct, vibrant colors for each main branch (hex colors like #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7, #DDA0DD, #FF8C42, #87CEEB)
-        - Keep labels concise and age-appropriate
+        - Keep labels concise, clear and age-appropriate — full words only, never truncated
         - Organize information logically and hierarchically
         ${imagePromptInstruction}`
       },
