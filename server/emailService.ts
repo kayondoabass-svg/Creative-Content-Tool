@@ -469,3 +469,111 @@ export async function sendPaymentReceiptEmail(email: string, data: PaymentReceip
     return false;
   }
 }
+
+export async function sendMarketingBlastEmail(email: string, firstName: string): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    let sender = fromEmail || 'noreply@brightboardapp.com';
+    if (sender && !sender.includes('<')) {
+      sender = `BrightBoard <${sender}>`;
+    }
+
+    const name = firstName || 'Teacher';
+
+    const result = await client.emails.send({
+      from: sender,
+      to: email,
+      subject: `${name}, look what BrightBoard can do for your classroom 🎓`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>BrightBoard Features</title>
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f0f0ff; margin: 0; padding: 40px 20px;">
+          <div style="max-width: 600px; margin: 0 auto;">
+
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%); border-radius: 16px 16px 0 0; padding: 40px 40px 32px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">BrightBoard</h1>
+              <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 15px;">AI-Powered Teaching Tools</p>
+            </div>
+
+            <!-- Body -->
+            <div style="background: white; padding: 40px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+
+              <h2 style="color: #1f2937; font-size: 22px; margin: 0 0 8px;">Hi ${name},</h2>
+              <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 28px;">
+                You've already started using BrightBoard — great start! But did you know there are <strong>9 powerful tools</strong> waiting for you? Here's everything you can create:
+              </p>
+
+              <!-- Feature Grid -->
+              ${[
+                { icon: '🧠', title: 'AI Mind Maps', desc: 'Turn any topic into a beautiful visual mind map with AI-generated node images. Perfect for introducing new concepts.' },
+                { icon: '📊', title: 'AI Presentations', desc: 'Create professional slideshows in seconds. Includes transitions, speaker notes, and a tap-to-reveal quiz game mode for interactive lessons.' },
+                { icon: '📝', title: 'AI Worksheets', desc: 'Auto-generate printable worksheets with fill-in-the-blank, matching, short answers, and more. Formatted for A4 and Letter printing.' },
+                { icon: '🎨', title: 'Custom AI Images', desc: 'Generate educational illustrations for any lesson topic, subject, or grade level. No design skills needed.' },
+                { icon: '🎬', title: 'Video Storyboards', desc: 'Plan animated video lessons with frame-by-frame storyboards. Great for flipped classroom content.' },
+                { icon: '📖', title: 'Story Generator', desc: 'Create age-appropriate educational stories with characters, plot, and moral lessons — tailored to your grade level.' },
+                { icon: '🎮', title: 'Interactive Activities & Games', desc: 'Generate quizzes, clue games, true/false challenges, and odd-one-out exercises your students will love.' },
+                { icon: '📄', title: 'Lesson Plan Generator', desc: 'Produce complete lesson plans with learning objectives, materials, step-by-step instructions, and assessment criteria in one click.' },
+                { icon: '🌍', title: 'Multi-Language Support', desc: 'Works in English, Tagalog, Bahasa Indonesia, Vietnamese, Thai, Arabic, and many more. Teach in any language.' },
+              ].map(f => `
+                <div style="display: flex; gap: 16px; margin-bottom: 20px; padding: 16px; background: #f9fafb; border-radius: 10px; border-left: 4px solid #7c3aed;">
+                  <div style="font-size: 28px; flex-shrink: 0; line-height: 1;">${f.icon}</div>
+                  <div>
+                    <div style="font-weight: 700; color: #1f2937; font-size: 15px; margin-bottom: 4px;">${f.title}</div>
+                    <div style="color: #6b7280; font-size: 14px; line-height: 1.5;">${f.desc}</div>
+                  </div>
+                </div>
+              `).join('')}
+
+              <!-- Bonus features -->
+              <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 10px; padding: 20px; margin: 24px 0;">
+                <p style="margin: 0; color: #92400e; font-size: 14px; font-weight: 600;">✨ Premium also includes:</p>
+                <ul style="margin: 8px 0 0; padding-left: 20px; color: #78350f; font-size: 14px; line-height: 1.8;">
+                  <li>Unlimited daily generations across ALL tools</li>
+                  <li>Export presentations as PowerPoint (.pptx) files</li>
+                  <li>HD & 4K image quality options</li>
+                  <li>Reference image uploads (generate from your textbook pages)</li>
+                  <li>Dark mode for eye-friendly night use</li>
+                  <li>Grade-level customization from Nursery to University</li>
+                </ul>
+              </div>
+
+              <!-- CTA -->
+              <div style="text-align: center; margin: 32px 0 24px;">
+                <a href="https://brightboardapp.com/pricing" style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #06b6d4); color: white; text-decoration: none; font-weight: 700; font-size: 16px; padding: 16px 40px; border-radius: 50px; box-shadow: 0 4px 14px rgba(124,58,237,0.4);">
+                  Unlock All Features — Upgrade Now
+                </a>
+                <p style="color: #9ca3af; font-size: 13px; margin: 12px 0 0;">Starting at just UGX 14,900/month</p>
+              </div>
+
+              <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0; text-align: center;">
+                Still exploring? Your free account resets every day. Come back and try something new!<br>
+                <a href="https://brightboardapp.com" style="color: #7c3aed; font-weight: 600;">Visit BrightBoard →</a>
+              </p>
+            </div>
+
+            <!-- Footer -->
+            <p style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 24px; line-height: 1.6;">
+              &copy; ${new Date().getFullYear()} BrightBoard · Made for teachers, by teachers.<br>
+              You're receiving this because you signed up at brightboardapp.com.<br>
+              <a href="https://brightboardapp.com" style="color: #9ca3af;">Unsubscribe</a>
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    console.log('Marketing blast sent to:', email, result);
+    await logResendExpense("Marketing Blast", email);
+    return true;
+  } catch (error) {
+    console.error('Error sending marketing blast to', email, ':', error);
+    return false;
+  }
+}

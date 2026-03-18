@@ -98,7 +98,7 @@ export class StripeService {
   async getUserUsage(userId: string) {
     const user = await this.getUser(userId);
     if (!user) {
-      return { imageCount: 0, presentationCount: 0, videoCount: 0, resetDate: new Date() };
+      return { imageCount: 0, presentationCount: 0, videoCount: 0, mindmapCount: 0, worksheetCount: 0, textCount: 0, activityCount: 0, resetDate: new Date() };
     }
     
     // Check if we need to reset counts (daily reset)
@@ -107,40 +107,46 @@ export class StripeService {
     const isSameDay = now.toDateString() === resetDate.toDateString();
     
     if (!isSameDay) {
-      // Reset counters for a new day
       await db.update(users).set({
         freeImageCount: 0,
         freePresentationCount: 0,
         freeVideoCount: 0,
+        freeMindmapCount: 0,
+        freeWorksheetCount: 0,
+        freeTextCount: 0,
+        freeActivityCount: 0,
         usageResetDate: now
       }).where(eq(users.id, userId));
-      return { imageCount: 0, presentationCount: 0, videoCount: 0, resetDate: now };
+      return { imageCount: 0, presentationCount: 0, videoCount: 0, mindmapCount: 0, worksheetCount: 0, textCount: 0, activityCount: 0, resetDate: now };
     }
     
     return {
       imageCount: user.freeImageCount || 0,
       presentationCount: user.freePresentationCount || 0,
       videoCount: user.freeVideoCount || 0,
+      mindmapCount: user.freeMindmapCount || 0,
+      worksheetCount: user.freeWorksheetCount || 0,
+      textCount: user.freeTextCount || 0,
+      activityCount: user.freeActivityCount || 0,
       resetDate
     };
   }
 
-  async incrementUsage(userId: string, type: 'image' | 'presentation' | 'video') {
-    const column = type === 'image' ? 'freeImageCount' : 
-                   type === 'presentation' ? 'freePresentationCount' : 'freeVideoCount';
-    
+  async incrementUsage(userId: string, type: 'image' | 'presentation' | 'video' | 'mindmap' | 'worksheet' | 'text' | 'activity') {
     if (type === 'image') {
-      await db.update(users).set({
-        freeImageCount: sql`COALESCE(${users.freeImageCount}, 0) + 1`
-      }).where(eq(users.id, userId));
+      await db.update(users).set({ freeImageCount: sql`COALESCE(${users.freeImageCount}, 0) + 1` }).where(eq(users.id, userId));
     } else if (type === 'presentation') {
-      await db.update(users).set({
-        freePresentationCount: sql`COALESCE(${users.freePresentationCount}, 0) + 1`
-      }).where(eq(users.id, userId));
-    } else {
-      await db.update(users).set({
-        freeVideoCount: sql`COALESCE(${users.freeVideoCount}, 0) + 1`
-      }).where(eq(users.id, userId));
+      await db.update(users).set({ freePresentationCount: sql`COALESCE(${users.freePresentationCount}, 0) + 1` }).where(eq(users.id, userId));
+    } else if (type === 'video') {
+      await db.update(users).set({ freeVideoCount: sql`COALESCE(${users.freeVideoCount}, 0) + 1` }).where(eq(users.id, userId));
+    } else if (type === 'mindmap') {
+      await db.update(users).set({ freeMindmapCount: sql`COALESCE(${users.freeMindmapCount}, 0) + 1` }).where(eq(users.id, userId));
+    } else if (type === 'worksheet') {
+      await db.update(users).set({ freeWorksheetCount: sql`COALESCE(${users.freeWorksheetCount}, 0) + 1` }).where(eq(users.id, userId));
+    } else if (type === 'text') {
+      await db.update(users).set({ freeTextCount: sql`COALESCE(${users.freeTextCount}, 0) + 1` }).where(eq(users.id, userId));
+    } else if (type === 'activity') {
+      await db.update(users).set({ freeActivityCount: sql`COALESCE(${users.freeActivityCount}, 0) + 1` }).where(eq(users.id, userId));
     }
   }
 

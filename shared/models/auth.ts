@@ -42,6 +42,10 @@ export const users = pgTable("users", {
   freeImageCount: integer("free_image_count").default(0),
   freePresentationCount: integer("free_presentation_count").default(0),
   freeVideoCount: integer("free_video_count").default(0),
+  freeMindmapCount: integer("free_mindmap_count").default(0),
+  freeWorksheetCount: integer("free_worksheet_count").default(0),
+  freeTextCount: integer("free_text_count").default(0),
+  freeActivityCount: integer("free_activity_count").default(0),
   usageResetDate: timestamp("usage_reset_date").defaultNow(),
   // Analytics fields
   country: varchar("country"),

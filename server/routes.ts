@@ -25,7 +25,7 @@ import * as customAuth from "./customAuthService";
 import { db } from "./db";
 import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
-import { eq, count, sql, desc, gte, and, sum } from "drizzle-orm";
+import { eq, count, sql, desc, gte, and, sum, or, ne } from "drizzle-orm";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -2089,9 +2089,13 @@ This should look like it was designed by a world-class branding agency. Make it 
 
   // Free tier limits
   const FREE_LIMITS = {
-    image: 10,
-    presentation: 5,
-    storyboard: 1, // video/storyboard
+    image: 2,
+    presentation: 1,
+    storyboard: 1,
+    mindmap: 2,
+    worksheet: 2,
+    text: 3,
+    activity: 2,
   };
 
   // Get user usage status
@@ -2191,13 +2195,25 @@ This should look like it was designed by a world-class branding agency. Make it 
         if (!isPremium) {
           const usage = await stripeService.getUserUsage(userId);
           if (type === 'image' && usage.imageCount >= FREE_LIMITS.image) {
-            return { error: `You've reached your daily limit of ${FREE_LIMITS.image} images. Upgrade to premium for unlimited generations!`, limitReached: true, limitType: 'image' };
+            return { error: `You've used your ${FREE_LIMITS.image} free images for today. Upgrade to Premium for unlimited generations!`, limitReached: true, limitType: 'image' };
           }
           if (type === 'presentation' && usage.presentationCount >= FREE_LIMITS.presentation) {
-            return { error: `You've reached your daily limit of ${FREE_LIMITS.presentation} presentations. Upgrade to premium for unlimited generations!`, limitReached: true, limitType: 'presentation' };
+            return { error: `You've used your ${FREE_LIMITS.presentation} free presentation for today. Upgrade to Premium for unlimited generations!`, limitReached: true, limitType: 'presentation' };
           }
           if (type === 'storyboard' && usage.videoCount >= FREE_LIMITS.storyboard) {
-            return { error: `You've reached your daily limit of ${FREE_LIMITS.storyboard} video storyboard. Upgrade to premium for unlimited generations!`, limitReached: true, limitType: 'storyboard' };
+            return { error: `You've used your ${FREE_LIMITS.storyboard} free video storyboard for today. Upgrade to Premium for unlimited generations!`, limitReached: true, limitType: 'storyboard' };
+          }
+          if (type === 'mindmap' && usage.mindmapCount >= FREE_LIMITS.mindmap) {
+            return { error: `You've used your ${FREE_LIMITS.mindmap} free mind maps for today. Upgrade to Premium for unlimited generations!`, limitReached: true, limitType: 'mindmap' };
+          }
+          if (type === 'worksheet' && usage.worksheetCount >= FREE_LIMITS.worksheet) {
+            return { error: `You've used your ${FREE_LIMITS.worksheet} free worksheets for today. Upgrade to Premium for unlimited generations!`, limitReached: true, limitType: 'worksheet' };
+          }
+          if (type === 'text' && usage.textCount >= FREE_LIMITS.text) {
+            return { error: `You've used your ${FREE_LIMITS.text} free text generations for today. Upgrade to Premium for unlimited generations!`, limitReached: true, limitType: 'text' };
+          }
+          if (type === 'activity' && usage.activityCount >= FREE_LIMITS.activity) {
+            return { error: `You've used your ${FREE_LIMITS.activity} free activities for today. Upgrade to Premium for unlimited generations!`, limitReached: true, limitType: 'activity' };
           }
         }
 
@@ -2307,6 +2323,10 @@ This should look like it was designed by a world-class branding agency. Make it 
           if (type === 'image') await stripeService.incrementUsage(userId, 'image');
           else if (type === 'presentation') await stripeService.incrementUsage(userId, 'presentation');
           else if (type === 'storyboard') await stripeService.incrementUsage(userId, 'video');
+          else if (type === 'mindmap') await stripeService.incrementUsage(userId, 'mindmap');
+          else if (type === 'worksheet') await stripeService.incrementUsage(userId, 'worksheet');
+          else if (type === 'text') await stripeService.incrementUsage(userId, 'text');
+          else if (type === 'activity') await stripeService.incrementUsage(userId, 'activity');
         }
 
         await stripeService.trackFeatureUsage(userId, type);
@@ -3943,7 +3963,60 @@ export function registerSubscriptionRoutes(app: any) {
     }
   });
 
-  // Owner: manually recheck a payment's status from PesaPal
+  // Marketing email blast to all free users
+  app.post("/api/owner/send-marketing-blast", async (req: any, res: any) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const [requestingUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!requestingUser?.isOwner) return res.status(403).json({ error: "Not authorized" });
+
+      const { sendMarketingBlastEmail } = await import("./emailService");
+
+      const freeUsers = await db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        subscriptionTier: users.subscriptionTier,
+        subscriptionStatus: users.subscriptionStatus,
+      }).from(users)
+        .where(
+          and(
+            sql`${users.email} IS NOT NULL`,
+            sql`${users.email} != ''`,
+            or(
+              eq(users.subscriptionTier, 'free'),
+              sql`${users.subscriptionTier} IS NULL`,
+              ne(users.subscriptionStatus, 'active')
+            )
+          )
+        );
+
+      let sent = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      for (const user of freeUsers) {
+        if (!user.email) continue;
+        try {
+          const ok = await sendMarketingBlastEmail(user.email, user.firstName || 'Teacher');
+          if (ok) sent++;
+          else failed++;
+          // Small delay to avoid rate limits
+          await new Promise(r => setTimeout(r, 200));
+        } catch (e: any) {
+          failed++;
+          errors.push(`${user.email}: ${e.message}`);
+        }
+      }
+
+      return res.json({ success: true, sent, failed, total: freeUsers.length, errors });
+    } catch (error: any) {
+      console.error("Marketing blast error:", error);
+      res.status(500).json({ error: error.message || "Failed to send marketing blast" });
+    }
+  });
+
   app.post("/api/owner/recheck-payment", async (req: any, res: any) => {
     try {
       const userId = req.session?.userId;

@@ -518,6 +518,26 @@ export default function OwnerDashboard() {
     },
   });
 
+  const { toast } = useToast();
+  const [blastSending, setBlastSending] = useState(false);
+
+  const sendMarketingBlast = async () => {
+    if (!confirm(`Send a marketing email to all free users highlighting BrightBoard's features? This cannot be undone.`)) return;
+    setBlastSending(true);
+    try {
+      const res = await apiRequest("POST", "/api/owner/send-marketing-blast", {});
+      const data = await res.json();
+      toast({
+        title: `Marketing emails sent!`,
+        description: `Sent: ${data.sent}, Failed: ${data.failed}, Total free users: ${data.total}`,
+      });
+    } catch (e: any) {
+      toast({ title: "Failed to send", description: e.message, variant: "destructive" });
+    } finally {
+      setBlastSending(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="container mx-auto p-6">
@@ -576,7 +596,17 @@ export default function OwnerDashboard() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            onClick={sendMarketingBlast}
+            disabled={blastSending}
+            variant="outline"
+            data-testid="button-send-marketing-blast"
+            className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/30"
+          >
+            <Mail className="h-4 w-4 mr-1" />
+            {blastSending ? "Sending..." : "Email Free Users"}
+          </Button>
           <Link href="/owner-expenses">
             <Button variant="outline" data-testid="button-expenses">
               <DollarSign className="h-4 w-4 mr-1" />
