@@ -1,136 +1,114 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen, Clock, Lightbulb, GraduationCap, Sparkles, Users, Brain, Target, Palette, Gamepad2, Presentation, FileText, Video, Image, FileSpreadsheet, ClipboardList, Network, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, BookOpen, Clock, Brain, Target, Palette, Gamepad2, Users, ClipboardList, Network, Image, FileSpreadsheet, ArrowRight, Sparkles, GraduationCap } from "lucide-react";
 import { Link } from "wouter";
 import { Footer } from "@/components/footer";
-import { useTranslation } from "react-i18next";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 
 const articles = [
   {
     id: "ai-classroom",
     icon: Brain,
     color: "from-purple-500 to-violet-500",
-    category: "blog.categoryAI",
-    titleKey: "blog.article1Title",
-    excerptKey: "blog.article1Excerpt",
-    readTime: "8 min",
-    contentKeys: ["blog.article1P1", "blog.article1P2", "blog.article1P3", "blog.article1P4", "blog.article1P5", "blog.article1P6"],
-    subtitleKeys: ["blog.article1Sub1", "blog.article1Sub2", "blog.article1Sub3"],
+    category: "AI in Education",
+    title: "How AI is Transforming Classroom Education in 2025",
+    excerpt: "Artificial intelligence is no longer a futuristic concept — it is actively reshaping how teachers prepare lessons and how students experience learning. AI tools are collapsing preparation time from hours to minutes, freeing teachers to focus on what matters most: the human connection with students.",
+    readTime: "8 min read",
   },
   {
     id: "engagement-strategies",
     icon: Target,
     color: "from-teal-500 to-cyan-500",
-    category: "blog.categoryTeaching",
-    titleKey: "blog.article2Title",
-    excerptKey: "blog.article2Excerpt",
-    readTime: "10 min",
-    contentKeys: ["blog.article2P1", "blog.article2P2", "blog.article2P3", "blog.article2P4", "blog.article2P5", "blog.article2P6"],
-    subtitleKeys: ["blog.article2Sub1", "blog.article2Sub2", "blog.article2Sub3"],
+    category: "Teaching Strategies",
+    title: "10 Student Engagement Strategies That Actually Work in 2025",
+    excerpt: "Student disengagement costs years of learning. These research-backed strategies — enhanced with AI tools — are proven to recapture attention and deepen participation across all age groups and subjects.",
+    readTime: "10 min read",
   },
   {
     id: "visual-learning",
     icon: Palette,
     color: "from-pink-500 to-rose-500",
-    category: "blog.categoryResearch",
-    titleKey: "blog.article3Title",
-    excerptKey: "blog.article3Excerpt",
-    readTime: "7 min",
-    contentKeys: ["blog.article3P1", "blog.article3P2", "blog.article3P3", "blog.article3P4", "blog.article3P5", "blog.article3P6"],
-    subtitleKeys: ["blog.article3Sub1", "blog.article3Sub2", "blog.article3Sub3"],
+    category: "Research",
+    title: "The Science of Visual Learning: Why Images Make Lessons Stick",
+    excerpt: "Decades of cognitive science research confirm that humans process images 60,000 times faster than text. Here is how teachers can harness this power to create lessons that students genuinely remember weeks and months later.",
+    readTime: "7 min read",
   },
   {
     id: "gamification",
     icon: Gamepad2,
     color: "from-green-500 to-emerald-500",
-    category: "blog.categoryStrategy",
-    titleKey: "blog.article4Title",
-    excerptKey: "blog.article4Excerpt",
-    readTime: "9 min",
-    contentKeys: ["blog.article4P1", "blog.article4P2", "blog.article4P3", "blog.article4P4", "blog.article4P5", "blog.article4P6"],
-    subtitleKeys: ["blog.article4Sub1", "blog.article4Sub2", "blog.article4Sub3"],
+    category: "Teaching Strategy",
+    title: "Gamification in the Classroom: A Practical Guide for Teachers",
+    excerpt: "Gamification is not about turning lessons into video games — it is about applying the psychology of games to unlock motivation and deep engagement. Here is how to do it effectively, with specific activity formats that work.",
+    readTime: "9 min read",
   },
   {
     id: "time-saving",
     icon: Clock,
     color: "from-amber-500 to-orange-500",
-    category: "blog.categoryProductivity",
-    titleKey: "blog.article5Title",
-    excerptKey: "blog.article5Excerpt",
-    readTime: "6 min",
-    contentKeys: ["blog.article5P1", "blog.article5P2", "blog.article5P3", "blog.article5P4", "blog.article5P5", "blog.article5P6"],
-    subtitleKeys: ["blog.article5Sub1", "blog.article5Sub2", "blog.article5Sub3"],
+    category: "Productivity",
+    title: "How AI Saves Teachers 5+ Hours Every Week",
+    excerpt: "Teacher burnout is at record levels globally. AI content tools are giving educators hours back each week — here is exactly where the time savings happen and how to build habits that compound over the school year.",
+    readTime: "6 min read",
   },
   {
     id: "inclusive-education",
     icon: Users,
     color: "from-blue-500 to-indigo-500",
-    category: "blog.categoryInclusion",
-    titleKey: "blog.article6Title",
-    excerptKey: "blog.article6Excerpt",
-    readTime: "8 min",
-    contentKeys: ["blog.article6P1", "blog.article6P2", "blog.article6P3", "blog.article6P4", "blog.article6P5", "blog.article6P6"],
-    subtitleKeys: ["blog.article6Sub1", "blog.article6Sub2", "blog.article6Sub3"],
+    category: "Inclusion",
+    title: "Creating Inclusive Classrooms with AI: A Practical Guide",
+    excerpt: "Inclusive education means every student has access to learning that meets their needs. AI tools are making differentiation — previously one of the most time-consuming teaching skills — achievable for every teacher, in every classroom.",
+    readTime: "8 min read",
   },
   {
     id: "lesson-planning",
     icon: ClipboardList,
     color: "from-violet-500 to-purple-500",
-    category: "blog.categoryTeaching",
-    titleKey: "blog.article7Title",
-    excerptKey: "blog.article7Excerpt",
-    readTime: "7 min",
-    contentKeys: ["blog.article7P1", "blog.article7P2", "blog.article7P3", "blog.article7P4", "blog.article7P5", "blog.article7P6"],
-    subtitleKeys: ["blog.article7Sub1", "blog.article7Sub2", "blog.article7Sub3"],
+    category: "Teaching",
+    title: "The Complete Guide to AI-Assisted Lesson Planning",
+    excerpt: "A well-structured lesson plan is the foundation of effective teaching. AI tools are transforming lesson planning from a burden into a creative process — here is how to make the most of them, from objective setting to full resource packs.",
+    readTime: "7 min read",
   },
   {
     id: "vocabulary-visual",
     icon: Image,
     color: "from-rose-500 to-pink-500",
-    category: "blog.categoryTeaching",
-    titleKey: "blog.article8Title",
-    excerptKey: "blog.article8Excerpt",
-    readTime: "9 min",
-    contentKeys: ["blog.article8P1", "blog.article8P2", "blog.article8P3", "blog.article8P4", "blog.article8P5", "blog.article8P6"],
-    subtitleKeys: ["blog.article8Sub1", "blog.article8Sub2", "blog.article8Sub3"],
+    category: "Teaching",
+    title: "Teaching Vocabulary with Visuals: Why Pictures Beat Definitions",
+    excerpt: "Most vocabulary instruction is ineffective because it relies on definitions — one form of abstract text to explain another. Pairing words with strong visual images produces dramatically better retention, according to decades of linguistic research.",
+    readTime: "9 min read",
   },
   {
     id: "worksheet-design",
     icon: FileSpreadsheet,
     color: "from-orange-500 to-amber-500",
-    category: "blog.categoryStrategy",
-    titleKey: "blog.article9Title",
-    excerptKey: "blog.article9Excerpt",
-    readTime: "8 min",
-    contentKeys: ["blog.article9P1", "blog.article9P2", "blog.article9P3", "blog.article9P4", "blog.article9P5", "blog.article9P6"],
-    subtitleKeys: ["blog.article9Sub1", "blog.article9Sub2", "blog.article9Sub3"],
+    category: "Teaching Strategy",
+    title: "How to Design Effective Worksheets That Students Actually Learn From",
+    excerpt: "Most worksheets are busy work. The best ones are carefully calibrated to build skills and deepen understanding. Here is what the research says about effective worksheet design — and how AI is making it accessible to every teacher.",
+    readTime: "8 min read",
   },
   {
     id: "mind-mapping",
     icon: Network,
     color: "from-teal-500 to-green-500",
-    category: "blog.categoryResearch",
-    titleKey: "blog.article10Title",
-    excerptKey: "blog.article10Excerpt",
-    readTime: "10 min",
-    contentKeys: ["blog.article10P1", "blog.article10P2", "blog.article10P3", "blog.article10P4", "blog.article10P5", "blog.article10P6"],
-    subtitleKeys: ["blog.article10Sub1", "blog.article10Sub2", "blog.article10Sub3"],
+    category: "Research",
+    title: "The Power of Mind Mapping in Education: A Research-Based Guide",
+    excerpt: "Mind maps are one of the most versatile and effective tools in education — useful for brainstorming, note-taking, revision, and concept introduction. Here is what cognitive science says about why they work and how to use them effectively.",
+    readTime: "10 min read",
   },
 ];
 
 export default function Blog() {
-  const { t } = useTranslation();
-  const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
-
   useEffect(() => {
-    document.title = "Teaching Resources & Insights | BrightBoard";
+    document.title = "Teaching Resources & Insights | BrightBoard Blog";
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Expert articles, practical strategies, and research-backed tips for educators. Learn about AI in education, visual learning, gamification, and inclusive teaching.");
+    const desc = "Expert articles, practical strategies, and research-backed tips for educators. Learn about AI in education, visual learning, gamification, lesson planning, and inclusive teaching.";
+    if (meta) meta.setAttribute("content", desc);
     else {
       const m = document.createElement("meta");
       m.name = "description";
-      m.content = "Expert articles, practical strategies, and research-backed tips for educators. Learn about AI in education, visual learning, gamification, and inclusive teaching.";
+      m.content = desc;
       document.head.appendChild(m);
     }
   }, []);
@@ -141,7 +119,7 @@ export default function Blog() {
         <Link href="/">
           <Button variant="ghost" className="mb-6" data-testid="button-back-home">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            {t("blog.backHome")}
+            Back to Home
           </Button>
         </Link>
 
@@ -149,90 +127,61 @@ export default function Blog() {
           <div className="flex items-center justify-center gap-3 mb-4">
             <BookOpen className="w-8 h-8 text-primary" />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-500 to-teal-500 bg-clip-text text-transparent" data-testid="text-blog-title">
-              {t("blog.title")}
+              Teaching Resources & Insights
             </h1>
           </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {t("blog.subtitle")}
+            Research-backed articles, practical strategies, and expert guidance for modern educators. Written to help teachers do their best work every day.
           </p>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
           {articles.map((article) => {
             const IconComponent = article.icon;
-            const isExpanded = expandedArticle === article.id;
-
             return (
-              <Card key={article.id} className="overflow-hidden" data-testid={`blog-article-${article.id}`}>
-                <CardHeader className="cursor-pointer" onClick={() => setExpandedArticle(isExpanded ? null : article.id)}>
+              <Card key={article.id} className="overflow-hidden hover:shadow-md transition-shadow" data-testid={`blog-article-${article.id}`}>
+                <CardHeader>
                   <div className="flex items-start gap-4">
                     <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${article.color} flex items-center justify-center flex-shrink-0`}>
                       <IconComponent className="w-7 h-7 text-white" />
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                          {t(article.category)}
-                        </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary" className="text-xs font-medium">{article.category}</Badge>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {article.readTime}
                         </span>
                       </div>
-                      <CardTitle className="text-xl mb-2">{t(article.titleKey)}</CardTitle>
-                      <p className="text-muted-foreground">{t(article.excerptKey)}</p>
+                      <CardTitle className="text-xl mb-2 leading-snug">{article.title}</CardTitle>
+                      <p className="text-muted-foreground text-sm leading-relaxed">{article.excerpt}</p>
                     </div>
-                    <ArrowRight className={`w-5 h-5 text-muted-foreground transition-transform flex-shrink-0 mt-2 ${isExpanded ? "rotate-90" : ""}`} />
                   </div>
                 </CardHeader>
-
-                {isExpanded && (
-                  <CardContent className="pt-0 border-t">
-                    <div className="prose prose-sm dark:prose-invert max-w-none space-y-4 pt-6">
-                      <p className="text-foreground leading-relaxed">{t(article.contentKeys[0])}</p>
-
-                      <h3 className="text-lg font-semibold flex items-center gap-2 mt-6">
-                        <Lightbulb className="w-5 h-5 text-primary" />
-                        {t(article.subtitleKeys[0])}
-                      </h3>
-                      <p className="text-muted-foreground leading-relaxed">{t(article.contentKeys[1])}</p>
-                      <p className="text-muted-foreground leading-relaxed">{t(article.contentKeys[2])}</p>
-
-                      <h3 className="text-lg font-semibold flex items-center gap-2 mt-6">
-                        <CheckCircle2 className="w-5 h-5 text-primary" />
-                        {t(article.subtitleKeys[1])}
-                      </h3>
-                      <p className="text-muted-foreground leading-relaxed">{t(article.contentKeys[3])}</p>
-                      <p className="text-muted-foreground leading-relaxed">{t(article.contentKeys[4])}</p>
-
-                      <h3 className="text-lg font-semibold flex items-center gap-2 mt-6">
-                        <Sparkles className="w-5 h-5 text-primary" />
-                        {t(article.subtitleKeys[2])}
-                      </h3>
-                      <p className="text-muted-foreground leading-relaxed">{t(article.contentKeys[5])}</p>
-
-                      <div className="bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-lg p-4 mt-6">
-                        <p className="text-sm font-medium flex items-center gap-2">
-                          <GraduationCap className="w-4 h-4 text-primary" />
-                          {t("blog.tryBrightBoard")}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                )}
+                <CardContent className="pt-0">
+                  <Link href={`/blog/${article.id}`}>
+                    <Button variant="outline" size="sm" data-testid={`button-read-${article.id}`}>
+                      Read Full Article
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                </CardContent>
               </Card>
             );
           })}
         </div>
 
-        <div className="mt-12 text-center">
-          <Card className="p-8 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
-            <h2 className="text-2xl font-bold mb-3">{t("blog.ctaTitle")}</h2>
-            <p className="text-muted-foreground mb-6 max-w-xl mx-auto">{t("blog.ctaText")}</p>
-            <Button asChild data-testid="button-blog-signup">
+        <div className="mt-12">
+          <Card className="p-8 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20 text-center">
+            <GraduationCap className="w-10 h-10 text-primary mx-auto mb-3" />
+            <h2 className="text-2xl font-bold mb-3">Ready to Transform Your Teaching?</h2>
+            <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
+              BrightBoard gives you AI-powered mind maps, presentations, worksheets, games, and more — all built for teachers, all ready in seconds.
+            </p>
+            <Button asChild size="lg" data-testid="button-blog-signup">
               <Link href="/signup">
                 <Sparkles className="w-4 h-4 mr-2" />
-                {t("common.getStarted")}
+                Get Started Free
               </Link>
             </Button>
           </Card>

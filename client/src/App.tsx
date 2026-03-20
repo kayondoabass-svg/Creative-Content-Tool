@@ -36,6 +36,7 @@ import OwnerExpenses from "@/pages/owner-expenses";
 import PaymentCallbackPage from "@/pages/payment-callback";
 import BillingPage from "@/pages/billing";
 import Blog from "@/pages/blog";
+import BlogPost from "@/pages/blog-post";
 import HowItWorks from "@/pages/how-it-works";
 import Features from "@/pages/features";
 import AdsLanding from "@/pages/ads-landing";
@@ -73,6 +74,7 @@ function Router() {
       <Route path="/file-tools" component={FileToolsPage} />
       <Route path="/games" component={GamesPage} />
       <Route path="/blog" component={Blog} />
+      <Route path="/blog/:slug" component={BlogPost} />
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/features" component={Features} />
       
