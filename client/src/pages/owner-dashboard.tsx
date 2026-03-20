@@ -151,11 +151,23 @@ function ContentTypeCard({ type, count }: { type: string; count: number }) {
   );
 }
 
+const NO_DECIMAL_CURRENCIES = new Set(["UGX", "VND", "IDR", "TZS", "RWF", "NGN", "XAF", "XOF", "MWK", "ZMW", "COP", "ARS", "CLP", "KHR", "MMK", "BDT", "PKR", "LKR", "NPR", "EGP"]);
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "€", GBP: "£", UGX: "UGX ", VND: "₫", KES: "KSh ", TZS: "TSh ",
+  RWF: "FRw ", NGN: "₦", GHS: "GH₵", ZAR: "R", INR: "₹", AED: "AED ", SAR: "SAR ",
+  CAD: "CA$", AUD: "A$", MWK: "MK ", ZMW: "ZK ", ETB: "Br ", XAF: "FCFA ", XOF: "CFA ",
+  EGP: "E£", MAD: "MAD ", PHP: "₱", IDR: "Rp ", THB: "฿", MYR: "RM", SGD: "S$",
+  KHR: "៛", MMK: "K ", BDT: "৳", PKR: "Rs ", LKR: "Rs ", NPR: "Rs ", BRL: "R$",
+  MXN: "MX$", COP: "COP$", ARS: "AR$", CLP: "CLP$", PEN: "S/", TRY: "₺", ILS: "₪",
+};
+
 function formatAmount(amount: number, currency: string = "USD") {
-  if (currency === "UGX") {
-    return `UGX ${amount.toLocaleString()}`;
+  const actual = amount / 100;
+  const sym = CURRENCY_SYMBOLS[currency] ?? (currency + " ");
+  if (NO_DECIMAL_CURRENCIES.has(currency)) {
+    return `${sym}${Math.round(actual).toLocaleString()}`;
   }
-  return `$${(amount / 100).toFixed(2)}`;
+  return `${sym}${actual.toFixed(2)}`;
 }
 
 function RevenueSection() {
