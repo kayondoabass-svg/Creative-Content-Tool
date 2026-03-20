@@ -12,7 +12,7 @@ export function Footer() {
   return (
     <footer className="border-t bg-card/50" data-testid="footer">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <img 
@@ -139,6 +139,42 @@ export function Footer() {
                   <Mail className="w-4 h-4" />
                   support@brightboardapp.com
                 </a>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-4">From the Blog</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/blog/ai-classroom" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-ai">
+                  AI in the Classroom
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog/visual-learning" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-visual">
+                  Visual Learning Science
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog/gamification" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-games">
+                  Gamification Guide
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog/time-saving" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-time">
+                  Save 5+ Hours Per Week
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog/lesson-planning" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-planning">
+                  AI Lesson Planning
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog/mind-mapping" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-mindmap">
+                  Mind Mapping Guide
+                </Link>
               </li>
             </ul>
           </div>

@@ -17,7 +17,7 @@ export default function Privacy() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl">Privacy Policy</CardTitle>
+            <h1 className="text-3xl font-bold">Privacy Policy</h1>
             <p className="text-muted-foreground">Last updated: February 2, 2026</p>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-6">

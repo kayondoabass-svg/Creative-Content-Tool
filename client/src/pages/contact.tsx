@@ -56,7 +56,7 @@ export default function Contact() {
           <div className="md:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-3xl" data-testid="text-contact-title">{t("contact.title")}</CardTitle>
+                <h1 className="text-3xl font-bold" data-testid="text-contact-title">{t("contact.title")}</h1>
                 <p className="text-muted-foreground">{t("contact.subtitle")}</p>
               </CardHeader>
               <CardContent>

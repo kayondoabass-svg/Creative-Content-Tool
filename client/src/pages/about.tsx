@@ -28,7 +28,7 @@ export default function About() {
                 data-testid="img-about-logo"
               />
               <div>
-                <CardTitle className="text-3xl" data-testid="text-about-title">{t("about.title")}</CardTitle>
+                <h1 className="text-3xl font-bold" data-testid="text-about-title">{t("about.title")}</h1>
                 <p className="text-muted-foreground">{t("about.subtitle")}</p>
               </div>
             </div>
