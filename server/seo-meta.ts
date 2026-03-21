@@ -1,63 +1,96 @@
-const BASE = "https://brightboardapp.com";
+const BASE = "https://www.brightboardapp.com";
 const DEFAULT_IMAGE = `${BASE}/og-image.png`;
 const DEFAULT_TITLE = "BrightBoard - AI Content for Teachers";
-const DEFAULT_DESC = "Create educational images, presentations, games, worksheets and video storyboards instantly with AI. Save hours every week. Perfect for busy teachers worldwide.";
+const DEFAULT_DESC = "Create educational images, presentations, games, worksheets and video storyboards with AI. Save hours every week. Free to start.";
+
+const NAV_LINKS = [
+  { href: "/", label: "Home" },
+  { href: "/features", label: "Features" },
+  { href: "/how-it-works", label: "How It Works" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/about", label: "About" },
+  { href: "/blog", label: "Blog" },
+  { href: "/blog/ai-classroom", label: "AI in the Classroom" },
+  { href: "/blog/engagement-strategies", label: "Student Engagement Strategies" },
+  { href: "/blog/visual-learning", label: "Visual Learning Science" },
+  { href: "/blog/gamification", label: "Gamification in Education" },
+  { href: "/blog/time-saving", label: "How AI Saves Teachers Time" },
+  { href: "/blog/inclusive-education", label: "Inclusive Classrooms with AI" },
+  { href: "/blog/lesson-planning", label: "AI Lesson Planning Guide" },
+  { href: "/blog/vocabulary-visual", label: "Vocabulary Teaching with Visuals" },
+  { href: "/blog/worksheet-design", label: "Effective Worksheet Design" },
+  { href: "/blog/mind-mapping", label: "Mind Mapping in Education" },
+  { href: "/contact", label: "Contact" },
+  { href: "/affiliate", label: "Affiliate Program" },
+  { href: "/signup", label: "Get Started Free" },
+];
 
 interface RouteMeta {
   title: string;
   description: string;
+  h1: string;
   ogType?: string;
   image?: string;
 }
 
 const BLOG_ARTICLES: Record<string, RouteMeta> = {
   "ai-classroom": {
-    title: "How AI is Transforming Classroom Education in 2025 | BrightBoard Blog",
-    description: "Artificial intelligence is reshaping how teachers prepare lessons. Learn how AI tools are collapsing preparation time from hours to minutes, freeing teachers for what matters most.",
+    title: "AI in the Classroom 2025 | BrightBoard Blog",
+    h1: "How AI is Transforming Classroom Education in 2025",
+    description: "AI is reshaping how teachers prepare lessons. Learn how AI tools collapse preparation time from hours to minutes, freeing teachers to focus on students.",
     ogType: "article",
   },
   "engagement-strategies": {
-    title: "10 Student Engagement Strategies That Actually Work in 2025 | BrightBoard Blog",
-    description: "Research-backed strategies proven to recapture student attention and deepen participation across all age groups. Enhanced with AI tools for busy teachers.",
+    title: "Student Engagement Strategies | BrightBoard Blog",
+    h1: "10 Student Engagement Strategies That Actually Work",
+    description: "Research-backed strategies proven to recapture student attention and deepen participation across all age groups, enhanced with AI tools for busy teachers.",
     ogType: "article",
   },
   "visual-learning": {
-    title: "The Science of Visual Learning: Why Images Make Lessons Stick | BrightBoard Blog",
-    description: "Humans process images 60,000 times faster than text. Learn how teachers can harness this cognitive science to create lessons students remember weeks later.",
+    title: "Visual Learning Science | BrightBoard Blog",
+    h1: "The Science of Visual Learning: Why Images Make Lessons Stick",
+    description: "Humans process images 60,000 times faster than text. Learn how teachers can harness cognitive science to create lessons students remember weeks later.",
     ogType: "article",
   },
   "gamification": {
-    title: "Gamification in the Classroom: A Practical Guide for Teachers | BrightBoard Blog",
-    description: "Apply game psychology to unlock student motivation. Learn how to use quiz games, spinners, and challenge formats to drive deep engagement in every lesson.",
+    title: "Gamification in the Classroom | BrightBoard Blog",
+    h1: "Gamification in the Classroom: A Practical Guide for Teachers",
+    description: "Apply game psychology to unlock student motivation. Learn quiz games, spinners, and challenge formats that drive deep engagement in every lesson.",
     ogType: "article",
   },
   "time-saving": {
-    title: "How AI Saves Teachers 5+ Hours Every Week | BrightBoard Blog",
-    description: "Teacher burnout is at record levels. AI content tools are giving educators hours back each week. Here is exactly where the time savings happen and how to maximise them.",
+    title: "How AI Saves Teachers 5+ Hours | BrightBoard Blog",
+    h1: "How AI Saves Teachers 5+ Hours Every Week",
+    description: "Teacher burnout is at record levels. AI content tools give educators hours back each week. Here is exactly where the time savings happen.",
     ogType: "article",
   },
   "inclusive-education": {
-    title: "Creating Inclusive Classrooms with AI: A Practical Guide | BrightBoard Blog",
-    description: "AI tools are making differentiation achievable for every teacher. Learn how to reach diverse learners with multiple languages, reading levels, and visual supports.",
+    title: "Inclusive Classrooms with AI | BrightBoard Blog",
+    h1: "Creating Inclusive Classrooms with AI: A Practical Guide",
+    description: "AI tools make differentiation achievable for every teacher. Reach diverse learners with multiple languages, reading levels, and visual supports.",
     ogType: "article",
   },
   "lesson-planning": {
-    title: "The Complete Guide to AI-Assisted Lesson Planning | BrightBoard Blog",
-    description: "Transform lesson planning from a burden into a creative process. Learn how AI tools help teachers build complete resource packs aligned to curriculum standards.",
+    title: "AI Lesson Planning Guide | BrightBoard Blog",
+    h1: "The Complete Guide to AI-Assisted Lesson Planning",
+    description: "Transform lesson planning from a burden into a creative process. Learn how AI tools help build complete resource packs aligned to curriculum standards.",
     ogType: "article",
   },
   "vocabulary-visual": {
-    title: "Teaching Vocabulary with Visuals: Why Pictures Beat Definitions | BrightBoard Blog",
-    description: "Most vocabulary instruction is ineffective. Pairing words with visual images produces dramatically better retention. Here is the research and the practice.",
+    title: "Vocabulary Teaching with Visuals | BrightBoard Blog",
+    h1: "Teaching Vocabulary with Visuals: Why Pictures Beat Definitions",
+    description: "Most vocabulary instruction is ineffective. Pairing words with visual images produces dramatically better retention. Here is the research and practice.",
     ogType: "article",
   },
   "worksheet-design": {
-    title: "How to Design Effective Worksheets That Students Actually Learn From | BrightBoard Blog",
-    description: "Most worksheets are busy work. Learn how to design worksheets that engage Bloom's higher-order thinking and produce genuine understanding.",
+    title: "Effective Worksheet Design | BrightBoard Blog",
+    h1: "How to Design Effective Worksheets Students Actually Learn From",
+    description: "Most worksheets are busy work. Learn to design worksheets that engage Bloom's higher-order thinking and produce genuine understanding.",
     ogType: "article",
   },
   "mind-mapping": {
-    title: "The Power of Mind Mapping in Education: A Research-Based Guide | BrightBoard Blog",
+    title: "Mind Mapping in Education | BrightBoard Blog",
+    h1: "The Power of Mind Mapping in Education: A Research Guide",
     description: "Mind maps match how the brain organises knowledge. Learn how to use them for brainstorming, note-taking, revision, and concept introduction in any subject.",
     ogType: "article",
   },
@@ -66,47 +99,58 @@ const BLOG_ARTICLES: Record<string, RouteMeta> = {
 const STATIC_ROUTES: Record<string, RouteMeta> = {
   "/": {
     title: DEFAULT_TITLE,
+    h1: "AI-Powered Educational Content for Teachers",
     description: DEFAULT_DESC,
   },
   "/features": {
-    title: "Features | BrightBoard - AI Content Creation for Teachers",
-    description: "Explore BrightBoard's powerful AI features: custom educational images, slide presentations, printable worksheets, interactive games, video storyboards, and rich text content.",
+    title: "Features | BrightBoard for Teachers",
+    h1: "Powerful AI Features for Educators",
+    description: "Explore BrightBoard's AI features: custom educational images, presentations, printable worksheets, interactive games, video storyboards, and rich text content.",
   },
   "/how-it-works": {
-    title: "How BrightBoard Works | AI Content Creation for Teachers",
-    description: "Create professional educational content in four simple steps. No design skills required. Describe what you need and AI generates presentations, worksheets, games and more.",
+    title: "How BrightBoard Works | AI for Teachers",
+    h1: "How BrightBoard Works",
+    description: "Create professional educational content in four simple steps. No design skills required. Describe what you need and AI generates it instantly.",
   },
   "/pricing": {
-    title: "Pricing | BrightBoard - Free & Premium Plans for Teachers",
-    description: "Start free with BrightBoard. Upgrade to Premium for unlimited AI-generated presentations, worksheets, games, images and more. Localised pricing available worldwide.",
+    title: "Pricing | BrightBoard Free & Premium Plans",
+    h1: "BrightBoard Pricing",
+    description: "Start free with BrightBoard. Upgrade to Premium for unlimited AI-generated presentations, worksheets, games, images and more. Localised pricing available.",
   },
   "/about": {
-    title: "About BrightBoard | AI Educational Content for Teachers",
-    description: "Learn about BrightBoard — founded in Uganda, built for teachers worldwide. Our mission is to give every teacher access to professional-quality educational content creation tools.",
+    title: "About BrightBoard | AI Tools for Teachers",
+    h1: "About BrightBoard",
+    description: "Founded in Uganda, built for teachers worldwide. Our mission is to give every teacher access to professional-quality educational content creation tools.",
   },
   "/blog": {
-    title: "Teaching Resources & Insights | BrightBoard Blog",
-    description: "Expert articles, practical strategies, and research-backed tips for educators. Learn about AI in education, visual learning, gamification, lesson planning, and inclusive teaching.",
+    title: "Teaching Resources & Insights | BrightBoard",
+    h1: "Teaching Resources & Insights",
+    description: "Expert articles, practical strategies, and research-backed tips for educators. AI in education, visual learning, gamification, lesson planning, and more.",
   },
   "/contact": {
-    title: "Contact BrightBoard | Support for Teachers",
+    title: "Contact BrightBoard | Teacher Support",
+    h1: "Contact BrightBoard",
     description: "Get in touch with the BrightBoard team. We are here to help with questions, feedback, and support for teachers using our AI educational content tools.",
   },
   "/affiliate": {
     title: "Affiliate Program | Earn with BrightBoard",
-    description: "Join the BrightBoard affiliate program and earn commission for every teacher you refer. Share AI-powered educational tools with your network and get paid.",
+    h1: "BrightBoard Affiliate Program",
+    description: "Join the BrightBoard affiliate program and earn commission for every teacher you refer. Share AI-powered educational tools and get paid.",
   },
   "/terms": {
     title: "Terms of Service | BrightBoard",
-    description: "Read BrightBoard's Terms of Service. Learn about your rights and responsibilities when using our AI-powered educational content creation platform.",
+    h1: "Terms of Service",
+    description: "BrightBoard's Terms of Service. Learn about your rights and responsibilities when using our AI-powered educational content creation platform.",
   },
   "/privacy": {
     title: "Privacy Policy | BrightBoard",
-    description: "Read BrightBoard's Privacy Policy. Learn how we collect, use, and protect your personal information when you use our educational content creation tools.",
+    h1: "Privacy Policy",
+    description: "BrightBoard's Privacy Policy. Learn how we collect, use, and protect your personal information when you use our educational content creation tools.",
   },
   "/refund": {
     title: "Refund Policy | BrightBoard",
-    description: "Read BrightBoard's Refund Policy. Learn about our refund process for Premium subscriptions and content generation services.",
+    h1: "Refund Policy",
+    description: "BrightBoard's Refund Policy. Learn about our refund process for Premium subscriptions and content generation services.",
   },
 };
 
@@ -128,17 +172,18 @@ export function getRouteMeta(url: string): RouteMeta & { canonical: string } {
 
   return {
     title: DEFAULT_TITLE,
+    h1: "BrightBoard",
     description: DEFAULT_DESC,
     canonical: `${BASE}${path}`,
   };
 }
 
 export function injectSEOMeta(html: string, url: string): string {
-  const { title, description, canonical, ogType, image } = getRouteMeta(url);
+  const { title, description, h1, canonical, ogType, image } = getRouteMeta(url);
   const img = image ?? DEFAULT_IMAGE;
   const type = ogType ?? "website";
 
-  const tags = `
+  const headTags = `
     <title>${title}</title>
     <meta name="description" content="${description}" />
     <link rel="canonical" href="${canonical}" />
@@ -153,10 +198,21 @@ export function injectSEOMeta(html: string, url: string): string {
     <meta name="twitter:description" content="${description}" />
     <meta name="twitter:image" content="${img}" />`;
 
+  const navLinksHtml = NAV_LINKS.map(l => `<a href="${BASE}${l.href}">${l.label}</a>`).join("\n");
+  const bodyNoscript = `
+<noscript>
+<nav>${navLinksHtml}</nav>
+<h1>${h1}</h1>
+<p>${description}</p>
+</noscript>`;
+
   html = html.replace(/<title>[^<]*<\/title>/, "");
   html = html.replace(/<meta name="description"[^>]*>/g, "");
   html = html.replace(/<meta property="og:[^"]*"[^>]*>/g, "");
   html = html.replace(/<meta name="twitter:[^"]*"[^>]*>/g, "");
 
-  return html.replace("<head>", `<head>${tags}`);
+  html = html.replace("<head>", `<head>${headTags}`);
+  html = html.replace("<body>", `<body>${bodyNoscript}`);
+
+  return html;
 }
