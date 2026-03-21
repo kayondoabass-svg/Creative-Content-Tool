@@ -22,6 +22,9 @@ const NAV_LINKS = [
   { href: "/blog/mind-mapping", label: "Mind Mapping in Education" },
   { href: "/contact", label: "Contact" },
   { href: "/affiliate", label: "Affiliate Program" },
+  { href: "/terms", label: "Terms of Service" },
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/refund", label: "Refund Policy" },
   { href: "/signup", label: "Get Started Free" },
 ];
 
