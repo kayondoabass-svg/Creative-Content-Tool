@@ -65,6 +65,8 @@ export default function Home() {
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<GeneratedContent | null>(null);
   const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }; worksheetOptions?: { colorMode?: string }; referenceImage?: string; imageOptions?: { style?: string; quality?: string; layout?: string }; textOptions?: { style?: string }; activityOptions?: { gameType?: string }; includeLogo?: boolean; mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] } } | null>(null);
+  const [quickStartPrompt, setQuickStartPrompt] = useState<string | null>(null);
+  const [lowCreditType, setLowCreditType] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -132,6 +134,19 @@ export default function Home() {
         setSelectedHistoryItem(null);
         queryClient.invalidateQueries({ queryKey: ["/api/content"] });
         toast({ title: t("home.contentCreated"), description: t("home.contentReady") });
+        // Check remaining credits after generation
+        (async () => {
+          try {
+            const usageRes = await fetch("/api/user/usage");
+            if (usageRes.ok) {
+              const usageData = await usageRes.json();
+              if (!usageData.isPremium && usageData.remaining) {
+                const rem = usageData.remaining[jobStatus.result.type] ?? 0;
+                if (rem <= 0) setLowCreditType(jobStatus.result.type);
+              }
+            }
+          } catch {}
+        })();
       }
     }
     if (jobStatus.status === "error") {
@@ -183,7 +198,24 @@ export default function Home() {
     setSelectedType(item.type as ContentType);
   };
 
+  const handlePromptSelect = (prompt: string, type: ContentType) => {
+    setSelectedType(type);
+    setQuickStartPrompt(prompt);
+    setTimeout(() => setQuickStartPrompt(null), 200);
+  };
+
   const displayContent = selectedHistoryItem?.content || generatedContent;
+  const isFirstTimeUser = history.length === 0 && !generatedContent;
+
+  const LOW_CREDIT_LABELS: Record<string, string> = {
+    image: "educational images",
+    presentation: "lesson slides",
+    mindmap: "mind maps",
+    worksheet: "worksheets",
+    text: "text content",
+    activity: "activities",
+    storyboard: "video storyboards",
+  };
 
   return (
     <div className="flex h-full">
@@ -221,12 +253,45 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Low-credit amber banner */}
+          {lowCreditType && (
+            <div
+              data-testid="low-credit-banner"
+              className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3 text-sm"
+            >
+              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300">
+                <span className="text-base">⚠️</span>
+                <span>
+                  You've used your free {LOW_CREDIT_LABELS[lowCreditType] || "content"} for today.
+                  Upgrade to keep creating without limits.
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href="/pricing"
+                  data-testid="low-credit-upgrade-btn"
+                  className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition-colors"
+                >
+                  Upgrade
+                </a>
+                <button
+                  onClick={() => setLowCreditType(null)}
+                  data-testid="low-credit-dismiss-btn"
+                  className="text-amber-600 dark:text-amber-400 hover:text-amber-800 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Prompt Input */}
           <PromptInput
             selectedType={selectedType}
             onGenerate={handleGenerate}
             isGenerating={isGenerating}
             defaultGameType={selectedGameType}
+            externalPrompt={quickStartPrompt}
           />
 
           {/* Live Generation Progress */}
@@ -246,6 +311,8 @@ export default function Home() {
               content={displayContent}
               isLoading={false}
               onRegenerate={lastPrompt ? handleRegenerate : undefined}
+              isFirstTimeUser={isFirstTimeUser}
+              onPromptSelect={handlePromptSelect}
             />
           )}
         </div>

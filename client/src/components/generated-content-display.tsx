@@ -16,11 +16,29 @@ import pptxgen from "pptxgenjs";
 import JSZip from "jszip";
 import { apiRequest } from "@/lib/queryClient";
 
+interface QuickStartChip {
+  label: string;
+  prompt: string;
+  type: ContentType;
+  emoji: string;
+}
+
+const QUICK_START_CHIPS: QuickStartChip[] = [
+  { label: "Fractions Worksheet (Grade 4)", prompt: "Fractions for Grade 4", type: "worksheet", emoji: "📝" },
+  { label: "Animal Habitats Lesson Slides", prompt: "Animal habitats for Grade 3", type: "presentation", emoji: "🦁" },
+  { label: "Multiplication Mind Map", prompt: "Multiplication concepts for Grade 3", type: "mindmap", emoji: "🗺️" },
+  { label: "Solar System Image", prompt: "Solar system planets diagram", type: "image", emoji: "🪐" },
+  { label: "Photosynthesis Activity", prompt: "Photosynthesis quiz game for Grade 5", type: "activity", emoji: "🎮" },
+  { label: "Story Writing Tips", prompt: "Creative story writing tips for Grade 6", type: "text", emoji: "✍️" },
+];
+
 interface GeneratedContentDisplayProps {
   type: ContentType;
   content: string;
   isLoading: boolean;
   onRegenerate?: () => void;
+  isFirstTimeUser?: boolean;
+  onPromptSelect?: (prompt: string, type: ContentType) => void;
 }
 
 export function GeneratedContentDisplay({
@@ -28,6 +46,8 @@ export function GeneratedContentDisplay({
   content,
   isLoading,
   onRegenerate,
+  isFirstTimeUser,
+  onPromptSelect,
 }: GeneratedContentDisplayProps) {
   const [copied, setCopied] = useState(false);
   const [showSlideshow, setShowSlideshow] = useState(false);
@@ -93,6 +113,33 @@ export function GeneratedContentDisplay({
   }
 
   if (!content) {
+    if (isFirstTimeUser && onPromptSelect) {
+      return (
+        <Card className="p-6 flex flex-col items-center justify-center min-h-[400px] bg-gradient-to-b from-muted/10 to-muted/30">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-4">
+            <Sparkles className="h-8 w-8 text-primary" />
+          </div>
+          <p className="text-xl font-semibold text-foreground">Welcome to BrightBoard!</p>
+          <p className="mt-1 mb-6 text-sm text-muted-foreground text-center max-w-sm">
+            You're all set. Try one of these examples or describe your own lesson topic below.
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center max-w-lg" data-testid="quick-start-chips">
+            {QUICK_START_CHIPS.map((chip) => (
+              <button
+                key={chip.label}
+                onClick={() => onPromptSelect(chip.prompt, chip.type)}
+                data-testid={`chip-${chip.type}`}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-border bg-background hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors text-sm font-medium shadow-sm"
+              >
+                <span>{chip.emoji}</span>
+                <span>{chip.label}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      );
+    }
+
     return (
       <Card className="p-8 flex flex-col items-center justify-center min-h-[400px] bg-muted/30">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">

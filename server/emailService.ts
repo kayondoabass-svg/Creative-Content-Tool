@@ -596,3 +596,96 @@ export async function sendMarketingBlastEmail(email: string, firstName: string, 
     return false;
   }
 }
+
+export async function sendActivationEmail(email: string, firstName: string): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    let sender = fromEmail || 'noreply@brightboardapp.com';
+    if (sender && !sender.includes('<')) {
+      sender = `BrightBoard <${sender}>`;
+    }
+
+    const name = firstName || 'Teacher';
+
+    const exampleLinks = [
+      { label: "Fractions for Grade 4", url: "https://www.brightboardapp.com/?prompt=Fractions+for+Grade+4&type=worksheet" },
+      { label: "Animal Habitats Lesson Slides", url: "https://www.brightboardapp.com/?prompt=Animal+habitats+for+Grade+3&type=presentation" },
+      { label: "Multiplication Mind Map", url: "https://www.brightboardapp.com/?prompt=Multiplication+mind+map+for+Grade+3&type=mindmap" },
+    ];
+
+    const result = await client.emails.send({
+      from: sender,
+      to: email,
+      subject: `${name}, your first AI lesson is one click away ✨`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 40px 20px;">
+          <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #7c3aed, #0d9488); padding: 32px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 26px; font-weight: 700;">BrightBoard</h1>
+              <p style="color: rgba(255,255,255,0.85); margin: 6px 0 0 0; font-size: 14px;">AI Content for Teachers</p>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 32px;">
+              <p style="color: #1f2937; font-size: 17px; font-weight: 600; margin: 0 0 8px;">Hi ${name} 👋</p>
+              <p style="color: #4b5563; line-height: 1.7; margin: 0 0 24px;">
+                You signed up for BrightBoard but haven't created your first lesson yet — and we don't want you to miss out. 
+                It only takes 30 seconds to generate a complete worksheet, mind map, or slide deck!
+              </p>
+
+              <!-- What you can create -->
+              <div style="background: #faf5ff; border-radius: 10px; padding: 20px; margin-bottom: 24px; border: 1px solid #e9d5ff;">
+                <p style="margin: 0 0 12px; color: #6d28d9; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Start with one of these →</p>
+                ${exampleLinks.map(ex => `
+                  <div style="margin-bottom: 8px;">
+                    <a href="${ex.url}" style="display: inline-block; background: white; color: #7c3aed; border: 1px solid #ddd6fe; border-radius: 8px; padding: 10px 16px; text-decoration: none; font-size: 14px; font-weight: 500;">
+                      ✦ ${ex.label}
+                    </a>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- CTA -->
+              <div style="text-align: center; margin: 0 0 24px;">
+                <a href="https://www.brightboardapp.com/" style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #0d9488); color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 16px;">
+                  Create my first lesson →
+                </a>
+              </div>
+
+              <!-- Free tier reminder -->
+              <div style="background: #f0fdf4; border-radius: 8px; padding: 14px 18px; border: 1px solid #bbf7d0; margin-bottom: 20px;">
+                <p style="margin: 0; color: #166534; font-size: 13px; line-height: 1.6;">
+                  <strong>Free account perks:</strong> 2 images, 1 lesson, 2 worksheets, 2 mind maps &amp; more — every day, no credit card needed.
+                </p>
+              </div>
+
+              <p style="color: #6b7280; font-size: 13px; line-height: 1.6; margin: 0;">
+                Questions? Just reply to this email — we read every message.<br>
+                Happy teaching! 🍎
+              </p>
+            </div>
+
+            <!-- Footer -->
+            <p style="text-align: center; color: #9ca3af; font-size: 11px; margin: 0 0 24px; padding: 0 24px; line-height: 1.6;">
+              &copy; ${new Date().getFullYear()} BrightBoard · Made for teachers.<br>
+              You received this because you signed up at <a href="https://www.brightboardapp.com" style="color: #9ca3af;">brightboardapp.com</a>.
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    console.log('Activation email sent to:', email, result);
+    await logResendExpense("Activation", email);
+    return true;
+  } catch (error) {
+    console.error('Error sending activation email to', email, ':', error);
+    return false;
+  }
+}

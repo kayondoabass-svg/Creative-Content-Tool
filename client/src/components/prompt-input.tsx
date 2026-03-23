@@ -19,6 +19,7 @@ interface PromptInputProps {
   onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }) => void;
   isGenerating: boolean;
   defaultGameType?: string | null;
+  externalPrompt?: string | null;
 }
 
 const worksheetColorModes = [
@@ -201,7 +202,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGameType }: PromptInputProps) {
+export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGameType, externalPrompt }: PromptInputProps) {
   const { t } = useTranslation();
   const { isPremium } = useSubscription();
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
@@ -277,6 +278,13 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       includeLogo: false,
     },
   });
+
+  // Update form prompt when an external prompt (e.g. from quick-start chip) is set
+  useEffect(() => {
+    if (externalPrompt) {
+      form.setValue("prompt", externalPrompt);
+    }
+  }, [externalPrompt, form]);
 
   // Update form prompt when voice transcript changes
   useEffect(() => {

@@ -56,6 +56,8 @@ export const users = pgTable("users", {
   // Social login fields
   socialProvider: varchar("social_provider"), // 'facebook' | 'tiktok' | 'google'
   socialId: varchar("social_id"), // provider's user ID
+  // Engagement tracking
+  activationEmailSentAt: timestamp("activation_email_sent_at"),
 });
 
 // Email verification codes table

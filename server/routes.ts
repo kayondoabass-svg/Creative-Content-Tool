@@ -25,7 +25,7 @@ import * as customAuth from "./customAuthService";
 import { db } from "./db";
 import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
-import { eq, count, sql, desc, gte, and, sum, or, ne } from "drizzle-orm";
+import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull } from "drizzle-orm";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -828,6 +828,93 @@ ${pages.map(p => `  <url>
     
     return next();
   }
+
+  // Get current user's usage counts (authenticated)
+  app.get("/api/user/usage", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const userId = req.session?.userId;
+      const user = await customAuth.getUserById(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const FREE_LIMITS_MAP: Record<string, number> = {
+        image: 2, presentation: 1, storyboard: 1,
+        mindmap: 2, worksheet: 2, text: 3, activity: 2,
+      };
+
+      const isPremium = user.subscriptionTier !== "free" && user.subscriptionStatus === "active";
+      if (isPremium) {
+        return res.json({ isPremium: true, usage: {}, limits: FREE_LIMITS_MAP });
+      }
+
+      const today = new Date();
+      const resetDate = user.usageResetDate ? new Date(user.usageResetDate) : null;
+      const isNewDay = !resetDate || today.toDateString() !== resetDate.toDateString();
+
+      const usage = isNewDay ? {
+        image: 0, presentation: 0, storyboard: 0,
+        mindmap: 0, worksheet: 0, text: 0, activity: 0,
+      } : {
+        image: user.freeImageCount ?? 0,
+        presentation: user.freePresentationCount ?? 0,
+        storyboard: user.freeVideoCount ?? 0,
+        mindmap: user.freeMindmapCount ?? 0,
+        worksheet: user.freeWorksheetCount ?? 0,
+        text: user.freeTextCount ?? 0,
+        activity: user.freeActivityCount ?? 0,
+      };
+
+      const remaining: Record<string, number> = {};
+      for (const [type, limit] of Object.entries(FREE_LIMITS_MAP)) {
+        remaining[type] = Math.max(0, limit - (usage[type as keyof typeof usage] || 0));
+      }
+
+      res.json({ isPremium: false, usage, limits: FREE_LIMITS_MAP, remaining });
+    } catch (error) {
+      console.error("Error fetching user usage:", error);
+      res.status(500).json({ error: "Failed to fetch usage" });
+    }
+  });
+
+  // Send activation emails to inactive users (owner only)
+  app.post("/api/owner/send-activation-emails", isOwnerMiddleware, async (_req: any, res: any) => {
+    try {
+      const { sendActivationEmail } = await import('./emailService');
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      const eligibleUsers = await db.select().from(users).where(
+        and(
+          lt(users.createdAt, twentyFourHoursAgo),
+          isNull(users.activationEmailSentAt),
+          eq(users.emailVerified, true),
+        )
+      );
+
+      const neverGenerated = eligibleUsers.filter(u =>
+        (u.freeImageCount ?? 0) === 0 &&
+        (u.freePresentationCount ?? 0) === 0 &&
+        (u.freeMindmapCount ?? 0) === 0 &&
+        (u.freeWorksheetCount ?? 0) === 0 &&
+        (u.freeTextCount ?? 0) === 0 &&
+        (u.freeActivityCount ?? 0) === 0 &&
+        (u.freeVideoCount ?? 0) === 0
+      );
+
+      let sent = 0;
+      for (const user of neverGenerated) {
+        if (!user.email) continue;
+        const ok = await sendActivationEmail(user.email, user.firstName ?? 'Teacher');
+        if (ok) {
+          await db.update(users).set({ activationEmailSentAt: new Date() }).where(eq(users.id, user.id));
+          sent++;
+        }
+      }
+
+      res.json({ sent, total: neverGenerated.length });
+    } catch (error) {
+      console.error("Error sending activation emails:", error);
+      res.status(500).json({ error: "Failed to send activation emails" });
+    }
+  });
 
   // Get owner dashboard statistics
   app.get("/api/owner/stats", isOwnerMiddleware, async (req, res) => {

@@ -152,6 +152,35 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
+  // Auto-send activation emails every 4 hours to users who signed up >24h ago
+  // and have never generated content
+  const scheduleActivationEmails = async () => {
+    try {
+      const { sendActivationEmail } = await import('./emailService');
+      const { lt, isNull, and, eq } = await import('drizzle-orm');
+      const { users } = await import('@shared/schema');
+      const { db } = await import('./db');
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const eligibleUsers = await db.select().from(users).where(
+        and(lt(users.createdAt, twentyFourHoursAgo), isNull(users.activationEmailSentAt), eq(users.emailVerified, true))
+      );
+      const neverGenerated = eligibleUsers.filter(u =>
+        (u.freeImageCount ?? 0) + (u.freePresentationCount ?? 0) + (u.freeMindmapCount ?? 0) +
+        (u.freeWorksheetCount ?? 0) + (u.freeTextCount ?? 0) + (u.freeActivityCount ?? 0) + (u.freeVideoCount ?? 0) === 0
+      );
+      for (const u of neverGenerated) {
+        if (!u.email) continue;
+        const ok = await sendActivationEmail(u.email, u.firstName ?? 'Teacher');
+        if (ok) await db.update(users).set({ activationEmailSentAt: new Date() }).where(eq(users.id, u.id));
+      }
+      if (neverGenerated.length > 0) console.log(`[activation] Sent ${neverGenerated.length} activation email(s)`);
+    } catch (err) {
+      console.error('[activation] Error in scheduled email job:', err);
+    }
+  };
+  // Run 10 min after startup, then every 4 hours
+  setTimeout(() => { scheduleActivationEmails(); setInterval(scheduleActivationEmails, 4 * 60 * 60 * 1000); }, 10 * 60 * 1000);
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
