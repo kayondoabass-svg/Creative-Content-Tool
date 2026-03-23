@@ -11,6 +11,7 @@ import { GamePlayerModal } from "./game-player-modal";
 import { BrightBoardLogo } from "./brightboard-logo";
 import { MindmapCanvas, type MindmapData, BRANCH_COLORS } from "./mindmap-canvas";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useTranslation } from "react-i18next";
 import pptxgen from "pptxgenjs";
 import JSZip from "jszip";
 import { apiRequest } from "@/lib/queryClient";
@@ -1174,11 +1175,12 @@ function MindmapContent({ content }: { content: string }) {
   const { toast } = useToast();
   const { isPremium } = useSubscription();
   const editInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation();
 
   const requirePremium = () => {
     toast({
-      title: "Premium feature",
-      description: "Upgrade to Premium to unlock branch editing, color customisation, and PDF export.",
+      title: t("contentTypes.mindmapPremiumTitle"),
+      description: t("contentTypes.mindmapPremiumDesc"),
       variant: "destructive",
     });
   };
@@ -1240,7 +1242,7 @@ function MindmapContent({ content }: { content: string }) {
       children: [{ label: "Sub-topic", children: [] }],
     });
     setEditableData(newData);
-    toast({ title: "Branch added", description: "Click the new branch label to rename it." });
+    toast({ title: t("contentTypes.mindmapBranchAdded"), description: t("contentTypes.mindmapBranchAddedDesc") });
   };
 
   const removeLastBranch = () => {
@@ -1292,13 +1294,13 @@ function MindmapContent({ content }: { content: string }) {
         pdf.addImage(imgData, "JPEG", 0, 0, svgW / scale, svgH / scale);
         pdf.save(`brightboard-mindmap-${Date.now()}.pdf`);
         setPdfLoading(false);
-        toast({ title: "PDF downloaded" });
+        toast({ title: t("contentTypes.pdfDownloaded") });
       };
-      img.onerror = () => { setPdfLoading(false); toast({ title: "Export failed", variant: "destructive" }); };
+      img.onerror = () => { setPdfLoading(false); toast({ title: t("contentTypes.exportFailed"), variant: "destructive" }); };
       img.src = svgUrl;
     } catch {
       setPdfLoading(false);
-      toast({ title: "Export failed", variant: "destructive" });
+      toast({ title: t("contentTypes.exportFailed"), variant: "destructive" });
     }
   };
 
@@ -1315,10 +1317,10 @@ function MindmapContent({ content }: { content: string }) {
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
         <Pencil className="h-3 w-3 shrink-0" />
         <span>
-          Click any label to edit it.{" "}
+          {t("contentTypes.mindmapEditHint")}{" "}
           {isPremium
-            ? "Click a branch circle to change its colour."
-            : <span>Branch colours, adding branches, and PDF export require <a href="/pricing" className="underline text-primary">Premium</a>.</span>
+            ? t("contentTypes.mindmapColorHint")
+            : <span>{t("contentTypes.mindmapPremiumHint")} <a href="/pricing" className="underline text-primary">Premium</a>.</span>
           }
         </span>
       </div>
@@ -1335,7 +1337,7 @@ function MindmapContent({ content }: { content: string }) {
       {colorPicker !== null && (
         <div className="border rounded-xl p-3 bg-background shadow-md" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" /> Branch color</p>
+            <p className="text-xs font-semibold flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" /> {t("contentTypes.mindmapBranchColor")}</p>
             <button onClick={() => setColorPicker(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1355,7 +1357,7 @@ function MindmapContent({ content }: { content: string }) {
       {editingNode && (
         <div className="border rounded-xl p-3 bg-background shadow-md">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold flex items-center gap-1.5"><Pencil className="h-3.5 w-3.5" /> Edit label</p>
+            <p className="text-xs font-semibold flex items-center gap-1.5"><Pencil className="h-3.5 w-3.5" /> {t("contentTypes.mindmapEditLabel")}</p>
             <button onClick={() => setEditingNode(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
           </div>
           <div className="flex gap-2">
@@ -1366,10 +1368,10 @@ function MindmapContent({ content }: { content: string }) {
               value={editValue}
               onChange={e => setEditValue(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") applyNodeEdit(); if (e.key === "Escape") setEditingNode(null); }}
-              placeholder="Enter label..."
+              placeholder={t("contentTypes.mindmapEnterLabel")}
             />
-            <Button size="sm" onClick={applyNodeEdit} data-testid="button-mindmap-save-edit">Save</Button>
-            <Button size="sm" variant="ghost" onClick={() => setEditingNode(null)}>Cancel</Button>
+            <Button size="sm" onClick={applyNodeEdit} data-testid="button-mindmap-save-edit">{t("common.save")}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditingNode(null)}>{t("common.cancel")}</Button>
           </div>
         </div>
       )}
@@ -1380,10 +1382,10 @@ function MindmapContent({ content }: { content: string }) {
           variant="outline"
           onClick={isPremium ? addBranch : requirePremium}
           data-testid="button-mindmap-add-branch"
-          title={isPremium ? "Add a new branch" : "Premium feature — upgrade to add branches"}
+          title={isPremium ? t("contentTypes.mindmapAddBranchTooltip") : t("contentTypes.mindmapPremiumBranchTooltip")}
         >
           {isPremium ? <Plus className="h-4 w-4 mr-1.5" /> : <Crown className="h-4 w-4 mr-1.5 text-yellow-500" />}
-          Add Branch
+          {t("contentTypes.mindmapAddBranch")}
         </Button>
         {editableData.branches.length > 2 && (
           <Button
@@ -1393,7 +1395,7 @@ function MindmapContent({ content }: { content: string }) {
             data-testid="button-mindmap-remove-branch"
           >
             <X className="h-4 w-4 mr-1.5" />
-            Remove Last Branch
+            {t("contentTypes.mindmapRemoveBranch")}
           </Button>
         )}
         <Button
@@ -1402,7 +1404,7 @@ function MindmapContent({ content }: { content: string }) {
           onClick={isPremium ? downloadPDF : requirePremium}
           disabled={pdfLoading}
           data-testid="button-mindmap-download-pdf"
-          title={isPremium ? "Download as PDF" : "Premium feature — upgrade to download PDF"}
+          title={isPremium ? t("contentTypes.mindmapDownloadPdfTooltip") : t("contentTypes.mindmapPremiumPdfTooltip")}
         >
           {pdfLoading ? (
             <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -1411,13 +1413,13 @@ function MindmapContent({ content }: { content: string }) {
           ) : (
             <Crown className="h-4 w-4 mr-1.5 text-yellow-500" />
           )}
-          Download PDF
+          {t("contentTypes.mindmapDownloadPdf")}
         </Button>
       </div>
       {!isPremium && (
         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Crown className="h-3 w-3 text-yellow-500" />
-          <span>Branch editing, color customisation, and PDF export are Premium features. <a href="/pricing" className="underline text-primary">Upgrade here.</a></span>
+          <span>{t("contentTypes.mindmapPremiumNote")} <a href="/pricing" className="underline text-primary">{t("contentTypes.mindmapUpgradeHere")}</a></span>
         </p>
       )}
     </div>
