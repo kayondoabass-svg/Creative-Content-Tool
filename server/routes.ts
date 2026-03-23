@@ -1306,7 +1306,8 @@ ${pages.map(p => `  <url>
       if (!email) return res.json(null);
       const [user] = await db.select().from(users).where(eq(users.email, email));
       if (!user) return res.json(null);
-      res.json(user);
+      const { passwordHash: _omit, ...safeUser } = user as any;
+      res.json(safeUser);
     } catch (error) {
       console.error("User lookup error:", error);
       res.status(500).json({ error: "Failed to lookup user" });

@@ -67,6 +67,7 @@ export default function Home() {
   const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }; worksheetOptions?: { colorMode?: string }; referenceImage?: string; imageOptions?: { style?: string; quality?: string; layout?: string }; textOptions?: { style?: string }; activityOptions?: { gameType?: string }; includeLogo?: boolean; mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] } } | null>(null);
   const [quickStartPrompt, setQuickStartPrompt] = useState<string | null>(null);
   const [lowCreditType, setLowCreditType] = useState<string | null>(null);
+  const [lowCreditCount, setLowCreditCount] = useState<number>(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -149,7 +150,10 @@ export default function Home() {
               const freshUsage = await usageRes.json();
               if (!freshUsage.isPremium && freshUsage.remaining) {
                 const rem = freshUsage.remaining[jobStatus.result.type] ?? 0;
-                if (rem <= 1) setLowCreditType(jobStatus.result.type);
+                if (rem <= 1) {
+                  setLowCreditType(jobStatus.result.type);
+                  setLowCreditCount(rem);
+                }
               }
             }
           } catch {}
@@ -212,7 +216,13 @@ export default function Home() {
   };
 
   const displayContent = selectedHistoryItem?.content || generatedContent;
-  const isFirstTimeUser = history.length === 0 && !generatedContent;
+
+  // FREE_MAX mirrors the server-side FREE_LIMITS — if all remaining === max then no content ever generated
+  const FREE_MAX: Record<string, number> = { image: 2, presentation: 1, storyboard: 1, mindmap: 2, worksheet: 2, text: 3, activity: 2 };
+  const isFirstTimeUser = usageData
+    ? (!usageData.isPremium && !!usageData.remaining &&
+        Object.entries(FREE_MAX).every(([k, v]) => (usageData.remaining![k] ?? 0) >= v))
+    : (history.length === 0 && !generatedContent);
 
   const LOW_CREDIT_LABELS: Record<string, string> = {
     image: "educational images",
@@ -272,7 +282,10 @@ export default function Home() {
               <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300">
                 <span className="text-base">⚠️</span>
                 <span>
-                  You've used your free {LOW_CREDIT_LABELS[lowCreditType] || "content"} for today.
+                  {lowCreditCount > 0
+                    ? `You have ${lowCreditCount} ${LOW_CREDIT_LABELS[lowCreditType] || "content"} left today — make it count!`
+                    : `You've used all your free ${LOW_CREDIT_LABELS[lowCreditType] || "content"} for today.`
+                  }{" "}
                   Upgrade to keep creating without limits.
                 </span>
               </div>
