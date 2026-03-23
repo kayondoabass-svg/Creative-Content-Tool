@@ -5,13 +5,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft, Video, Settings, UserCheck, UserX, Link2, Building2, Receipt, CreditCard, MapPin, FileText, Landmark, ShieldCheck, RefreshCw, Search, Activity, AlertTriangle, ChevronRight, Send, Trophy, Eye, GraduationCap } from "lucide-react";
+import { Users, TrendingUp, Crown, Zap, BarChart3, Calendar, Mail, Clock, DollarSign, ArrowLeft, Video, Settings, UserCheck, UserX, Link2, Building2, Receipt, CreditCard, MapPin, FileText, Landmark, ShieldCheck, RefreshCw, Search, Activity, AlertTriangle, ChevronRight, ChevronDown, Send, Trophy, Eye, GraduationCap, Megaphone, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
@@ -533,6 +534,7 @@ export default function OwnerDashboard() {
 
   const { toast } = useToast();
   const [blastSending, setBlastSending] = useState(false);
+  const [activationSending, setActivationSending] = useState(false);
 
   const sendMarketingBlast = async () => {
     if (!confirm(`Send a marketing email to all free users highlighting BrightBoard's features? This cannot be undone.`)) return;
@@ -548,6 +550,20 @@ export default function OwnerDashboard() {
       toast({ title: "Failed to send", description: e.message, variant: "destructive" });
     } finally {
       setBlastSending(false);
+    }
+  };
+
+  const sendActivationEmails = async () => {
+    if (!confirm(`Send activation emails to eligible inactive users (verified, 24h+ old, never generated)?`)) return;
+    setActivationSending(true);
+    try {
+      const res = await apiRequest("POST", "/api/owner/send-activation-emails", {});
+      const data = await res.json();
+      toast({ title: "Activation emails sent!", description: `Sent to ${data.sent} users (${data.total} eligible).` });
+    } catch (e: any) {
+      toast({ title: "Failed to send", description: e.message, variant: "destructive" });
+    } finally {
+      setActivationSending(false);
     }
   };
 
@@ -610,16 +626,48 @@ export default function OwnerDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            onClick={sendMarketingBlast}
-            disabled={blastSending}
-            variant="outline"
-            data-testid="button-send-marketing-blast"
-            className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/30"
-          >
-            <Mail className="h-4 w-4 mr-1" />
-            {blastSending ? "Sending..." : "Email Free Users"}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                disabled={blastSending || activationSending}
+                variant="outline"
+                data-testid="button-send-emails-dropdown"
+                className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/30"
+              >
+                <Mail className="h-4 w-4 mr-1" />
+                {blastSending || activationSending ? "Sending..." : "Send Emails"}
+                <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Choose email campaign</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={sendActivationEmails}
+                disabled={activationSending}
+                data-testid="button-send-activation"
+                className="flex flex-col items-start gap-0.5 py-2.5 cursor-pointer"
+              >
+                <div className="flex items-center gap-2 font-medium">
+                  <UserPlus className="h-4 w-4 text-amber-600" />
+                  Activation Emails
+                </div>
+                <p className="text-xs text-muted-foreground pl-6">Verified users who never generated content</p>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={sendMarketingBlast}
+                disabled={blastSending}
+                data-testid="button-send-marketing-blast"
+                className="flex flex-col items-start gap-0.5 py-2.5 cursor-pointer"
+              >
+                <div className="flex items-center gap-2 font-medium">
+                  <Megaphone className="h-4 w-4 text-purple-600" />
+                  Marketing Blast
+                </div>
+                <p className="text-xs text-muted-foreground pl-6">All free users — feature highlight email</p>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Link href="/owner-expenses">
             <Button variant="outline" data-testid="button-expenses">
               <DollarSign className="h-4 w-4 mr-1" />
