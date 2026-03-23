@@ -9,6 +9,7 @@ interface ContentTypeCardProps {
   isSelected: boolean;
   onClick: () => void;
   testId: string;
+  remaining?: number;
 }
 
 export function ContentTypeCard({
@@ -19,17 +20,28 @@ export function ContentTypeCard({
   isSelected,
   onClick,
   testId,
+  remaining,
 }: ContentTypeCardProps) {
+  const showLowCredit = typeof remaining === "number" && remaining <= 1;
+
   return (
     <Card
       onClick={onClick}
       data-testid={testId}
       className={`
-        p-3 cursor-pointer transition-all duration-200 hover-elevate
+        relative p-3 cursor-pointer transition-all duration-200 hover-elevate
         w-[140px] sm:w-auto flex-shrink-0 sm:flex-shrink
         ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}
       `}
     >
+      {showLowCredit && (
+        <span
+          data-testid={`badge-low-credit-${testId}`}
+          className="absolute -top-1.5 -right-1.5 z-10 rounded-full bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 leading-none shadow"
+        >
+          {remaining === 0 ? "0 left" : "1 left"}
+        </span>
+      )}
       <div className="flex flex-col items-center text-center gap-2 sm:flex-row sm:items-start sm:text-left sm:gap-3">
         <div
           className={`p-2 rounded-lg ${color}`}

@@ -95,6 +95,11 @@ export default function Home() {
     queryKey: ["/api/content"],
   });
 
+  const { data: usageData } = useQuery<{ isPremium: boolean; remaining?: Record<string, number> }>({
+    queryKey: ["/api/user/usage"],
+    staleTime: 30_000,
+  });
+
   // Poll job status while generating
   const { data: jobStatus } = useQuery<any>({
     queryKey: ["/api/generate/job", jobId],
@@ -134,15 +139,17 @@ export default function Home() {
         setSelectedHistoryItem(null);
         queryClient.invalidateQueries({ queryKey: ["/api/content"] });
         toast({ title: t("home.contentCreated"), description: t("home.contentReady") });
+        // Refresh usage counts so content-type card badges update
+        queryClient.invalidateQueries({ queryKey: ["/api/user/usage"] });
         // Check remaining credits after generation
         (async () => {
           try {
             const usageRes = await fetch("/api/user/usage");
             if (usageRes.ok) {
-              const usageData = await usageRes.json();
-              if (!usageData.isPremium && usageData.remaining) {
-                const rem = usageData.remaining[jobStatus.result.type] ?? 0;
-                if (rem <= 0) setLowCreditType(jobStatus.result.type);
+              const freshUsage = await usageRes.json();
+              if (!freshUsage.isPremium && freshUsage.remaining) {
+                const rem = freshUsage.remaining[jobStatus.result.type] ?? 0;
+                if (rem <= 1) setLowCreditType(jobStatus.result.type);
               }
             }
           } catch {}
@@ -248,6 +255,9 @@ export default function Home() {
                     setSelectedHistoryItem(null);
                   }}
                   testId={`card-type-${ct.type}`}
+                  remaining={usageData && !usageData.isPremium && usageData.remaining
+                    ? usageData.remaining[ct.type]
+                    : undefined}
                 />
               ))}
             </div>

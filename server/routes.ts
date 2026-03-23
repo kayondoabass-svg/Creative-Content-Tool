@@ -829,6 +829,34 @@ ${pages.map(p => `  <url>
     return next();
   }
 
+  // Shared handler for activation email batch send
+  async function handleSendActivationEmails(_req: any, res: any) {
+    try {
+      const { sendActivationEmail } = await import('./emailService');
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const eligibleUsers = await db.select().from(users).where(
+        and(lt(users.createdAt, twentyFourHoursAgo), isNull(users.activationEmailSentAt), eq(users.emailVerified, true))
+      );
+      const neverGenerated = eligibleUsers.filter(u =>
+        (u.freeImageCount ?? 0) + (u.freePresentationCount ?? 0) + (u.freeMindmapCount ?? 0) +
+        (u.freeWorksheetCount ?? 0) + (u.freeTextCount ?? 0) + (u.freeActivityCount ?? 0) + (u.freeVideoCount ?? 0) === 0
+      );
+      let sent = 0;
+      for (const user of neverGenerated) {
+        if (!user.email) continue;
+        const ok = await sendActivationEmail(user.email, user.firstName ?? 'Teacher');
+        if (ok) { await db.update(users).set({ activationEmailSentAt: new Date() }).where(eq(users.id, user.id)); sent++; }
+      }
+      res.json({ sent, total: neverGenerated.length });
+    } catch (error) {
+      console.error("Error sending activation emails:", error);
+      res.status(500).json({ error: "Failed to send activation emails" });
+    }
+  }
+
+  // Admin alias (matches task contract /api/admin/...)
+  app.post("/api/admin/send-activation-emails", isOwnerMiddleware, handleSendActivationEmails);
+
   // Get current user's usage counts (authenticated)
   app.get("/api/user/usage", isAuthenticated, async (req: any, res: any) => {
     try {
@@ -876,45 +904,7 @@ ${pages.map(p => `  <url>
   });
 
   // Send activation emails to inactive users (owner only)
-  app.post("/api/owner/send-activation-emails", isOwnerMiddleware, async (_req: any, res: any) => {
-    try {
-      const { sendActivationEmail } = await import('./emailService');
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-      const eligibleUsers = await db.select().from(users).where(
-        and(
-          lt(users.createdAt, twentyFourHoursAgo),
-          isNull(users.activationEmailSentAt),
-          eq(users.emailVerified, true),
-        )
-      );
-
-      const neverGenerated = eligibleUsers.filter(u =>
-        (u.freeImageCount ?? 0) === 0 &&
-        (u.freePresentationCount ?? 0) === 0 &&
-        (u.freeMindmapCount ?? 0) === 0 &&
-        (u.freeWorksheetCount ?? 0) === 0 &&
-        (u.freeTextCount ?? 0) === 0 &&
-        (u.freeActivityCount ?? 0) === 0 &&
-        (u.freeVideoCount ?? 0) === 0
-      );
-
-      let sent = 0;
-      for (const user of neverGenerated) {
-        if (!user.email) continue;
-        const ok = await sendActivationEmail(user.email, user.firstName ?? 'Teacher');
-        if (ok) {
-          await db.update(users).set({ activationEmailSentAt: new Date() }).where(eq(users.id, user.id));
-          sent++;
-        }
-      }
-
-      res.json({ sent, total: neverGenerated.length });
-    } catch (error) {
-      console.error("Error sending activation emails:", error);
-      res.status(500).json({ error: "Failed to send activation emails" });
-    }
-  });
+  app.post("/api/owner/send-activation-emails", isOwnerMiddleware, handleSendActivationEmails);
 
   // Get owner dashboard statistics
   app.get("/api/owner/stats", isOwnerMiddleware, async (req, res) => {
