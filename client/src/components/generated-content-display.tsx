@@ -10,6 +10,7 @@ import { VideoExportModal } from "./video-export-modal";
 import { GamePlayerModal } from "./game-player-modal";
 import { BrightBoardLogo } from "./brightboard-logo";
 import { MindmapCanvas, type MindmapData, BRANCH_COLORS } from "./mindmap-canvas";
+import { useSubscription } from "@/hooks/use-subscription";
 import pptxgen from "pptxgenjs";
 import JSZip from "jszip";
 import { apiRequest } from "@/lib/queryClient";
@@ -1171,7 +1172,16 @@ function MindmapContent({ content }: { content: string }) {
   const [colorPicker, setColorPicker] = useState<number | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const { toast } = useToast();
+  const { isPremium } = useSubscription();
   const editInputRef = useRef<HTMLInputElement>(null);
+
+  const requirePremium = () => {
+    toast({
+      title: "Premium feature",
+      description: "Upgrade to Premium to unlock branch editing, color customisation, and PDF export.",
+      variant: "destructive",
+    });
+  };
 
   useEffect(() => {
     try { setEditableData(JSON.parse(content)); } catch {}
@@ -1190,6 +1200,7 @@ function MindmapContent({ content }: { content: string }) {
 
   const handleBranchColorClick = (branchIdx: number, _color: string, e: MouseEvent) => {
     e.stopPropagation();
+    if (!isPremium) { requirePremium(); return; }
     setEditingNode(null);
     setColorPicker(prev => prev === branchIdx ? null : branchIdx);
   };
@@ -1303,7 +1314,13 @@ function MindmapContent({ content }: { content: string }) {
 
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
         <Pencil className="h-3 w-3 shrink-0" />
-        <span>Click any label to edit it. Click a branch circle to change its color.</span>
+        <span>
+          Click any label to edit it.{" "}
+          {isPremium
+            ? "Click a branch circle to change its colour."
+            : <span>Branch colours, adding branches, and PDF export require <a href="/pricing" className="underline text-primary">Premium</a>.</span>
+          }
+        </span>
       </div>
 
       <div className="rounded-xl border overflow-hidden shadow-sm relative" onClick={e => e.stopPropagation()}>
@@ -1358,21 +1375,51 @@ function MindmapContent({ content }: { content: string }) {
       )}
 
       <div className="flex items-center gap-2 flex-wrap pt-1">
-        <Button size="sm" variant="outline" onClick={addBranch} data-testid="button-mindmap-add-branch">
-          <Plus className="h-4 w-4 mr-1.5" />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={isPremium ? addBranch : requirePremium}
+          data-testid="button-mindmap-add-branch"
+          title={isPremium ? "Add a new branch" : "Premium feature — upgrade to add branches"}
+        >
+          {isPremium ? <Plus className="h-4 w-4 mr-1.5" /> : <Crown className="h-4 w-4 mr-1.5 text-yellow-500" />}
           Add Branch
         </Button>
         {editableData.branches.length > 2 && (
-          <Button size="sm" variant="outline" onClick={removeLastBranch} data-testid="button-mindmap-remove-branch">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={isPremium ? removeLastBranch : requirePremium}
+            data-testid="button-mindmap-remove-branch"
+          >
             <X className="h-4 w-4 mr-1.5" />
             Remove Last Branch
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={downloadPDF} disabled={pdfLoading} data-testid="button-mindmap-download-pdf">
-          {pdfLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={isPremium ? downloadPDF : requirePremium}
+          disabled={pdfLoading}
+          data-testid="button-mindmap-download-pdf"
+          title={isPremium ? "Download as PDF" : "Premium feature — upgrade to download PDF"}
+        >
+          {pdfLoading ? (
+            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+          ) : isPremium ? (
+            <FileText className="h-4 w-4 mr-1.5" />
+          ) : (
+            <Crown className="h-4 w-4 mr-1.5 text-yellow-500" />
+          )}
           Download PDF
         </Button>
       </div>
+      {!isPremium && (
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Crown className="h-3 w-3 text-yellow-500" />
+          <span>Branch editing, color customisation, and PDF export are Premium features. <a href="/pricing" className="underline text-primary">Upgrade here.</a></span>
+        </p>
+      )}
     </div>
   );
 }
