@@ -96,7 +96,7 @@ export default function Home() {
     queryKey: ["/api/content"],
   });
 
-  const { data: usageData } = useQuery<{ isPremium: boolean; remaining?: Record<string, number> }>({
+  const { data: usageData } = useQuery<{ isPremium: boolean; remaining?: Record<string, number>; totalGenerations?: number }>({
     queryKey: ["/api/user/usage"],
     staleTime: 30_000,
   });
@@ -217,11 +217,9 @@ export default function Home() {
 
   const displayContent = selectedHistoryItem?.content || generatedContent;
 
-  // FREE_MAX mirrors the server-side FREE_LIMITS — if all remaining === max then no content ever generated
-  const FREE_MAX: Record<string, number> = { image: 2, presentation: 1, storyboard: 1, mindmap: 2, worksheet: 2, text: 3, activity: 2 };
+  // Use server-provided lifetime generation count for reliable first-time detection
   const isFirstTimeUser = usageData
-    ? (!usageData.isPremium && !!usageData.remaining &&
-        Object.entries(FREE_MAX).every(([k, v]) => (usageData.remaining![k] ?? 0) >= v))
+    ? (usageData.totalGenerations === 0)
     : (history.length === 0 && !generatedContent);
 
   const LOW_CREDIT_LABELS: Record<string, string> = {

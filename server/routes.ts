@@ -25,7 +25,7 @@ import * as customAuth from "./customAuthService";
 import { db } from "./db";
 import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
-import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull } from "drizzle-orm";
+import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -834,13 +834,16 @@ ${pages.map(p => `  <url>
     try {
       const { sendActivationEmail } = await import('./emailService');
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      // Eligible: verified, signed up >24h ago, never received activation email
       const eligibleUsers = await db.select().from(users).where(
         and(lt(users.createdAt, twentyFourHoursAgo), isNull(users.activationEmailSentAt), eq(users.emailVerified, true))
       );
-      const neverGenerated = eligibleUsers.filter(u =>
-        (u.freeImageCount ?? 0) + (u.freePresentationCount ?? 0) + (u.freeMindmapCount ?? 0) +
-        (u.freeWorksheetCount ?? 0) + (u.freeTextCount ?? 0) + (u.freeActivityCount ?? 0) + (u.freeVideoCount ?? 0) === 0
-      );
+      if (!eligibleUsers.length) return res.json({ sent: 0, total: 0 });
+      // Lifetime generation check — use feature_usage rows (daily counters reset, so they are unreliable)
+      const generatedRows = await db.selectDistinct({ userId: featureUsage.userId }).from(featureUsage)
+        .where(inArray(featureUsage.userId, eligibleUsers.map(u => u.id)));
+      const generatedIds = new Set(generatedRows.map(r => r.userId));
+      const neverGenerated = eligibleUsers.filter(u => !generatedIds.has(u.id));
       let sent = 0;
       for (const user of neverGenerated) {
         if (!user.email) continue;
@@ -896,7 +899,10 @@ ${pages.map(p => `  <url>
         remaining[type] = Math.max(0, limit - (usage[type as keyof typeof usage] || 0));
       }
 
-      res.json({ isPremium: false, usage, limits: FREE_LIMITS_MAP, remaining });
+      const [lifetimeRow] = await db.select({ total: count() }).from(featureUsage).where(eq(featureUsage.userId, userId));
+      const totalGenerations = lifetimeRow?.total ?? 0;
+
+      res.json({ isPremium: false, usage, limits: FREE_LIMITS_MAP, remaining, totalGenerations });
     } catch (error) {
       console.error("Error fetching user usage:", error);
       res.status(500).json({ error: "Failed to fetch usage" });
@@ -1306,7 +1312,7 @@ ${pages.map(p => `  <url>
       if (!email) return res.json(null);
       const [user] = await db.select().from(users).where(eq(users.email, email));
       if (!user) return res.json(null);
-      const { passwordHash: _omit, ...safeUser } = user as any;
+      const { passwordHash: _omit, ...safeUser } = user;
       res.json(safeUser);
     } catch (error) {
       console.error("User lookup error:", error);

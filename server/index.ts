@@ -157,17 +157,19 @@ app.use((req, res, next) => {
   const scheduleActivationEmails = async () => {
     try {
       const { sendActivationEmail } = await import('./emailService');
-      const { lt, isNull, and, eq } = await import('drizzle-orm');
-      const { users } = await import('@shared/schema');
+      const { lt, isNull, and, eq, inArray } = await import('drizzle-orm');
+      const { users, featureUsage } = await import('@shared/schema');
       const { db } = await import('./db');
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const eligibleUsers = await db.select().from(users).where(
         and(lt(users.createdAt, twentyFourHoursAgo), isNull(users.activationEmailSentAt), eq(users.emailVerified, true))
       );
-      const neverGenerated = eligibleUsers.filter(u =>
-        (u.freeImageCount ?? 0) + (u.freePresentationCount ?? 0) + (u.freeMindmapCount ?? 0) +
-        (u.freeWorksheetCount ?? 0) + (u.freeTextCount ?? 0) + (u.freeActivityCount ?? 0) + (u.freeVideoCount ?? 0) === 0
-      );
+      if (!eligibleUsers.length) return;
+      // Use lifetime feature_usage rows (not daily counters) to identify truly never-generated users
+      const generatedRows = await db.selectDistinct({ userId: featureUsage.userId }).from(featureUsage)
+        .where(inArray(featureUsage.userId, eligibleUsers.map(u => u.id)));
+      const generatedIds = new Set(generatedRows.map(r => r.userId));
+      const neverGenerated = eligibleUsers.filter(u => !generatedIds.has(u.id));
       for (const u of neverGenerated) {
         if (!u.email) continue;
         const ok = await sendActivationEmail(u.email, u.firstName ?? 'Teacher');
