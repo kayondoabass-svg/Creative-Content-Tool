@@ -1175,6 +1175,170 @@ ${pages.map(p => `  <url>
     }
   });
 
+  // User funnel stats
+  app.get("/api/owner/funnel", isOwnerMiddleware, async (_req: any, res: any) => {
+    try {
+      const [totalResult] = await db.select({ count: count() }).from(users);
+      const [verifiedResult] = await db.select({ count: count() }).from(users).where(eq(users.emailVerified, true));
+      const [premiumResult] = await db.select({ count: count() }).from(users).where(
+        and(ne(users.subscriptionTier, "free"), eq(users.subscriptionStatus, "active"))
+      );
+      const allUsers = await db.select({
+        freeImageCount: users.freeImageCount,
+        freePresentationCount: users.freePresentationCount,
+        freeVideoCount: users.freeVideoCount,
+        freeMindmapCount: users.freeMindmapCount,
+        freeWorksheetCount: users.freeWorksheetCount,
+        freeTextCount: users.freeTextCount,
+        freeActivityCount: users.freeActivityCount,
+        emailVerified: users.emailVerified,
+        activationEmailSentAt: users.activationEmailSentAt,
+        subscriptionTier: users.subscriptionTier,
+        subscriptionStatus: users.subscriptionStatus,
+        createdAt: users.createdAt,
+      }).from(users);
+
+      const generated = allUsers.filter(u =>
+        (u.freeImageCount ?? 0) + (u.freePresentationCount ?? 0) + (u.freeMindmapCount ?? 0) +
+        (u.freeWorksheetCount ?? 0) + (u.freeTextCount ?? 0) + (u.freeActivityCount ?? 0) + (u.freeVideoCount ?? 0) > 0
+      ).length;
+
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const activationEligible = allUsers.filter(u =>
+        u.emailVerified &&
+        !u.activationEmailSentAt &&
+        new Date(u.createdAt!) < twentyFourHoursAgo &&
+        (u.freeImageCount ?? 0) + (u.freePresentationCount ?? 0) + (u.freeMindmapCount ?? 0) +
+        (u.freeWorksheetCount ?? 0) + (u.freeTextCount ?? 0) + (u.freeActivityCount ?? 0) + (u.freeVideoCount ?? 0) === 0
+      ).length;
+      const activationSent = allUsers.filter(u => !!u.activationEmailSentAt).length;
+
+      res.json({
+        total: Number(totalResult?.count ?? 0),
+        verified: Number(verifiedResult?.count ?? 0),
+        generated,
+        premium: Number(premiumResult?.count ?? 0),
+        activationEligible,
+        activationSent,
+      });
+    } catch (error) {
+      console.error("Funnel error:", error);
+      res.status(500).json({ error: "Failed to fetch funnel" });
+    }
+  });
+
+  // Retention / inactivity stats
+  app.get("/api/owner/retention", isOwnerMiddleware, async (_req: any, res: any) => {
+    try {
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const [active7d] = await db.select({ count: count() }).from(users).where(gte(users.lastActiveAt, sevenDaysAgo));
+      const [active30d] = await db.select({ count: count() }).from(users).where(gte(users.lastActiveAt, thirtyDaysAgo));
+      const [total] = await db.select({ count: count() }).from(users);
+
+      // Users who've hit at least one free limit (likely to upgrade)
+      const FREE_LIMITS_CHECK: Record<string, any> = { image: 2, presentation: 1, mindmap: 2, worksheet: 2, text: 3, activity: 2, video: 1 };
+      const allFreeUsers = await db.select({
+        freeImageCount: users.freeImageCount,
+        freePresentationCount: users.freePresentationCount,
+        freeVideoCount: users.freeVideoCount,
+        freeMindmapCount: users.freeMindmapCount,
+        freeWorksheetCount: users.freeWorksheetCount,
+        freeTextCount: users.freeTextCount,
+        freeActivityCount: users.freeActivityCount,
+      }).from(users).where(eq(users.subscriptionTier, "free"));
+
+      const limitHitters = allFreeUsers.filter(u =>
+        (u.freeImageCount ?? 0) >= FREE_LIMITS_CHECK.image ||
+        (u.freePresentationCount ?? 0) >= FREE_LIMITS_CHECK.presentation ||
+        (u.freeMindmapCount ?? 0) >= FREE_LIMITS_CHECK.mindmap ||
+        (u.freeWorksheetCount ?? 0) >= FREE_LIMITS_CHECK.worksheet ||
+        (u.freeTextCount ?? 0) >= FREE_LIMITS_CHECK.text ||
+        (u.freeActivityCount ?? 0) >= FREE_LIMITS_CHECK.activity
+      ).length;
+
+      res.json({
+        active7d: Number(active7d?.count ?? 0),
+        active30d: Number(active30d?.count ?? 0),
+        inactive30d: Number(total?.count ?? 0) - Number(active30d?.count ?? 0),
+        total: Number(total?.count ?? 0),
+        limitHitters,
+      });
+    } catch (error) {
+      console.error("Retention error:", error);
+      res.status(500).json({ error: "Failed to fetch retention stats" });
+    }
+  });
+
+  // Top generators
+  app.get("/api/owner/top-generators", isOwnerMiddleware, async (_req: any, res: any) => {
+    try {
+      const topUsers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        subscriptionTier: users.subscriptionTier,
+        subscriptionStatus: users.subscriptionStatus,
+        freeImageCount: users.freeImageCount,
+        freePresentationCount: users.freePresentationCount,
+        freeMindmapCount: users.freeMindmapCount,
+        freeWorksheetCount: users.freeWorksheetCount,
+        freeTextCount: users.freeTextCount,
+        freeActivityCount: users.freeActivityCount,
+        freeVideoCount: users.freeVideoCount,
+        lastActiveAt: users.lastActiveAt,
+      }).from(users);
+
+      const withTotals = topUsers.map(u => ({
+        ...u,
+        totalGenerations:
+          (u.freeImageCount ?? 0) + (u.freePresentationCount ?? 0) +
+          (u.freeMindmapCount ?? 0) + (u.freeWorksheetCount ?? 0) +
+          (u.freeTextCount ?? 0) + (u.freeActivityCount ?? 0) + (u.freeVideoCount ?? 0),
+      })).filter(u => u.totalGenerations > 0)
+        .sort((a, b) => b.totalGenerations - a.totalGenerations)
+        .slice(0, 10);
+
+      res.json(withTotals);
+    } catch (error) {
+      console.error("Top generators error:", error);
+      res.status(500).json({ error: "Failed to fetch top generators" });
+    }
+  });
+
+  // User lookup by email
+  app.get("/api/owner/user-lookup", isOwnerMiddleware, async (req: any, res: any) => {
+    try {
+      const email = (req.query.email as string || "").toLowerCase().trim();
+      if (!email) return res.json(null);
+      const [user] = await db.select().from(users).where(eq(users.email, email));
+      if (!user) return res.json(null);
+      res.json(user);
+    } catch (error) {
+      console.error("User lookup error:", error);
+      res.status(500).json({ error: "Failed to lookup user" });
+    }
+  });
+
+  // Grant/revoke premium for a user (owner action)
+  app.patch("/api/owner/user/:id/subscription", isOwnerMiddleware, async (req: any, res: any) => {
+    try {
+      const { tier, status } = req.body;
+      await db.update(users).set({
+        subscriptionTier: tier,
+        subscriptionStatus: status,
+        subscriptionEndsAt: status === "active" ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : null,
+      }).where(eq(users.id, req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Update subscription error:", error);
+      res.status(500).json({ error: "Failed to update subscription" });
+    }
+  });
+
   // Get daily signup trend (last 30 days)
   app.get("/api/owner/trends", isOwnerMiddleware, async (req, res) => {
     try {
