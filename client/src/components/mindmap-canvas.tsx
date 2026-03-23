@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, type MouseEvent } from "react";
 
-interface MindmapNode {
+export interface MindmapNode {
   label: string;
   color?: string;
   image?: string;
@@ -54,9 +54,10 @@ const CHILD_R = 190;
 const DETAIL_R = 115;
 const NODE_R = 46;
 
-const COLORS = [
+export const BRANCH_COLORS = [
   "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
   "#F7B731", "#BB8FCE", "#FF8C42", "#5FB3E4",
+  "#E17055", "#00CEC9", "#FDCB6E", "#6C5CE7",
 ];
 
 function computeLayout(branches: MindmapNode[]): PBranch[] {
@@ -65,7 +66,7 @@ function computeLayout(branches: MindmapNode[]): PBranch[] {
     const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
     const bx = CX + Math.cos(angle) * BRANCH_R;
     const by = CY + Math.sin(angle) * BRANCH_R;
-    const color = branch.color || COLORS[i % COLORS.length];
+    const color = branch.color || BRANCH_COLORS[i % BRANCH_COLORS.length];
 
     const children: PChild[] = (branch.children || []).map((child, j) => {
       const nc = (branch.children || []).length;
@@ -137,7 +138,20 @@ function SvgText({ x, y, text, maxChars, fs, fw, fill, anchor }: {
   );
 }
 
-function RadialMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
+export interface MindmapCanvasProps {
+  data: MindmapData;
+  onNodeClick?: (nodeId: string, currentLabel: string) => void;
+  onBranchColorClick?: (branchIdx: number, currentColor: string, e: MouseEvent) => void;
+  editable?: boolean;
+}
+
+function RadialMap({ data, pos, onNodeClick, onBranchColorClick, editable }: {
+  data: MindmapData; pos: PBranch[];
+  onNodeClick?: MindmapCanvasProps["onNodeClick"];
+  onBranchColorClick?: MindmapCanvasProps["onBranchColorClick"];
+  editable?: boolean;
+}) {
+  const clickStyle = editable ? { cursor: "pointer" } : {};
   return (
     <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ background: "white", display: "block" }}>
       <defs>
@@ -153,7 +167,6 @@ function RadialMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
         ))}
       </defs>
 
-      {/* Connection lines — rendered first (behind nodes) */}
       {pos.map((b, i) => (
         <g key={i}>
           <path d={qBezier(CX, CY, b.x, b.y, 0.2)} fill="none" stroke={b.color} strokeWidth={4.5} strokeOpacity={0.8} strokeLinecap="round" />
@@ -168,27 +181,24 @@ function RadialMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
         </g>
       ))}
 
-      {/* Detail nodes */}
       {pos.map((b, i) => b.children.map((c, j) => c.children.map((d, k) => (
-        <g key={`d-${i}-${j}-${k}`}>
+        <g key={`d-${i}-${j}-${k}`} style={clickStyle} onClick={() => onNodeClick?.(`detail-${i}-${j}-${k}`, d.label)}>
           <rect x={d.x - 36} y={d.y - 12} width={72} height={24} rx={12} fill={`${b.color}22`} stroke={`${b.color}55`} strokeWidth={1} />
           <SvgText x={d.x} y={d.y} text={d.label} maxChars={9} fs={9.5} fill={b.color} />
         </g>
       ))))}
 
-      {/* Child nodes */}
       {pos.map((b, i) => b.children.map((c, j) => {
         const ls = wrapText(c.label, 10);
         const h = ls.length * 14 + 12;
         return (
-          <g key={`c-${i}-${j}`}>
+          <g key={`c-${i}-${j}`} style={clickStyle} onClick={() => onNodeClick?.(`child-${i}-${j}`, c.label)}>
             <rect x={c.x - 34} y={c.y - h / 2} width={68} height={h} rx={h / 2} fill={`${b.color}22`} stroke={b.color} strokeWidth={2} />
             <SvgText x={c.x} y={c.y} text={c.label} maxChars={10} fs={10} fw="600" fill={b.color} />
           </g>
         );
       }))}
 
-      {/* Branch nodes */}
       {pos.map((b, i) => {
         const lx = b.x + Math.cos(b.angle) * (NODE_R + 26);
         const ly = b.y + Math.sin(b.angle) * (NODE_R + 28);
@@ -196,35 +206,50 @@ function RadialMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
         return (
           <g key={`b-${i}`}>
             <circle cx={b.x + 2} cy={b.y + 3} r={NODE_R + 1} fill="rgba(0,0,0,0.1)" />
-            <circle cx={b.x} cy={b.y} r={NODE_R} fill={b.image ? "white" : b.color} stroke={b.color} strokeWidth={3.5} />
+            <circle
+              cx={b.x} cy={b.y} r={NODE_R}
+              fill={b.image ? "white" : b.color}
+              stroke={b.color} strokeWidth={3.5}
+              style={clickStyle}
+              onClick={(e) => { e.stopPropagation(); onBranchColorClick?.(i, b.color, e); }}
+            />
             {b.image && (
-              <image href={b.image} x={b.x - NODE_R} y={b.y - NODE_R} width={NODE_R * 2} height={NODE_R * 2} clipPath={`url(#rc-b${i})`} preserveAspectRatio="xMidYMid slice" />
+              <image href={b.image} x={b.x - NODE_R} y={b.y - NODE_R} width={NODE_R * 2} height={NODE_R * 2} clipPath={`url(#rc-b${i})`} preserveAspectRatio="xMidYMid slice" style={{ pointerEvents: "none" }} />
             )}
             {!b.image && (
               <SvgText x={b.x} y={b.y} text={b.label.charAt(0)} maxChars={1} fs={22} fw="bold" fill="white" />
             )}
-            <SvgText x={lx} y={ly} text={b.label} maxChars={13} fs={13} fw="bold" fill={b.color} anchor={anchor} />
+            <g style={clickStyle} onClick={() => onNodeClick?.(`branch-${i}`, b.label)}>
+              <SvgText x={lx} y={ly} text={b.label} maxChars={13} fs={13} fw="bold" fill={b.color} anchor={anchor} />
+            </g>
           </g>
         );
       })}
 
-      {/* Central node */}
       <circle cx={CX + 2} cy={CY + 4} r={64} fill="rgba(0,0,0,0.12)" />
       <circle cx={CX} cy={CY} r={63} fill={data.centralImage ? "white" : "#7c3aed"} stroke="#7c3aed" strokeWidth={4} />
       {data.centralImage && (
         <image href={data.centralImage} x={CX - 60} y={CY - 60} width={120} height={120} clipPath="url(#rc-center)" preserveAspectRatio="xMidYMid slice" />
       )}
-      {!data.centralImage && (
-        <SvgText x={CX} y={CY} text={data.centralTopic || data.title} maxChars={13} fs={15} fw="bold" fill="white" />
-      )}
-      {data.centralImage && (
-        <SvgText x={CX} y={CY + 76} text={data.centralTopic || data.title} maxChars={15} fs={14} fw="bold" fill="#7c3aed" />
-      )}
+      <g style={clickStyle} onClick={() => onNodeClick?.("central", data.centralTopic || data.title)}>
+        {!data.centralImage && (
+          <SvgText x={CX} y={CY} text={data.centralTopic || data.title} maxChars={13} fs={15} fw="bold" fill="white" />
+        )}
+        {data.centralImage && (
+          <SvgText x={CX} y={CY + 76} text={data.centralTopic || data.title} maxChars={15} fs={14} fw="bold" fill="#7c3aed" />
+        )}
+      </g>
     </svg>
   );
 }
 
-function SketchMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
+function SketchMap({ data, pos, onNodeClick, onBranchColorClick, editable }: {
+  data: MindmapData; pos: PBranch[];
+  onNodeClick?: MindmapCanvasProps["onNodeClick"];
+  onBranchColorClick?: MindmapCanvasProps["onBranchColorClick"];
+  editable?: boolean;
+}) {
+  const clickStyle = editable ? { cursor: "pointer" } : {};
   return (
     <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ background: "#fffef5", display: "block" }}>
       <defs>
@@ -236,14 +261,11 @@ function SketchMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
         </marker>
       </defs>
 
-      {/* Notebook lines */}
       {Array.from({ length: 38 }).map((_, i) => (
         <line key={i} x1={0} y1={i * 26 + 14} x2={VW} y2={i * 26 + 14} stroke="#e8e5d0" strokeWidth={0.7} />
       ))}
-      {/* Left margin line */}
       <line x1={70} y1={0} x2={70} y2={VH} stroke="#f0b8b8" strokeWidth={1} />
 
-      {/* Connection lines */}
       {pos.map((b, i) => (
         <g key={i}>
           <line x1={CX} y1={CY} x2={b.x} y2={b.y} stroke="#555" strokeWidth={2} markerEnd="url(#sk-arrow)" />
@@ -258,43 +280,54 @@ function SketchMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
         </g>
       ))}
 
-      {/* Detail text */}
       {pos.map((b, i) => b.children.map((c, j) => c.children.map((d, k) => (
-        <g key={`d-${i}-${j}-${k}`}>
+        <g key={`d-${i}-${j}-${k}`} style={clickStyle} onClick={() => onNodeClick?.(`detail-${i}-${j}-${k}`, d.label)}>
           <SvgText x={d.x} y={d.y} text={`→ ${d.label}`} maxChars={10} fs={9.5} fill="#666" />
         </g>
       ))))}
 
-      {/* Child nodes — boxes */}
       {pos.map((b, i) => b.children.map((c, j) => {
         const ls = wrapText(c.label, 11);
         const w = 72, h = ls.length * 14 + 12;
         return (
-          <g key={`c-${i}-${j}`}>
+          <g key={`c-${i}-${j}`} style={clickStyle} onClick={() => onNodeClick?.(`child-${i}-${j}`, c.label)}>
             <rect x={c.x - w / 2} y={c.y - h / 2} width={w} height={h} rx={5} fill="white" stroke="#555" strokeWidth={1.8} />
             <SvgText x={c.x} y={c.y} text={c.label} maxChars={11} fs={10.5} fill="#333" />
           </g>
         );
       }))}
 
-      {/* Branch nodes — ovals */}
       {pos.map((b, i) => (
         <g key={`b-${i}`}>
           <ellipse cx={b.x + 1} cy={b.y + 2} rx={54} ry={33} fill="rgba(0,0,0,0.07)" />
-          <ellipse cx={b.x} cy={b.y} rx={54} ry={33} fill="#fffef5" stroke="#333" strokeWidth={2.2} />
-          <SvgText x={b.x} y={b.y} text={b.label} maxChars={10} fs={12} fw="bold" fill="#222" />
+          <ellipse
+            cx={b.x} cy={b.y} rx={54} ry={33}
+            fill="#fffef5" stroke="#333" strokeWidth={2.2}
+            style={clickStyle}
+            onClick={(e) => { e.stopPropagation(); onBranchColorClick?.(i, b.color, e); }}
+          />
+          <g style={clickStyle} onClick={() => onNodeClick?.(`branch-${i}`, b.label)}>
+            <SvgText x={b.x} y={b.y} text={b.label} maxChars={10} fs={12} fw="bold" fill="#222" />
+          </g>
         </g>
       ))}
 
-      {/* Central node — large blob */}
       <ellipse cx={CX + 2} cy={CY + 3} rx={84} ry={54} fill="rgba(0,0,0,0.08)" />
       <ellipse cx={CX} cy={CY} rx={84} ry={54} fill="white" stroke="#333" strokeWidth={3} />
-      <SvgText x={CX} y={CY} text={data.centralTopic || data.title} maxChars={14} fs={16} fw="bold" fill="#111" />
+      <g style={clickStyle} onClick={() => onNodeClick?.("central", data.centralTopic || data.title)}>
+        <SvgText x={CX} y={CY} text={data.centralTopic || data.title} maxChars={14} fs={16} fw="bold" fill="#111" />
+      </g>
     </svg>
   );
 }
 
-function InfographicMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
+function InfographicMap({ data, pos, onNodeClick, onBranchColorClick, editable }: {
+  data: MindmapData; pos: PBranch[];
+  onNodeClick?: MindmapCanvasProps["onNodeClick"];
+  onBranchColorClick?: MindmapCanvasProps["onBranchColorClick"];
+  editable?: boolean;
+}) {
+  const clickStyle = editable ? { cursor: "pointer" } : {};
   return (
     <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ background: "#0f172a", display: "block" }}>
       <defs>
@@ -317,14 +350,12 @@ function InfographicMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
         </filter>
       </defs>
 
-      {/* Dot grid background */}
       {Array.from({ length: 20 }).map((_, ri) =>
         Array.from({ length: 24 }).map((_, ci) => (
           <circle key={`${ri}-${ci}`} cx={ci * 48 + 8} cy={ri * 50 + 8} r={1.2} fill="rgba(255,255,255,0.06)" />
         ))
       )}
 
-      {/* Connection lines */}
       {pos.map((b, i) => (
         <g key={i}>
           <line x1={CX} y1={CY} x2={b.x} y2={b.y} stroke={b.color} strokeWidth={2.5} strokeOpacity={0.65} markerEnd="url(#ig-arrow)" />
@@ -339,23 +370,20 @@ function InfographicMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
         </g>
       ))}
 
-      {/* Detail pills */}
       {pos.map((b, i) => b.children.map((c, j) => c.children.map((d, k) => (
-        <g key={`d-${i}-${j}-${k}`}>
+        <g key={`d-${i}-${j}-${k}`} style={clickStyle} onClick={() => onNodeClick?.(`detail-${i}-${j}-${k}`, d.label)}>
           <rect x={d.x - 34} y={d.y - 12} width={68} height={24} rx={12} fill={`${b.color}30`} stroke={`${b.color}70`} strokeWidth={1} />
           <SvgText x={d.x} y={d.y} text={d.label} maxChars={9} fs={9} fill="rgba(255,255,255,0.8)" />
         </g>
       ))))}
 
-      {/* Child nodes — circles */}
       {pos.map((b, i) => b.children.map((c, j) => (
-        <g key={`c-${i}-${j}`}>
+        <g key={`c-${i}-${j}`} style={clickStyle} onClick={() => onNodeClick?.(`child-${i}-${j}`, c.label)}>
           <circle cx={c.x} cy={c.y} r={33} fill={`${b.color}35`} stroke={b.color} strokeWidth={2} />
           <SvgText x={c.x} y={c.y} text={c.label} maxChars={9} fs={9.5} fw="500" fill="white" />
         </g>
       )))}
 
-      {/* Branch nodes — large circles with images */}
       {pos.map((b, i) => {
         const lx = b.x + Math.cos(b.angle) * (52 + 30);
         const ly = b.y + Math.sin(b.angle) * (52 + 32);
@@ -363,22 +391,28 @@ function InfographicMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
         return (
           <g key={`b-${i}`}>
             <circle cx={b.x} cy={b.y} r={55} fill={b.color} opacity={0.2} filter="url(#ig-glow)" />
-            <circle cx={b.x} cy={b.y} r={50} fill={`${b.color}cc`} />
+            <circle
+              cx={b.x} cy={b.y} r={50}
+              fill={`${b.color}cc`}
+              style={clickStyle}
+              onClick={(e) => { e.stopPropagation(); onBranchColorClick?.(i, b.color, e); }}
+            />
             {b.image && (
               <>
-                <image href={b.image} x={b.x - 50} y={b.y - 50} width={100} height={100} clipPath={`url(#ic-b${i})`} preserveAspectRatio="xMidYMid slice" opacity={0.9} />
-                <circle cx={b.x} cy={b.y} r={50} fill={b.color} opacity={0.25} />
+                <image href={b.image} x={b.x - 50} y={b.y - 50} width={100} height={100} clipPath={`url(#ic-b${i})`} preserveAspectRatio="xMidYMid slice" opacity={0.9} style={{ pointerEvents: "none" }} />
+                <circle cx={b.x} cy={b.y} r={50} fill={b.color} opacity={0.25} style={{ pointerEvents: "none" }} />
               </>
             )}
             {!b.image && (
               <SvgText x={b.x} y={b.y} text={b.label.charAt(0)} maxChars={1} fs={26} fw="bold" fill="white" />
             )}
-            <SvgText x={lx} y={ly} text={b.label} maxChars={11} fs={11} fw="bold" fill="white" anchor={anchor} />
+            <g style={clickStyle} onClick={() => onNodeClick?.(`branch-${i}`, b.label)}>
+              <SvgText x={lx} y={ly} text={b.label} maxChars={11} fs={11} fw="bold" fill="white" anchor={anchor} />
+            </g>
           </g>
         );
       })}
 
-      {/* Central node */}
       <circle cx={CX} cy={CY} r={70} fill="#1e293b" stroke="#7c3aed" strokeWidth={4} filter="url(#ig-glow)" />
       <circle cx={CX} cy={CY} r={62} fill={data.centralImage ? "#1e293b" : "#7c3aed"} />
       {data.centralImage && (
@@ -387,18 +421,23 @@ function InfographicMap({ data, pos }: { data: MindmapData; pos: PBranch[] }) {
           <circle cx={CX} cy={CY} r={58} fill="#7c3aed" opacity={0.28} />
         </>
       )}
-      {!data.centralImage && (
-        <SvgText x={CX} y={CY} text={data.centralTopic || data.title} maxChars={13} fs={15} fw="bold" fill="white" />
-      )}
-      {data.centralImage && (
-        <SvgText x={CX} y={CY + 82} text={data.centralTopic || data.title} maxChars={15} fs={14} fw="bold" fill="white" />
-      )}
+      <g style={clickStyle} onClick={() => onNodeClick?.("central", data.centralTopic || data.title)}>
+        {!data.centralImage && (
+          <SvgText x={CX} y={CY} text={data.centralTopic || data.title} maxChars={13} fs={15} fw="bold" fill="white" />
+        )}
+        {data.centralImage && (
+          <SvgText x={CX} y={CY + 82} text={data.centralTopic || data.title} maxChars={15} fs={14} fw="bold" fill="white" />
+        )}
+      </g>
     </svg>
   );
 }
 
-// ── Picture Board layout — vocabulary grid for young learners ──────────────
-function PictureBoard({ data }: { data: MindmapData }) {
+function PictureBoard({ data, onNodeClick, editable }: {
+  data: MindmapData;
+  onNodeClick?: MindmapCanvasProps["onNodeClick"];
+  editable?: boolean;
+}) {
   const branches = data.branches || [];
   const CARD_W = 160;
   const CARD_H = 190;
@@ -408,6 +447,7 @@ function PictureBoard({ data }: { data: MindmapData }) {
   const HEADER_H = 90;
   const SVG_W = COLS * (CARD_W + GAP) + GAP;
   const SVG_H = HEADER_H + ROWS * (CARD_H + GAP) + GAP;
+  const clickStyle = editable ? { cursor: "pointer" } : {};
 
   const COLORS = ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD","#FF8C42","#87CEEB","#F9A8D4","#86EFAC","#FCD34D","#A5B4FC"];
 
@@ -424,15 +464,15 @@ function PictureBoard({ data }: { data: MindmapData }) {
         </clipPath>
       </defs>
 
-      {/* Header bar */}
       <rect x={0} y={0} width={SVG_W} height={HEADER_H} fill="#7c3aed" />
       {data.centralImage && (
         <image href={data.centralImage} x={GAP - 2} y={10} width={60} height={60} clipPath="url(#pb-center-img)" preserveAspectRatio="xMidYMid slice" />
       )}
-      <text x={data.centralImage ? GAP + 70 : SVG_W / 2} y={HEADER_H / 2 - 6} fontFamily="system-ui, sans-serif" fontSize={22} fontWeight="bold" fill="white" textAnchor={data.centralImage ? "start" : "middle"} dominantBaseline="middle">{data.centralTopic || data.title}</text>
+      <g style={clickStyle} onClick={() => onNodeClick?.("central", data.centralTopic || data.title)}>
+        <text x={data.centralImage ? GAP + 70 : SVG_W / 2} y={HEADER_H / 2 - 6} fontFamily="system-ui, sans-serif" fontSize={22} fontWeight="bold" fill="white" textAnchor={data.centralImage ? "start" : "middle"} dominantBaseline="middle">{data.centralTopic || data.title}</text>
+      </g>
       <text x={data.centralImage ? GAP + 70 : SVG_W / 2} y={HEADER_H / 2 + 20} fontFamily="system-ui, sans-serif" fontSize={13} fill="rgba(255,255,255,0.75)" textAnchor={data.centralImage ? "start" : "middle"}>Vocabulary Picture Board</text>
 
-      {/* Vocabulary cards */}
       {branches.map((b, i) => {
         const col = i % COLS;
         const row = Math.floor(i / COLS);
@@ -444,12 +484,9 @@ function PictureBoard({ data }: { data: MindmapData }) {
         const imgW = CARD_W - 16;
         const imgH = CARD_H - 56;
         return (
-          <g key={i}>
-            {/* Card shadow */}
+          <g key={i} style={clickStyle} onClick={() => onNodeClick?.(`branch-${i}`, b.label)}>
             <rect x={cx + 3} y={cy + 4} width={CARD_W} height={CARD_H} rx={14} fill="rgba(0,0,0,0.1)" />
-            {/* Card */}
             <rect x={cx} y={cy} width={CARD_W} height={CARD_H} rx={14} fill="white" stroke={color} strokeWidth={3} />
-            {/* Image area */}
             {b.image ? (
               <>
                 <rect x={imgX} y={imgY} width={imgW} height={imgH} rx={10} fill="#f8f8f8" />
@@ -461,7 +498,6 @@ function PictureBoard({ data }: { data: MindmapData }) {
                 <text x={cx + CARD_W / 2} y={imgY + imgH / 2} fontFamily="system-ui" fontSize={48} textAnchor="middle" dominantBaseline="middle" fill={color}>{b.label.charAt(0)}</text>
               </>
             )}
-            {/* Label bar */}
             <rect x={cx} y={cy + CARD_H - 44} width={CARD_W} height={44} rx={14} fill={color} />
             <rect x={cx} y={cy + CARD_H - 44} width={CARD_W} height={20} fill={color} />
             <text x={cx + CARD_W / 2} y={cy + CARD_H - 18} fontFamily="system-ui, sans-serif" fontSize={15} fontWeight="bold" fill="white" textAnchor="middle" dominantBaseline="middle">{b.label}</text>
@@ -472,20 +508,20 @@ function PictureBoard({ data }: { data: MindmapData }) {
   );
 }
 
-export function MindmapCanvas({ data }: { data: MindmapData }) {
+export function MindmapCanvas({ data, onNodeClick, onBranchColorClick, editable }: MindmapCanvasProps) {
   const pos = useMemo(() => computeLayout(data.branches || []), [data.branches]);
   const style = data.options?.layoutStyle || "radial";
 
   return (
     <div id="mindmap-svg-root" className="w-full overflow-auto rounded-xl">
       {style === "sketch" ? (
-        <SketchMap data={data} pos={pos} />
+        <SketchMap data={data} pos={pos} onNodeClick={onNodeClick} onBranchColorClick={onBranchColorClick} editable={editable} />
       ) : style === "infographic" ? (
-        <InfographicMap data={data} pos={pos} />
+        <InfographicMap data={data} pos={pos} onNodeClick={onNodeClick} onBranchColorClick={onBranchColorClick} editable={editable} />
       ) : style === "pictureboard" ? (
-        <PictureBoard data={data} />
+        <PictureBoard data={data} onNodeClick={onNodeClick} editable={editable} />
       ) : (
-        <RadialMap data={data} pos={pos} />
+        <RadialMap data={data} pos={pos} onNodeClick={onNodeClick} onBranchColorClick={onBranchColorClick} editable={editable} />
       )}
     </div>
   );

@@ -1,15 +1,15 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon, Film, Gamepad2, Crown } from "lucide-react";
-import { useState } from "react";
+import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon, Film, Gamepad2, Crown, Pencil, Plus, Palette, X } from "lucide-react";
+import { useState, useEffect, useRef, type MouseEvent } from "react";
 import type { ContentType, Slide, Activity, StoryboardFrame, Worksheet, GameType } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { SlideshowModal } from "./slideshow-modal";
 import { VideoExportModal } from "./video-export-modal";
 import { GamePlayerModal } from "./game-player-modal";
 import { BrightBoardLogo } from "./brightboard-logo";
-import { MindmapCanvas } from "./mindmap-canvas";
+import { MindmapCanvas, type MindmapData, BRANCH_COLORS } from "./mindmap-canvas";
 import pptxgen from "pptxgenjs";
 import JSZip from "jszip";
 import { apiRequest } from "@/lib/queryClient";
@@ -1165,23 +1165,214 @@ function WorksheetContent({ content }: { content: string }) {
 }
 
 function MindmapContent({ content }: { content: string }) {
-  try {
-    const data = JSON.parse(content);
-    return (
-      <div className="space-y-4" data-testid="mindmap-content">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="font-bold text-xl" data-testid="mindmap-title">{data.title || "Mind Map"}</h3>
-          <div className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5" data-testid="logo-badge-mindmap">
-            <img src="/favicon.png" alt="BrightBoard" className="w-3.5 h-3.5 rounded" />
-            <span className="text-muted-foreground text-[10px] font-medium">brightboardapp.com</span>
-          </div>
-        </div>
-        <div className="rounded-xl border overflow-hidden shadow-sm">
-          <MindmapCanvas data={data} />
+  const [editableData, setEditableData] = useState<MindmapData | null>(null);
+  const [editingNode, setEditingNode] = useState<{ id: string; label: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [colorPicker, setColorPicker] = useState<number | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const { toast } = useToast();
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try { setEditableData(JSON.parse(content)); } catch {}
+  }, [content]);
+
+  if (!editableData) {
+    try { return <TextContent content={content} />; } catch { return null; }
+  }
+
+  const handleNodeClick = (nodeId: string, currentLabel: string) => {
+    setColorPicker(null);
+    setEditingNode({ id: nodeId, label: currentLabel });
+    setEditValue(currentLabel);
+    setTimeout(() => editInputRef.current?.focus(), 50);
+  };
+
+  const handleBranchColorClick = (branchIdx: number, _color: string, e: MouseEvent) => {
+    e.stopPropagation();
+    setEditingNode(null);
+    setColorPicker(prev => prev === branchIdx ? null : branchIdx);
+  };
+
+  const applyNodeEdit = () => {
+    if (!editingNode || !editValue.trim()) { setEditingNode(null); return; }
+    const newData = structuredClone(editableData);
+    const parts = editingNode.id.split("-");
+    if (parts[0] === "central") {
+      newData.centralTopic = editValue.trim();
+      newData.title = editValue.trim();
+    } else if (parts[0] === "branch") {
+      newData.branches[+parts[1]].label = editValue.trim();
+    } else if (parts[0] === "child") {
+      newData.branches[+parts[1]].children![+parts[2]].label = editValue.trim();
+    } else if (parts[0] === "detail") {
+      newData.branches[+parts[1]].children![+parts[2]].children![+parts[3]].label = editValue.trim();
+    }
+    setEditableData(newData);
+    setEditingNode(null);
+  };
+
+  const applyBranchColor = (color: string) => {
+    if (colorPicker === null) return;
+    const newData = structuredClone(editableData);
+    newData.branches[colorPicker].color = color;
+    setEditableData(newData);
+    setColorPicker(null);
+  };
+
+  const addBranch = () => {
+    const newData = structuredClone(editableData);
+    const idx = newData.branches.length;
+    newData.branches.push({
+      label: "New Topic",
+      color: BRANCH_COLORS[idx % BRANCH_COLORS.length],
+      children: [{ label: "Sub-topic", children: [] }],
+    });
+    setEditableData(newData);
+    toast({ title: "Branch added", description: "Click the new branch label to rename it." });
+  };
+
+  const removeLastBranch = () => {
+    if (editableData.branches.length <= 2) return;
+    const newData = structuredClone(editableData);
+    newData.branches.pop();
+    setEditableData(newData);
+  };
+
+  const downloadPDF = async () => {
+    setPdfLoading(true);
+    try {
+      const container = document.getElementById("mindmap-svg-root");
+      const svg = container?.querySelector("svg");
+      if (!svg) return;
+      const viewBox = svg.getAttribute("viewBox") || "0 0 1500 1300";
+      const parts = viewBox.split(" ");
+      const svgW = parseFloat(parts[2]) || 1500;
+      const svgH = parseFloat(parts[3]) || 1300;
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute("width", String(svgW));
+      clone.setAttribute("height", String(svgH));
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+      const svgStr = new XMLSerializer().serializeToString(clone);
+      const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = async () => {
+        const scale = 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = svgW * scale;
+        canvas.height = svgH * scale;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0, svgW, svgH);
+        URL.revokeObjectURL(svgUrl);
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const { jsPDF } = await import("jspdf");
+        const isLandscape = svgW > svgH;
+        const pdf = new jsPDF({
+          orientation: isLandscape ? "landscape" : "portrait",
+          unit: "px",
+          format: [svgW / scale, svgH / scale],
+        });
+        pdf.addImage(imgData, "JPEG", 0, 0, svgW / scale, svgH / scale);
+        pdf.save(`brightboard-mindmap-${Date.now()}.pdf`);
+        setPdfLoading(false);
+        toast({ title: "PDF downloaded" });
+      };
+      img.onerror = () => { setPdfLoading(false); toast({ title: "Export failed", variant: "destructive" }); };
+      img.src = svgUrl;
+    } catch {
+      setPdfLoading(false);
+      toast({ title: "Export failed", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-4" data-testid="mindmap-content" onClick={() => setColorPicker(null)}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <h3 className="font-bold text-xl" data-testid="mindmap-title">{editableData.title || "Mind Map"}</h3>
+        <div className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5" data-testid="logo-badge-mindmap">
+          <img src="/favicon.png" alt="BrightBoard" className="w-3.5 h-3.5 rounded" />
+          <span className="text-muted-foreground text-[10px] font-medium">brightboardapp.com</span>
         </div>
       </div>
-    );
-  } catch {
-    return <TextContent content={content} />;
-  }
+
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+        <Pencil className="h-3 w-3 shrink-0" />
+        <span>Click any label to edit it. Click a branch circle to change its color.</span>
+      </div>
+
+      <div className="rounded-xl border overflow-hidden shadow-sm relative" onClick={e => e.stopPropagation()}>
+        <MindmapCanvas
+          data={editableData}
+          onNodeClick={handleNodeClick}
+          onBranchColorClick={handleBranchColorClick}
+          editable={true}
+        />
+      </div>
+
+      {colorPicker !== null && (
+        <div className="border rounded-xl p-3 bg-background shadow-md" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" /> Branch color</p>
+            <button onClick={() => setColorPicker(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {BRANCH_COLORS.map(c => (
+              <button
+                key={c}
+                data-testid={`color-swatch-${c}`}
+                className="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-1"
+                style={{ background: c, borderColor: editableData.branches[colorPicker]?.color === c ? "#1f2937" : "transparent" }}
+                onClick={() => applyBranchColor(c)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {editingNode && (
+        <div className="border rounded-xl p-3 bg-background shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold flex items-center gap-1.5"><Pencil className="h-3.5 w-3.5" /> Edit label</p>
+            <button onClick={() => setEditingNode(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              ref={editInputRef}
+              data-testid="input-mindmap-edit"
+              className="flex-1 border rounded-lg px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") applyNodeEdit(); if (e.key === "Escape") setEditingNode(null); }}
+              placeholder="Enter label..."
+            />
+            <Button size="sm" onClick={applyNodeEdit} data-testid="button-mindmap-save-edit">Save</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditingNode(null)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap pt-1">
+        <Button size="sm" variant="outline" onClick={addBranch} data-testid="button-mindmap-add-branch">
+          <Plus className="h-4 w-4 mr-1.5" />
+          Add Branch
+        </Button>
+        {editableData.branches.length > 2 && (
+          <Button size="sm" variant="outline" onClick={removeLastBranch} data-testid="button-mindmap-remove-branch">
+            <X className="h-4 w-4 mr-1.5" />
+            Remove Last Branch
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={downloadPDF} disabled={pdfLoading} data-testid="button-mindmap-download-pdf">
+          {pdfLoading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+          Download PDF
+        </Button>
+      </div>
+    </div>
+  );
 }
