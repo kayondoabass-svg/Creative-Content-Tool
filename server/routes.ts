@@ -2589,7 +2589,7 @@ This should look like it was designed by a world-class branding agency. Make it 
         if (type === 'presentation') { const sn = slideCount || 5; estimatedCostCents = sn * 5 + 2; costDescription = `Presentation (${sn} slides): "${title?.substring(0, 50)}..."`; }
         if (type === 'storyboard') { const fc = ({ "30sec":3,"1min":6,"2min":10,"3min":12,"4min":15,"5min":18,"10min":25,"30min":50 } as any)[videoOptions?.length||"1min"]||6; estimatedCostCents = fc*5+2; costDescription = `Storyboard (${fc} frames): "${title?.substring(0,50)}..."`; }
         if (estimatedCostCents > 0) {
-          await logAutomaticExpense("openai", costDescription, estimatedCostCents, { contentType: type, contentId: saved.id, userId, slideCount, videoOptions });
+          await logAutomaticExpense("gemini", costDescription, estimatedCostCents, { contentType: type, contentId: saved.id, userId, slideCount, videoOptions });
         }
 
         return { data: saved };
@@ -2700,6 +2700,50 @@ This should look like it was designed by a world-class branding agency. Make it 
     } catch (error) {
       console.error("Error fetching expense summary:", error);
       res.status(500).json({ error: "Failed to fetch expense summary" });
+    }
+  });
+
+  // Gemini AI cost breakdown (owner only)
+  app.get("/api/owner/ai-costs", isOwnerMiddleware, async (_req: any, res: any) => {
+    try {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const allAiExpenses = await db.select().from(expenses)
+        .where(or(eq(expenses.category, "gemini"), eq(expenses.category, "openai")))
+        .orderBy(desc(expenses.date));
+
+      const totalAll = allAiExpenses.reduce((s, e) => s + e.amount, 0);
+      const totalToday = allAiExpenses.filter(e => new Date(e.date) >= todayStart).reduce((s, e) => s + e.amount, 0);
+      const totalWeek = allAiExpenses.filter(e => new Date(e.date) >= weekStart).reduce((s, e) => s + e.amount, 0);
+      const totalMonth = allAiExpenses.filter(e => new Date(e.date) >= monthStart).reduce((s, e) => s + e.amount, 0);
+
+      // By content type (parsed from metadata)
+      const byType: Record<string, number> = {};
+      for (const e of allAiExpenses) {
+        let meta: any = {};
+        try { meta = e.metadata ? JSON.parse(e.metadata as string) : {}; } catch {}
+        const t = meta.contentType || "other";
+        byType[t] = (byType[t] || 0) + e.amount;
+      }
+
+      // Daily trend (last 14 days)
+      const dailyMap: Record<string, number> = {};
+      for (const e of allAiExpenses) {
+        const d = new Date(e.date).toISOString().split("T")[0];
+        dailyMap[d] = (dailyMap[d] || 0) + e.amount;
+      }
+      const daily = Object.entries(dailyMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-14)
+        .map(([date, amount]) => ({ date, amount }));
+
+      res.json({ today: totalToday, week: totalWeek, month: totalMonth, allTime: totalAll, byType, daily, recentCount: allAiExpenses.length });
+    } catch (error) {
+      console.error("AI costs error:", error);
+      res.status(500).json({ error: "Failed to fetch AI costs" });
     }
   });
 

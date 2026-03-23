@@ -945,8 +945,449 @@ export default function OwnerDashboard() {
         </CardContent>
       </Card>
 
+      <FunnelSection />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <RetentionSection />
+        <GeminiCostSection />
+      </div>
+      <TopGeneratorsSection />
+      <UserLookupSection />
       <AffiliateManagement />
     </div>
+  );
+}
+
+// ── User Funnel + Activation Panel ──────────────────────────────────────────
+function FunnelSection() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [sending, setSending] = useState(false);
+
+  const { data: funnel, isLoading } = useQuery<any>({
+    queryKey: ["/api/owner/funnel"],
+  });
+
+  const sendActivation = async () => {
+    if (!confirm(`Send activation emails to ${funnel?.activationEligible ?? 0} eligible inactive users?`)) return;
+    setSending(true);
+    try {
+      const res = await apiRequest("POST", "/api/owner/send-activation-emails", {});
+      const data = await res.json();
+      toast({ title: "Activation emails sent!", description: `Sent to ${data.sent} users.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/funnel"] });
+    } catch (e: any) {
+      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const steps = [
+    { label: "Registered", value: funnel?.total ?? 0, icon: Users, color: "bg-blue-500" },
+    { label: "Email Verified", value: funnel?.verified ?? 0, icon: ShieldCheck, color: "bg-purple-500" },
+    { label: "Generated Content", value: funnel?.generated ?? 0, icon: Zap, color: "bg-amber-500" },
+    { label: "Premium", value: funnel?.premium ?? 0, icon: Crown, color: "bg-green-500" },
+  ];
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-3">
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            User Conversion Funnel
+          </CardTitle>
+          <CardDescription>Where users drop off on their journey to premium</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
+          ) : (
+            <div className="space-y-3">
+              {steps.map((step, i) => {
+                const pct = steps[0].value > 0 ? Math.round((step.value / steps[0].value) * 100) : 0;
+                const dropPct = i > 0 && steps[i-1].value > 0
+                  ? Math.round(((steps[i-1].value - step.value) / steps[i-1].value) * 100)
+                  : null;
+                return (
+                  <div key={step.label} data-testid={`funnel-step-${i}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <step.icon className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{step.label}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm">
+                        {dropPct !== null && dropPct > 0 && (
+                          <span className="text-rose-500 text-xs">−{dropPct}% drop</span>
+                        )}
+                        <span className="font-bold">{step.value.toLocaleString()}</span>
+                        <span className="text-muted-foreground w-10 text-right">{pct}%</span>
+                      </div>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                      <div className={`h-full rounded-full ${step.color}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Activation Emails
+          </CardTitle>
+          <CardDescription>Re-engage users who never generated</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoading ? (
+            <div className="space-y-3">{[1,2].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
+          ) : (
+            <>
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium mb-1">Eligible to email</p>
+                <p className="text-2xl font-bold text-amber-800 dark:text-amber-200" data-testid="activation-eligible-count">
+                  {funnel?.activationEligible ?? 0}
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  Verified, 24h+ old, never generated, not yet emailed
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs text-muted-foreground font-medium mb-1">Already sent</p>
+                <p className="text-2xl font-bold" data-testid="activation-sent-count">{funnel?.activationSent ?? 0}</p>
+              </div>
+              <Button
+                className="w-full"
+                onClick={sendActivation}
+                disabled={sending || (funnel?.activationEligible ?? 0) === 0}
+                data-testid="button-send-activation"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {sending ? "Sending..." : `Send Now (${funnel?.activationEligible ?? 0})`}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ── Retention Stats ──────────────────────────────────────────────────────────
+function RetentionSection() {
+  const { data: retention, isLoading } = useQuery<any>({
+    queryKey: ["/api/owner/retention"],
+  });
+
+  const cards = [
+    { label: "Active last 7 days", value: retention?.active7d ?? 0, icon: Activity, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800" },
+    { label: "Active last 30 days", value: retention?.active30d ?? 0, icon: Calendar, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" },
+    { label: "Inactive 30+ days", value: retention?.inactive30d ?? 0, icon: AlertTriangle, color: "text-rose-600", bg: "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800" },
+    { label: "Hit free limit (intent)", value: retention?.limitHitters ?? 0, icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800" },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="h-5 w-5" />
+          Retention & Activity
+        </CardTitle>
+        <CardDescription>User engagement and inactivity signals</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {cards.map(c => (
+              <div key={c.label} className={`rounded-lg border p-3 ${c.bg}`} data-testid={`retention-${c.label.toLowerCase().replace(/\s+/g,'-')}`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
+                  <p className={`text-xs font-medium ${c.color}`}>{c.label}</p>
+                </div>
+                <p className="text-2xl font-bold">{(c.value as number).toLocaleString()}</p>
+                {retention?.total > 0 && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {Math.round((c.value / retention.total) * 100)}% of users
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Google Gemini AI Cost Tracker ────────────────────────────────────────────
+function GeminiCostSection() {
+  const { data: costs, isLoading } = useQuery<any>({
+    queryKey: ["/api/owner/ai-costs"],
+  });
+
+  const fmt = (cents: number) => `$${((cents || 0) / 100).toFixed(2)}`;
+
+  const typeEmoji: Record<string, string> = {
+    image: "🖼️", presentation: "📊", mindmap: "🗺️",
+    worksheet: "📝", text: "✍️", activity: "🎮", storyboard: "🎬",
+  };
+
+  const maxTypeVal = costs?.byType ? Math.max(...Object.values(costs.byType as Record<string, number>), 1) : 1;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <DollarSign className="h-5 w-5 text-green-600" />
+          Google Gemini AI Cost
+        </CardTitle>
+        <CardDescription>Estimated AI spend per content generation</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {isLoading ? (
+          <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Today", value: costs?.today ?? 0 },
+                { label: "This Week", value: costs?.week ?? 0 },
+                { label: "This Month", value: costs?.month ?? 0 },
+                { label: "All Time", value: costs?.allTime ?? 0 },
+              ].map(s => (
+                <div key={s.label} className="rounded-lg bg-muted/50 p-3" data-testid={`gemini-cost-${s.label.toLowerCase().replace(/\s+/g,'-')}`}>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-xl font-bold text-green-700 dark:text-green-400">{fmt(s.value)}</p>
+                </div>
+              ))}
+            </div>
+
+            {costs?.byType && Object.keys(costs.byType).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Cost by Content Type</p>
+                <div className="space-y-2">
+                  {Object.entries(costs.byType as Record<string, number>)
+                    .sort(([,a],[,b]) => b - a)
+                    .map(([type, amount]) => (
+                      <div key={type} className="flex items-center gap-2">
+                        <span className="text-sm w-4">{typeEmoji[type] ?? "📄"}</span>
+                        <span className="text-sm capitalize w-24 text-muted-foreground">{type}</span>
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-green-500 rounded-full"
+                            style={{ width: `${Math.round((amount / maxTypeVal) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium w-12 text-right">{fmt(amount)}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {costs?.recentCount === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                No AI generation costs logged yet. Costs are tracked automatically when users generate content.
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Top Generators ───────────────────────────────────────────────────────────
+function TopGeneratorsSection() {
+  const { data: topUsers = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/owner/top-generators"],
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-amber-500" />
+          Top Generators
+        </CardTitle>
+        <CardDescription>Most active users by total content created</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+        ) : topUsers.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">No generations yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {topUsers.map((u, i) => {
+              const isPremium = u.subscriptionTier !== "free" && u.subscriptionStatus === "active";
+              const name = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || "Anonymous";
+              return (
+                <div
+                  key={u.id}
+                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                  data-testid={`top-generator-${i}`}
+                >
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                    {i + 1}
+                  </div>
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                    {name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold">{u.totalGenerations} generated</p>
+                    <Badge variant={isPremium ? "default" : "secondary"} className={`text-xs ${isPremium ? "bg-gradient-to-r from-purple-500 to-pink-500" : ""}`}>
+                      {u.subscriptionTier}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── User Search & Lookup ─────────────────────────────────────────────────────
+function UserLookupSection() {
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: foundUser, isLoading, isFetching } = useQuery<any>({
+    queryKey: ["/api/owner/user-lookup", query],
+    queryFn: async () => {
+      if (!query) return null;
+      const res = await fetch(`/api/owner/user-lookup?email=${encodeURIComponent(query)}`);
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!query,
+  });
+
+  const updateSub = async (userId: string, tier: string, status: string) => {
+    try {
+      await apiRequest("PATCH", `/api/owner/user/${userId}/subscription`, { tier, status });
+      toast({ title: "Subscription updated!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/user-lookup", query] });
+    } catch {
+      toast({ title: "Failed to update", variant: "destructive" });
+    }
+  };
+
+  const FREE_LIMITS: Record<string, number> = { image: 2, presentation: 1, mindmap: 2, worksheet: 2, text: 3, activity: 2, storyboard: 1 };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Search className="h-5 w-5" />
+          User Lookup
+        </CardTitle>
+        <CardDescription>Search for any user by email address</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Input
+            placeholder="user@example.com"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && setQuery(search.trim())}
+            data-testid="input-user-lookup"
+            className="flex-1"
+          />
+          <Button onClick={() => setQuery(search.trim())} data-testid="button-user-lookup">
+            <Search className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {(isLoading || isFetching) && <Skeleton className="h-40 w-full" />}
+
+        {!isLoading && !isFetching && query && foundUser === null && (
+          <p className="text-center text-muted-foreground py-4">No user found with that email.</p>
+        )}
+
+        {foundUser && !isLoading && (
+          <div className="rounded-lg border p-4 space-y-4" data-testid="user-lookup-result">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
+                  {(foundUser.firstName || foundUser.email || "?").charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-semibold">{[foundUser.firstName, foundUser.lastName].filter(Boolean).join(" ") || "—"}</p>
+                  <p className="text-sm text-muted-foreground">{foundUser.email}</p>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <Badge variant={foundUser.emailVerified ? "default" : "secondary"} className="text-xs">
+                      {foundUser.emailVerified ? "Verified" : "Unverified"}
+                    </Badge>
+                    <Badge variant={foundUser.subscriptionTier !== "free" ? "default" : "secondary"}
+                      className={`text-xs ${foundUser.subscriptionTier !== "free" ? "bg-gradient-to-r from-purple-500 to-pink-500" : ""}`}>
+                      {foundUser.subscriptionTier}
+                    </Badge>
+                    {foundUser.isOwner && <Badge className="text-xs bg-yellow-500">Owner</Badge>}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right text-sm text-muted-foreground">
+                <p>Joined {new Date(foundUser.createdAt).toLocaleDateString()}</p>
+                <p>Active {foundUser.lastActiveAt ? new Date(foundUser.lastActiveAt).toLocaleDateString() : "never"}</p>
+                {foundUser.activationEmailSentAt && <p className="text-xs">Activation email sent</p>}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Daily Usage (today's counts)</p>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {Object.entries(FREE_LIMITS).map(([type, limit]) => {
+                  const countKey = type === "storyboard" ? "freeVideoCount"
+                    : type === "image" ? "freeImageCount"
+                    : type === "presentation" ? "freePresentationCount"
+                    : `free${type.charAt(0).toUpperCase()}${type.slice(1)}Count`;
+                  const used = foundUser[countKey] ?? 0;
+                  const full = used >= limit;
+                  return (
+                    <div key={type} className={`rounded p-2 text-center text-xs border ${full ? "border-rose-300 bg-rose-50 dark:bg-rose-950/30" : "border-border bg-muted/30"}`}>
+                      <p className="font-medium capitalize">{type}</p>
+                      <p className={`font-bold ${full ? "text-rose-600" : ""}`}>{used}/{limit}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {foundUser.subscriptionTier === "free" ? (
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={() => updateSub(foundUser.id, "monthly", "active")} data-testid="button-grant-monthly">
+                  <Crown className="h-3 w-3 mr-1" /> Grant Monthly
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => updateSub(foundUser.id, "yearly", "active")} data-testid="button-grant-yearly">
+                  <Crown className="h-3 w-3 mr-1" /> Grant Yearly
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="destructive" onClick={() => updateSub(foundUser.id, "free", "inactive")} data-testid="button-revoke-premium">
+                Revoke Premium
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
