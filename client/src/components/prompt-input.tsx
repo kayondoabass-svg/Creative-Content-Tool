@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -294,6 +294,24 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     }
   }, [defaultGameType, selectedType, form]);
 
+  const watchedGradeLevel = form.watch("gradeLevel");
+  const slideCountHint = useMemo(() => {
+    const map: Record<string, string> = {
+      "Pre-K": "3–4",
+      "Kindergarten": "3–5",
+      "1st Grade": "4–6",
+      "2nd Grade": "4–6",
+      "3rd Grade": "6–8",
+      "4th Grade": "6–8",
+      "5th Grade": "6–8",
+      "6th Grade": "8–10",
+      "7th Grade": "8–10",
+      "8th Grade": "8–10",
+      "High School": "10–15",
+    };
+    return watchedGradeLevel ? map[watchedGradeLevel] ?? null : null;
+  }, [watchedGradeLevel]);
+
   useEffect(() => {
     if (selectedType === "mindmap" && mindmapCentralTopic.trim()) {
       let builtPrompt = mindmapCentralTopic.trim();
@@ -505,6 +523,11 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                         }}
                       />
                     </FormControl>
+                    {slideCountHint && (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap" data-testid="text-slide-count-hint">
+                        Suggested: {slideCountHint}
+                      </span>
+                    )}
                     {!isPremium && (
                       <a href="/pricing" className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 whitespace-nowrap hover:underline" data-testid="link-slide-limit-upgrade">
                         <Lock className="w-3 h-3" />
@@ -669,10 +692,67 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                     <FormLabel className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2 block">Map Style</FormLabel>
                     <div className="grid grid-cols-2 gap-2">
                       {[
-                        { value: "radial", label: "Radial", desc: "Colorful spider map", icon: "🕷️" },
-                        { value: "sketch", label: "Sketch", desc: "Hand-drawn style", icon: "✏️" },
-                        { value: "infographic", label: "Infographic", desc: "Bold circles", icon: "🔵" },
-                        { value: "pictureboard", label: "Picture Board", desc: "Vocabulary cards for young learners", icon: "🖼️" },
+                        {
+                          value: "radial", label: "Radial", desc: "Colorful spider map",
+                          preview: (
+                            <svg viewBox="0 0 56 56" width="52" height="52" aria-hidden="true">
+                              <circle cx="28" cy="28" r="7" fill="#7c3aed"/>
+                              {[0,60,120,180,240,300].map((deg, i) => {
+                                const r = deg * Math.PI / 180;
+                                const colors = ["#e879f9","#f97316","#10b981","#3b82f6","#f59e0b","#ef4444"];
+                                const x2 = 28 + Math.sin(r)*18, y2 = 28 - Math.cos(r)*18;
+                                const x3 = 28 + Math.sin(r)*26, y3 = 28 - Math.cos(r)*26;
+                                return <g key={i}><line x1={28} y1={28} x2={x2} y2={y2} stroke={colors[i]} strokeWidth="1.5"/><circle cx={x3} cy={y3} r="4" fill={colors[i]}/></g>;
+                              })}
+                            </svg>
+                          ),
+                        },
+                        {
+                          value: "sketch", label: "Sketch", desc: "Hand-drawn style",
+                          preview: (
+                            <svg viewBox="0 0 56 56" width="52" height="52" aria-hidden="true">
+                              <rect x="18" y="22" width="20" height="12" rx="3" fill="#fef3c7" stroke="#92400e" strokeWidth="1.5" transform="rotate(-1 28 28)"/>
+                              <path d="M38 25 Q46 16 48 10" stroke="#92400e" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeDasharray="2 1"/>
+                              <rect x="42" y="5" width="12" height="8" rx="2" fill="#fde68a" stroke="#92400e" strokeWidth="1"/>
+                              <path d="M18 25 Q10 16 8 10" stroke="#b45309" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeDasharray="2 1"/>
+                              <rect x="2" y="5" width="12" height="8" rx="2" fill="#fde68a" stroke="#b45309" strokeWidth="1"/>
+                              <path d="M28 34 Q28 44 28 48" stroke="#92400e" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeDasharray="2 1"/>
+                              <rect x="22" y="48" width="12" height="7" rx="2" fill="#fde68a" stroke="#92400e" strokeWidth="1"/>
+                            </svg>
+                          ),
+                        },
+                        {
+                          value: "infographic", label: "Infographic", desc: "Bold circles",
+                          preview: (
+                            <svg viewBox="0 0 56 56" width="52" height="52" aria-hidden="true">
+                              <circle cx="28" cy="8" r="6" fill="#7c3aed"/>
+                              <line x1="28" y1="14" x2="28" y2="20" stroke="#a78bfa" strokeWidth="2"/>
+                              <circle cx="28" cy="26" r="6" fill="#10b981"/>
+                              <line x1="28" y1="32" x2="28" y2="38" stroke="#6ee7b7" strokeWidth="2"/>
+                              <circle cx="28" cy="44" r="6" fill="#f97316"/>
+                              <rect x="10" y="22" width="12" height="8" rx="2" fill="#f3f4f6" stroke="#d1d5db" strokeWidth="1"/>
+                              <rect x="34" y="22" width="12" height="8" rx="2" fill="#f3f4f6" stroke="#d1d5db" strokeWidth="1"/>
+                              <line x1="22" y1="26" x2="22" y2="26" stroke="#10b981" strokeWidth="1"/>
+                            </svg>
+                          ),
+                        },
+                        {
+                          value: "pictureboard", label: "Picture Board", desc: "Vocabulary cards",
+                          preview: (
+                            <svg viewBox="0 0 56 56" width="52" height="52" aria-hidden="true">
+                              {[[4,4],[30,4],[4,30],[30,30]].map(([x,y],i) => {
+                                const colors = ["#dbeafe","#fce7f3","#d1fae5","#fef3c7"];
+                                return (
+                                  <g key={i}>
+                                    <rect x={x} y={y} width="22" height="22" rx="3" fill={colors[i]} stroke="#e5e7eb" strokeWidth="1"/>
+                                    <rect x={x+3} y={y+3} width="16" height="11" rx="2" fill={colors[i]} stroke="#9ca3af" strokeWidth="0.8"/>
+                                    <rect x={x+3} y={y+15} width="16" height="4" rx="1" fill="#6b7280" opacity="0.3"/>
+                                  </g>
+                                );
+                              })}
+                            </svg>
+                          ),
+                        },
                       ].map((opt) => (
                         <button
                           key={opt.value}
@@ -685,7 +765,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                               : "border-muted bg-background hover:border-primary/40"
                           }`}
                         >
-                          <span className="text-xl">{opt.icon}</span>
+                          {opt.preview}
                           <span className="text-xs font-semibold leading-tight">{opt.label}</span>
                           <span className="text-[10px] text-muted-foreground leading-tight">{opt.desc}</span>
                         </button>

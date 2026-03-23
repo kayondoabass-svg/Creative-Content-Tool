@@ -994,6 +994,32 @@ function StoryboardContent({ content }: { content: string }) {
 // Worksheet download buttons component
 function WorksheetDownloadButtons({ content, toast }: { content: string; toast: any }) {
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = async () => {
+    try {
+      const data = JSON.parse(content);
+      let text = `${data.title}\n${"=".repeat(data.title?.length || 10)}\n\n`;
+      if (data.instructions) text += `Instructions: ${data.instructions}\n\n`;
+      data.sections?.forEach((section: any) => {
+        if (section.title) text += `${section.title}\n${"-".repeat(section.title.length)}\n`;
+        section.content?.forEach((item: string, i: number) => {
+          text += `${i + 1}. ${item}\n`;
+        });
+        if (section.answers?.length) {
+          text += `\nAnswer Key:\n`;
+          section.answers.forEach((a: string, i: number) => { text += `${i + 1}. ${a}\n`; });
+        }
+        text += "\n";
+      });
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast({ title: "Copied!", description: "Worksheet text copied to clipboard. Paste into Google Docs or Word." });
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast({ title: "Copy failed", variant: "destructive" });
+    }
+  };
 
   const downloadAsPDF = async () => {
     setDownloading("pdf");
@@ -1078,6 +1104,10 @@ function WorksheetDownloadButtons({ content, toast }: { content: string; toast: 
       <Button variant="outline" size="sm" onClick={downloadAsText} disabled={!!downloading} data-testid="button-download-txt">
         <Download className="h-4 w-4 mr-1.5" />
         Text
+      </Button>
+      <Button variant="outline" size="sm" onClick={copyToClipboard} disabled={copied} data-testid="button-copy-worksheet">
+        {copied ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
+        {copied ? "Copied!" : "Copy Text"}
       </Button>
     </div>
   );
