@@ -938,11 +938,17 @@ ${pages.map(p => `  <url>
 
       // Helper to run a count query per bucket
       const fetchBuckets = async (table: any, col: any) => {
+        const selectExpr = isHourly
+          ? sql<string>`DATE_TRUNC('hour', ${col})::text`
+          : sql<string>`DATE_TRUNC('day', ${col})::text`;
+        const groupExpr = isHourly
+          ? sql`DATE_TRUNC('hour', ${col})`
+          : sql`DATE_TRUNC('day', ${col})`;
         const rows = await db.select({
-          bucket: sql<string>`DATE_TRUNC(${truncFn}, ${col})::text`.as("bucket"),
+          bucket: selectExpr.as("bucket"),
           cnt: count(),
         }).from(table).where(gte(col, startDate))
-          .groupBy(sql`DATE_TRUNC(${truncFn}, ${col})`);
+          .groupBy(groupExpr);
         return rows.reduce((m, r) => { m[r.bucket.slice(0, isHourly ? 13 : 10)] = r.cnt; return m; }, {} as Record<string, number>);
       };
 
