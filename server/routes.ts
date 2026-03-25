@@ -21,6 +21,7 @@ function isAuthenticated(req: any, res: any, next: any) {
 }
 import * as paddleService from "./paddleService";
 import crypto from "crypto";
+import { verifyRecaptchaToken } from "./recaptcha/verifyRecaptcha";
 import * as customAuth from "./customAuthService";
 import { db } from "./db";
 import { users, featureUsage, loginEvents, pageViews, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
@@ -123,7 +124,12 @@ ${pages.map(p => `  <url>
       if (password.length < 8) {
         return res.status(400).json({ error: "Password must be at least 8 characters" });
       }
-      
+
+      const captcha = await verifyRecaptchaToken(recaptchaToken, "signup");
+      if (!captcha.valid) {
+        return res.status(400).json({ error: "reCAPTCHA verification failed. Please try again." });
+      }
+
       const result = await customAuth.signUp(email, password, firstName, lastName, recaptchaToken);
       
       if (!result.success) {
@@ -212,12 +218,17 @@ ${pages.map(p => `  <url>
   // Login with email/password
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { email, password, recaptchaToken } = req.body;
       
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password are required" });
       }
-      
+
+      const captcha = await verifyRecaptchaToken(recaptchaToken, "LOGIN");
+      if (!captcha.valid) {
+        return res.status(400).json({ error: "reCAPTCHA verification failed. Please try again." });
+      }
+
       const result = await customAuth.login(email, password);
       
       if (!result.success) {
@@ -288,12 +299,17 @@ ${pages.map(p => `  <url>
   // Request password reset
   app.post("/api/auth/forgot-password", async (req, res) => {
     try {
-      const { email } = req.body;
+      const { email, recaptchaToken } = req.body;
       
       if (!email) {
         return res.status(400).json({ error: "Email is required" });
       }
-      
+
+      const captcha = await verifyRecaptchaToken(recaptchaToken, "FORGOT_PASSWORD");
+      if (!captcha.valid) {
+        return res.status(400).json({ error: "reCAPTCHA verification failed. Please try again." });
+      }
+
       const result = await customAuth.requestPasswordReset(email);
       res.json({ message: result.message });
     } catch (error) {
