@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,37 +14,43 @@ import { SiFacebook, SiTiktok } from "react-icons/si";
 
 const RECAPTCHA_SITE_KEY = "6LfKupcsAAAAAFjtAAYI191p9gV13VpHkenZ-KJe";
 
-async function getRecaptchaToken(action: string): Promise<string | undefined> {
-  try {
-    await new Promise<void>((resolve) => window.grecaptcha.enterprise.ready(resolve));
-    return await window.grecaptcha.enterprise.execute(RECAPTCHA_SITE_KEY, { action });
-  } catch {
-    return undefined;
+declare global {
+  interface Window {
+    onLoginSubmit: (token: string) => void;
+    onForgotPasswordSubmit: (token: string) => void;
   }
 }
 
 export default function LoginPage() {
   const { t } = useTranslation();
   const [location, setLocation] = useLocation();
-  const { login, isLoggingIn, forgotPassword, resetPassword, isAuthenticated } = useAuth();
+  const { login, forgotPassword, resetPassword, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  
+
   const [step, setStep] = useState<"login" | "forgot" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: socialProviders } = useQuery<{ facebook: boolean; tiktok: boolean }>({
     queryKey: ["/api/auth/social-providers"],
   });
 
+  const loginRef = useRef({ email, password });
   useEffect(() => {
-    if (isAuthenticated) {
-      setLocation("/");
-    }
+    loginRef.current = { email, password };
+  }, [email, password]);
+
+  const forgotRef = useRef({ email });
+  useEffect(() => {
+    forgotRef.current = { email };
+  }, [email]);
+
+  useEffect(() => {
+    if (isAuthenticated) setLocation("/");
   }, [isAuthenticated, setLocation]);
 
   useEffect(() => {
@@ -64,66 +70,52 @@ export default function LoginPage() {
     }
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const recaptchaToken = await getRecaptchaToken("LOGIN");
-      await login({ email, password, recaptchaToken });
-      toast({ title: "Welcome back!" });
-      setLocation("/");
-    } catch (error: any) {
-      const errorMessage = error.message || "Please check your credentials";
-      
-      if (errorMessage.toLowerCase().includes("verify your email") || errorMessage.toLowerCase().includes("not verified")) {
-        localStorage.setItem("pendingVerificationEmail", email);
-        toast({ 
-          title: "Email not verified", 
-          description: "Redirecting you to verify your email...",
-          variant: "destructive" 
-        });
-        setTimeout(() => setLocation(`/verify-email?email=${encodeURIComponent(email)}`), 1500);
-        return;
+  useEffect(() => {
+    window.onLoginSubmit = async (token: string) => {
+      const { email, password } = loginRef.current;
+      setIsSubmitting(true);
+      try {
+        await login({ email, password, recaptchaToken: token });
+        toast({ title: "Welcome back!" });
+        setLocation("/");
+      } catch (error: any) {
+        const errorMessage = error.message || "Please check your credentials";
+        if (errorMessage.toLowerCase().includes("verify your email") || errorMessage.toLowerCase().includes("not verified")) {
+          localStorage.setItem("pendingVerificationEmail", email);
+          toast({ title: "Email not verified", description: "Redirecting you to verify your email...", variant: "destructive" });
+          setTimeout(() => setLocation(`/verify-email?email=${encodeURIComponent(email)}`), 1500);
+        } else {
+          toast({ title: "Login failed", description: errorMessage, variant: "destructive" });
+        }
+      } finally {
+        setIsSubmitting(false);
       }
-      
-      toast({ 
-        title: "Login failed", 
-        description: errorMessage,
-        variant: "destructive" 
-      });
-    }
-  };
+    };
+  }, [login, toast, setLocation]);
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    try {
-      const recaptchaToken = await getRecaptchaToken("FORGOT_PASSWORD");
-      await forgotPassword({ email, recaptchaToken });
-      setStep("reset");
-      toast({ title: "Check your email", description: "We sent you a reset code" });
-    } catch (error: any) {
-      toast({ 
-        title: "Request failed", 
-        description: error.message || "Please try again",
-        variant: "destructive" 
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    window.onForgotPasswordSubmit = async (token: string) => {
+      const { email } = forgotRef.current;
+      setIsSubmitting(true);
+      try {
+        await forgotPassword({ email, recaptchaToken: token });
+        setStep("reset");
+        toast({ title: "Check your email", description: "We sent you a reset code" });
+      } catch (error: any) {
+        toast({ title: "Request failed", description: error.message || "Please try again", variant: "destructive" });
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+  }, [forgotPassword, toast]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (newPassword.length < 8) {
       toast({ title: "Password must be at least 8 characters", variant: "destructive" });
       return;
     }
-    
-    setIsLoading(true);
-    
+    setIsSubmitting(true);
     try {
       await resetPassword({ email, code: resetCode, newPassword });
       toast({ title: "Password reset!", description: "You can now sign in with your new password" });
@@ -132,13 +124,9 @@ export default function LoginPage() {
       setResetCode("");
       setNewPassword("");
     } catch (error: any) {
-      toast({ 
-        title: "Reset failed", 
-        description: error.message || "Please check your code",
-        variant: "destructive" 
-      });
+      toast({ title: "Reset failed", description: error.message || "Please check your code", variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -153,9 +141,7 @@ export default function LoginPage() {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
-            <CardDescription>
-              Enter the code we sent to <strong>{email}</strong>
-            </CardDescription>
+            <CardDescription>Enter the code we sent to <strong>{email}</strong></CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleResetPassword} className="space-y-4">
@@ -172,7 +158,6 @@ export default function LoginPage() {
                   data-testid="input-reset-code"
                 />
               </div>
-              
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
                 <Input
@@ -186,32 +171,16 @@ export default function LoginPage() {
                   data-testid="input-new-password"
                 />
               </div>
-              
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600"
-                disabled={isLoading || resetCode.length !== 6}
+                disabled={isSubmitting || resetCode.length !== 6}
                 data-testid="button-reset-password"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Resetting...
-                  </>
-                ) : (
-                  "Reset Password"
-                )}
+                {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Resetting...</> : "Reset Password"}
               </Button>
-              
-              <Button 
-                type="button" 
-                variant="ghost" 
-                className="w-full"
-                onClick={() => setStep("login")}
-                data-testid="button-back-to-login"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Sign In
+              <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("login")} data-testid="button-back-to-login">
+                <ArrowLeft className="w-4 h-4 mr-2" />Back to Sign In
               </Button>
             </form>
           </CardContent>
@@ -226,16 +195,14 @@ export default function LoginPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold">Forgot Password?</CardTitle>
-            <CardDescription>
-              Enter your email and we'll send you a reset code
-            </CardDescription>
+            <CardDescription>Enter your email and we'll send you a reset code</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="forgot-email">Email</Label>
                 <Input
-                  id="email"
+                  id="forgot-email"
                   type="email"
                   placeholder="jane@school.edu"
                   value={email}
@@ -244,34 +211,22 @@ export default function LoginPage() {
                   data-testid="input-forgot-email"
                 />
               </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600"
-                disabled={isLoading}
+
+              <button
+                className="g-recaptcha w-full py-2 px-4 rounded-md bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600 text-white font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                data-sitekey={RECAPTCHA_SITE_KEY}
+                data-callback="onForgotPasswordSubmit"
+                data-action="FORGOT_PASSWORD"
+                disabled={isSubmitting}
                 data-testid="button-send-reset-code"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  "Send Reset Code"
-                )}
+                {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Sending...</> : "Send Reset Code"}
+              </button>
+
+              <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("login")} data-testid="button-back-to-login">
+                <ArrowLeft className="w-4 h-4 mr-2" />Back to Sign In
               </Button>
-              
-              <Button 
-                type="button" 
-                variant="ghost" 
-                className="w-full"
-                onClick={() => setStep("login")}
-                data-testid="button-back-to-login"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Sign In
-              </Button>
-            </form>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -288,12 +243,10 @@ export default function LoginPage() {
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-teal-500 bg-clip-text text-transparent">
             BrightBoard
           </CardTitle>
-          <CardDescription>
-            {t('auth.loginSubtitle')}
-          </CardDescription>
+          <CardDescription>{t('auth.loginSubtitle')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">{t('auth.email')}</Label>
               <Input
@@ -306,7 +259,7 @@ export default function LoginPage() {
                 data-testid="input-email"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">{t('auth.password')}</Label>
               <div className="relative">
@@ -331,10 +284,10 @@ export default function LoginPage() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="text-right">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="text-sm text-primary underline hover:text-primary/80"
                 onClick={() => setStep("forgot")}
                 data-testid="link-forgot-password"
@@ -342,23 +295,18 @@ export default function LoginPage() {
                 {t('auth.forgotPassword')}
               </button>
             </div>
-            
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600"
-              disabled={isLoggingIn}
+
+            <button
+              className="g-recaptcha w-full py-2 px-4 rounded-md bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600 text-white font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              data-sitekey={RECAPTCHA_SITE_KEY}
+              data-callback="onLoginSubmit"
+              data-action="LOGIN"
+              disabled={isSubmitting}
               data-testid="button-login"
             >
-              {isLoggingIn ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('common.loading')}
-                </>
-              ) : (
-                t('common.signIn')
-              )}
-            </Button>
-            
+              {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />{t('common.loading')}</> : t('common.signIn')}
+            </button>
+
             {(socialProviders?.facebook || socialProviders?.tiktok) && (
               <>
                 <div className="relative my-2">
@@ -369,21 +317,18 @@ export default function LoginPage() {
                     <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-2">
                   {socialProviders?.facebook && (
                     <a href="/api/auth/facebook" data-testid="button-login-facebook">
                       <Button type="button" variant="outline" className="w-full flex items-center gap-2 border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2] hover:text-white transition-colors">
-                        <SiFacebook className="w-4 h-4" />
-                        Continue with Facebook
+                        <SiFacebook className="w-4 h-4" />Continue with Facebook
                       </Button>
                     </a>
                   )}
                   {socialProviders?.tiktok && (
                     <a href="/api/auth/tiktok" data-testid="button-login-tiktok">
                       <Button type="button" variant="outline" className="w-full flex items-center gap-2 border-black text-black dark:border-white dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors">
-                        <SiTiktok className="w-4 h-4" />
-                        Continue with TikTok
+                        <SiTiktok className="w-4 h-4" />Continue with TikTok
                       </Button>
                     </a>
                   )}
@@ -393,8 +338,8 @@ export default function LoginPage() {
 
             <p className="text-center text-sm text-muted-foreground">
               {t('auth.noAccount')}{" "}
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="text-primary underline hover:text-primary/80"
                 onClick={() => setLocation("/signup")}
                 data-testid="link-signup"
@@ -402,7 +347,7 @@ export default function LoginPage() {
                 {t('common.signUp')}
               </button>
             </p>
-          </form>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,19 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SiFacebook, SiTiktok } from "react-icons/si";
 
+const RECAPTCHA_SITE_KEY = "6LfKupcsAAAAAFjtAAYI191p9gV13VpHkenZ-KJe";
+
 declare global {
   interface Window {
     grecaptcha: any;
-    onRecaptchaLoad: () => void;
+    onSignupSubmit: (token: string) => void;
   }
 }
 
@@ -24,7 +26,7 @@ export default function SignupPage() {
     queryKey: ["/api/auth/social-providers"],
   });
   const { toast } = useToast();
-  
+
   const [step, setStep] = useState<"signup" | "verify">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,76 +35,54 @@ export default function SignupPage() {
   const [lastName, setLastName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
-  const RECAPTCHA_SITE_KEY = "6LfKupcsAAAAAFjtAAYI191p9gV13VpHkenZ-KJe";
-  const [recaptchaLoaded, setRecaptchaLoaded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const formRef = useRef({ email, password, confirmPassword, firstName, lastName });
+  useEffect(() => {
+    formRef.current = { email, password, confirmPassword, firstName, lastName };
+  }, [email, password, confirmPassword, firstName, lastName]);
 
   useEffect(() => {
-    if (window.grecaptcha?.enterprise) {
-      window.grecaptcha.enterprise.ready(() => setRecaptchaLoaded(true));
-    } else {
-      const interval = setInterval(() => {
-        if (window.grecaptcha?.enterprise) {
-          window.grecaptcha.enterprise.ready(() => setRecaptchaLoaded(true));
-          clearInterval(interval);
-        }
-      }, 100);
-      return () => clearInterval(interval);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      setLocation("/");
-    }
+    if (isAuthenticated) setLocation("/");
   }, [isAuthenticated, setLocation]);
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      toast({ title: "Passwords don't match", variant: "destructive" });
-      return;
-    }
-    
-    if (password.length < 8) {
-      toast({ title: "Password must be at least 8 characters", variant: "destructive" });
-      return;
-    }
+  useEffect(() => {
+    window.onSignupSubmit = async (token: string) => {
+      const { email, password, confirmPassword, firstName, lastName } = formRef.current;
 
-    try {
-      let recaptchaToken: string | undefined;
-      
-      await new Promise<void>((resolve) => window.grecaptcha.enterprise.ready(resolve));
-      recaptchaToken = await window.grecaptcha.enterprise.execute(RECAPTCHA_SITE_KEY, { action: "signup" });
-      
-      const urlParams = new URLSearchParams(window.location.search);
-      const ref = urlParams.get("ref") || undefined;
-      await signup({ email, password, firstName, lastName, recaptchaToken, ref });
-      localStorage.setItem("pendingVerificationEmail", email);
-      toast({ title: "Welcome to BrightBoard! 🎉", description: "Check your email to verify your account when you get a chance." });
-      setLocation("/");
-    } catch (error: any) {
-      toast({ 
-        title: "Sign up failed", 
-        description: error.message || "Please try again",
-        variant: "destructive" 
-      });
-    }
-  };
+      if (password !== confirmPassword) {
+        toast({ title: "Passwords don't match", variant: "destructive" });
+        return;
+      }
+      if (password.length < 8) {
+        toast({ title: "Password must be at least 8 characters", variant: "destructive" });
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get("ref") || undefined;
+        await signup({ email, password, firstName, lastName, recaptchaToken: token, ref });
+        localStorage.setItem("pendingVerificationEmail", email);
+        toast({ title: "Welcome to BrightBoard! 🎉", description: "Check your email to verify your account when you get a chance." });
+        setLocation("/");
+      } catch (error: any) {
+        toast({ title: "Sign up failed", description: error.message || "Please try again", variant: "destructive" });
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+  }, [signup, toast, setLocation]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       await verifyEmail({ email, code: verificationCode });
       toast({ title: "Email verified!", description: "You can now sign in" });
       setLocation("/login");
     } catch (error: any) {
-      toast({ 
-        title: "Verification failed", 
-        description: error.message || "Please check your code",
-        variant: "destructive" 
-      });
+      toast({ title: "Verification failed", description: error.message || "Please check your code", variant: "destructive" });
     }
   };
 
@@ -111,11 +91,7 @@ export default function SignupPage() {
       await resendCode({ email });
       toast({ title: "Code sent", description: "Check your email for a new code" });
     } catch (error: any) {
-      toast({ 
-        title: "Failed to resend", 
-        description: error.message || "Please try again",
-        variant: "destructive" 
-      });
+      toast({ title: "Failed to resend", description: error.message || "Please try again", variant: "destructive" });
     }
   };
 
@@ -151,44 +127,21 @@ export default function SignupPage() {
                   data-testid="input-verification-code"
                 />
               </div>
-              
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600"
                 disabled={isVerifying || verificationCode.length !== 6}
                 data-testid="button-verify"
               >
-                {isVerifying ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify Email"
-                )}
+                {isVerifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : "Verify Email"}
               </Button>
-              
               <div className="text-center">
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  onClick={handleResend}
-                  disabled={isResendingCode}
-                  data-testid="button-resend-code"
-                >
+                <Button type="button" variant="ghost" onClick={handleResend} disabled={isResendingCode} data-testid="button-resend-code">
                   {isResendingCode ? "Sending..." : "Didn't receive code? Resend"}
                 </Button>
               </div>
-              
-              <Button 
-                type="button" 
-                variant="ghost" 
-                className="w-full"
-                onClick={() => setStep("signup")}
-                data-testid="button-back-to-signup"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Sign Up
+              <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("signup")} data-testid="button-back-to-signup">
+                <ArrowLeft className="w-4 h-4 mr-2" />Back to Sign Up
               </Button>
             </form>
           </CardContent>
@@ -204,12 +157,10 @@ export default function SignupPage() {
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-teal-500 bg-clip-text text-transparent">
             BrightBoard
           </CardTitle>
-          <CardDescription>
-            Create your account to start creating amazing content
-          </CardDescription>
+          <CardDescription>Create your account to start creating amazing content</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignup} className="space-y-4">
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
@@ -236,7 +187,7 @@ export default function SignupPage() {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -249,7 +200,7 @@ export default function SignupPage() {
                 data-testid="input-email"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -275,7 +226,7 @@ export default function SignupPage() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input
@@ -288,23 +239,18 @@ export default function SignupPage() {
                 data-testid="input-confirm-password"
               />
             </div>
-            
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600"
-              disabled={isSigningUp}
+
+            <button
+              className="g-recaptcha w-full py-2 px-4 rounded-md bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600 text-white font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              data-sitekey={RECAPTCHA_SITE_KEY}
+              data-callback="onSignupSubmit"
+              data-action="signup"
+              disabled={isSigningUp || isSubmitting}
               data-testid="button-signup"
             >
-              {isSigningUp ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating Account...
-                </>
-              ) : (
-                "Create Account"
-              )}
-            </Button>
-            
+              {isSigningUp || isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Creating Account...</> : "Create Account"}
+            </button>
+
             {(socialProviders?.facebook || socialProviders?.tiktok) && (
               <>
                 <div className="relative my-2">
@@ -315,21 +261,18 @@ export default function SignupPage() {
                     <span className="bg-background px-2 text-muted-foreground">Or sign up with</span>
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-2">
                   {socialProviders?.facebook && (
                     <a href="/api/auth/facebook" data-testid="button-signup-facebook">
                       <Button type="button" variant="outline" className="w-full flex items-center gap-2 border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2] hover:text-white transition-colors">
-                        <SiFacebook className="w-4 h-4" />
-                        Sign up with Facebook
+                        <SiFacebook className="w-4 h-4" />Sign up with Facebook
                       </Button>
                     </a>
                   )}
                   {socialProviders?.tiktok && (
                     <a href="/api/auth/tiktok" data-testid="button-signup-tiktok">
                       <Button type="button" variant="outline" className="w-full flex items-center gap-2 border-black text-black dark:border-white dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors">
-                        <SiTiktok className="w-4 h-4" />
-                        Sign up with TikTok
+                        <SiTiktok className="w-4 h-4" />Sign up with TikTok
                       </Button>
                     </a>
                   )}
@@ -339,22 +282,17 @@ export default function SignupPage() {
 
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
-              <button 
-                type="button" 
-                className="text-primary underline hover:text-primary/80"
-                onClick={() => setLocation("/login")}
-                data-testid="link-login"
-              >
+              <button type="button" className="text-primary underline hover:text-primary/80" onClick={() => setLocation("/login")} data-testid="link-login">
                 Sign In
               </button>
             </p>
-            
+
             <p className="text-center text-xs text-muted-foreground">
               By signing up, you agree to our{" "}
               <a href="/terms" className="underline">Terms of Service</a> and{" "}
               <a href="/privacy" className="underline">Privacy Policy</a>
             </p>
-          </form>
+          </div>
         </CardContent>
       </Card>
     </div>
