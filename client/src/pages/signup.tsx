@@ -49,7 +49,7 @@ export default function SignupPage() {
         if (data.siteKey) {
           setRecaptchaSiteKey(data.siteKey);
           const script = document.createElement("script");
-          script.src = `https://www.google.com/recaptcha/api.js?render=${data.siteKey}`;
+          script.src = `https://www.google.com/recaptcha/enterprise.js?render=${data.siteKey}`;
           script.async = true;
           script.onload = () => setRecaptchaLoaded(true);
           document.head.appendChild(script);
@@ -74,8 +74,8 @@ export default function SignupPage() {
     try {
       let recaptchaToken: string | undefined;
       
-      if (recaptchaSiteKey && window.grecaptcha) {
-        recaptchaToken = await window.grecaptcha.execute(recaptchaSiteKey, { action: "signup" });
+      if (recaptchaSiteKey && window.grecaptcha?.enterprise) {
+        recaptchaToken = await window.grecaptcha.enterprise.execute(recaptchaSiteKey, { action: "signup" });
       }
       
       const urlParams = new URLSearchParams(window.location.search);
