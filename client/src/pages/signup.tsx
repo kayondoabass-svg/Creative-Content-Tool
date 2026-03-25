@@ -33,30 +33,28 @@ export default function SignupPage() {
   const [lastName, setLastName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
-  const [recaptchaSiteKey, setRecaptchaSiteKey] = useState<string | null>(null);
+  const RECAPTCHA_SITE_KEY = "6LfKupcsAAAAAFjtAAYI191p9gV13VpHkenZ-KJe";
   const [recaptchaLoaded, setRecaptchaLoaded] = useState(false);
+
+  useEffect(() => {
+    if (window.grecaptcha?.enterprise) {
+      window.grecaptcha.enterprise.ready(() => setRecaptchaLoaded(true));
+    } else {
+      const interval = setInterval(() => {
+        if (window.grecaptcha?.enterprise) {
+          window.grecaptcha.enterprise.ready(() => setRecaptchaLoaded(true));
+          clearInterval(interval);
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
       setLocation("/");
     }
   }, [isAuthenticated, setLocation]);
-
-  useEffect(() => {
-    fetch("/api/auth/recaptcha-key")
-      .then(res => res.json())
-      .then(data => {
-        if (data.siteKey) {
-          setRecaptchaSiteKey(data.siteKey);
-          const script = document.createElement("script");
-          script.src = `https://www.google.com/recaptcha/enterprise.js?render=${data.siteKey}`;
-          script.async = true;
-          script.onload = () => setRecaptchaLoaded(true);
-          document.head.appendChild(script);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,9 +72,8 @@ export default function SignupPage() {
     try {
       let recaptchaToken: string | undefined;
       
-      if (recaptchaSiteKey && window.grecaptcha?.enterprise) {
-        recaptchaToken = await window.grecaptcha.enterprise.execute(recaptchaSiteKey, { action: "signup" });
-      }
+      await new Promise<void>((resolve) => window.grecaptcha.enterprise.ready(resolve));
+      recaptchaToken = await window.grecaptcha.enterprise.execute(RECAPTCHA_SITE_KEY, { action: "signup" });
       
       const urlParams = new URLSearchParams(window.location.search);
       const ref = urlParams.get("ref") || undefined;
