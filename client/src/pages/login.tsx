@@ -12,6 +12,17 @@ import { LanguageSelector } from "@/components/language-selector";
 import { useQuery } from "@tanstack/react-query";
 import { SiFacebook, SiTiktok } from "react-icons/si";
 
+const RECAPTCHA_SITE_KEY = "6LfKupcsAAAAAFjtAAYI191p9gV13VpHkenZ-KJe";
+
+async function getRecaptchaToken(action: string): Promise<string | undefined> {
+  try {
+    await new Promise<void>((resolve) => window.grecaptcha.enterprise.ready(resolve));
+    return await window.grecaptcha.enterprise.execute(RECAPTCHA_SITE_KEY, { action });
+  } catch {
+    return undefined;
+  }
+}
+
 export default function LoginPage() {
   const { t } = useTranslation();
   const [location, setLocation] = useLocation();
@@ -57,7 +68,8 @@ export default function LoginPage() {
     e.preventDefault();
     
     try {
-      await login({ email, password });
+      const recaptchaToken = await getRecaptchaToken("LOGIN");
+      await login({ email, password, recaptchaToken });
       toast({ title: "Welcome back!" });
       setLocation("/");
     } catch (error: any) {
@@ -87,7 +99,8 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      await forgotPassword({ email });
+      const recaptchaToken = await getRecaptchaToken("FORGOT_PASSWORD");
+      await forgotPassword({ email, recaptchaToken });
       setStep("reset");
       toast({ title: "Check your email", description: "We sent you a reset code" });
     } catch (error: any) {

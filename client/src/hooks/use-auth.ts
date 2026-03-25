@@ -38,8 +38,8 @@ export function useAuth() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const response = await apiRequest("POST", "/api/auth/login", { email, password });
+    mutationFn: async ({ email, password, recaptchaToken }: { email: string; password: string; recaptchaToken?: string }) => {
+      const response = await apiRequest("POST", "/api/auth/login", { email, password, recaptchaToken });
       return response.json();
     },
     onSuccess: (data) => {
@@ -90,8 +90,8 @@ export function useAuth() {
   });
 
   const forgotPasswordMutation = useMutation({
-    mutationFn: async ({ email }: { email: string }) => {
-      const response = await apiRequest("POST", "/api/auth/forgot-password", { email });
+    mutationFn: async ({ email, recaptchaToken }: { email: string; recaptchaToken?: string }) => {
+      const response = await apiRequest("POST", "/api/auth/forgot-password", { email, recaptchaToken });
       return response.json();
     },
   });
