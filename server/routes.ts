@@ -142,7 +142,22 @@ ${pages.map(p => `  <url>
           console.error("Referral tracking error:", refErr);
         }
       }
-      
+
+      // Auto-login: create session immediately so users can start using the app
+      if (result.userId) {
+        try {
+          const newUser = await customAuth.getUserById(result.userId);
+          if (newUser) {
+            (req as any).session.userId = newUser.id;
+            (req as any).session.user = newUser;
+            db.insert(loginEvents).values({ userId: newUser.id }).catch(() => {});
+            return res.json({ message: result.message, userId: result.userId, user: newUser });
+          }
+        } catch (sessionErr) {
+          console.error("Auto-login after signup error:", sessionErr);
+        }
+      }
+
       res.json({ message: result.message, userId: result.userId });
     } catch (error) {
       console.error("Signup error:", error);

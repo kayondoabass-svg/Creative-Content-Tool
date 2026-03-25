@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "wouter";
+import { useSearch, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Image, Presentation, FileText, Film, ClipboardList, Network } from "lucide-react";
+import { Image, Presentation, FileText, Film, ClipboardList, Network, MailCheck, X } from "lucide-react";
 import { ContentTypeCard } from "@/components/content-type-card";
 import { PromptInput } from "@/components/prompt-input";
 import { GeneratedContentDisplay } from "@/components/generated-content-display";
@@ -10,6 +10,7 @@ import { GenerationProgress } from "@/components/generation-progress";
 import { HistorySidebar } from "@/components/history-sidebar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 import type { ContentType, GeneratedContent } from "@shared/schema";
 
 const getContentTypes = (t: (key: string) => string) => [
@@ -59,6 +60,18 @@ const getContentTypes = (t: (key: string) => string) => [
 
 export default function Home() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(() =>
+    localStorage.getItem("verifyBannerDismissed") === "1"
+  );
+  const showVerifyBanner = user && !user.emailVerified && !verifyBannerDismissed;
+
+  const handleDismissVerifyBanner = () => {
+    localStorage.setItem("verifyBannerDismissed", "1");
+    setVerifyBannerDismissed(true);
+  };
+
   const searchString = useSearch();
   const [selectedType, setSelectedType] = useState<ContentType>("image");
   const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
@@ -237,6 +250,27 @@ export default function Home() {
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+
+          {/* Email verification banner */}
+          {showVerifyBanner && (
+            <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-4 py-3 text-sm" data-testid="banner-verify-email">
+              <MailCheck className="h-4 w-4 text-amber-600 shrink-0" />
+              <p className="flex-1 text-amber-800 dark:text-amber-300">
+                <strong>Almost done!</strong> Please verify your email address.{" "}
+                <button
+                  className="underline font-medium hover:no-underline"
+                  onClick={() => setLocation(`/verify-email?email=${encodeURIComponent(user?.email || "")}`)}
+                  data-testid="link-go-verify"
+                >
+                  Click here to verify
+                </button>
+              </p>
+              <button onClick={handleDismissVerifyBanner} className="text-amber-600 hover:text-amber-800 dark:text-amber-400" data-testid="button-dismiss-verify-banner">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* Header */}
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary via-chart-4 to-accent bg-clip-text text-transparent">

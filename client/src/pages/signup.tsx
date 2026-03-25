@@ -82,8 +82,8 @@ export default function SignupPage() {
       const ref = urlParams.get("ref") || undefined;
       await signup({ email, password, firstName, lastName, recaptchaToken, ref });
       localStorage.setItem("pendingVerificationEmail", email);
-      toast({ title: "Check your email", description: "We sent you a verification code" });
-      setLocation(`/verify-email?email=${encodeURIComponent(email)}`);
+      toast({ title: "Welcome to BrightBoard! 🎉", description: "Check your email to verify your account when you get a chance." });
+      setLocation("/");
     } catch (error: any) {
       toast({ 
         title: "Sign up failed", 
