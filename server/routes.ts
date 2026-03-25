@@ -23,7 +23,7 @@ import * as paddleService from "./paddleService";
 import crypto from "crypto";
 import * as customAuth from "./customAuthService";
 import { db } from "./db";
-import { users, featureUsage, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
+import { users, featureUsage, loginEvents, pageViews, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
 import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
@@ -212,7 +212,10 @@ ${pages.map(p => `  <url>
       // Store user in session
       (req as any).session.userId = result.user.id;
       (req as any).session.user = result.user;
-      
+
+      // Log login event for analytics (fire-and-forget)
+      db.insert(loginEvents).values({ userId: result.user.id }).catch(() => {});
+
       res.json({ user: result.user });
     } catch (error) {
       console.error("Login error:", error);
@@ -525,6 +528,18 @@ ${pages.map(p => `  <url>
       facebook: !!process.env.FACEBOOK_APP_ID,
       tiktok: !!process.env.TIKTOK_CLIENT_KEY,
     });
+  });
+
+  // Page view tracking beacon — called by frontend on every route change
+  app.post("/api/track/visit", async (req: any, res: any) => {
+    try {
+      const path = (req.body?.path as string | undefined)?.slice(0, 255) || "/";
+      const userId = req.session?.userId || null;
+      await db.insert(pageViews).values({ userId, path });
+      res.json({ ok: true });
+    } catch {
+      res.json({ ok: false });
+    }
   });
 
   // Public stats endpoint for landing page
@@ -911,6 +926,71 @@ ${pages.map(p => `  <url>
 
   // Send activation emails to inactive users (owner only)
   app.post("/api/owner/send-activation-emails", isOwnerMiddleware, handleSendActivationEmails);
+
+  // Owner traffic & activity analytics (24h / 7d / 30d)
+  app.get("/api/owner/activity", isOwnerMiddleware, async (req: any, res: any) => {
+    try {
+      const period = (req.query.period as string) || "7d";
+      const isHourly = period === "24h";
+      const days = period === "30d" ? 30 : period === "7d" ? 7 : 1;
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const truncFn = isHourly ? "hour" : "day";
+
+      // Helper to run a count query per bucket
+      const fetchBuckets = async (table: any, col: any) => {
+        const rows = await db.select({
+          bucket: sql<string>`DATE_TRUNC(${truncFn}, ${col})::text`.as("bucket"),
+          cnt: count(),
+        }).from(table).where(gte(col, startDate))
+          .groupBy(sql`DATE_TRUNC(${truncFn}, ${col})`);
+        return rows.reduce((m, r) => { m[r.bucket.slice(0, isHourly ? 13 : 10)] = r.cnt; return m; }, {} as Record<string, number>);
+      };
+
+      const [signupMap, loginMap, viewMap, genMap] = await Promise.all([
+        fetchBuckets(users, users.createdAt),
+        fetchBuckets(loginEvents, loginEvents.createdAt),
+        fetchBuckets(pageViews, pageViews.createdAt),
+        fetchBuckets(featureUsage, featureUsage.createdAt),
+      ]);
+
+      // Build complete labeled series
+      const points = isHourly ? 24 : days;
+      const series: { label: string; signups: number; logins: number; pageViews: number; generations: number }[] = [];
+
+      for (let i = points - 1; i >= 0; i--) {
+        const d = new Date();
+        if (isHourly) d.setHours(d.getHours() - i, 0, 0, 0);
+        else { d.setDate(d.getDate() - i); d.setHours(0, 0, 0, 0); }
+
+        const key = isHourly ? d.toISOString().slice(0, 13) : d.toISOString().slice(0, 10);
+        const label = isHourly
+          ? `${String(d.getHours()).padStart(2, "0")}:00`
+          : days === 7
+            ? d.toLocaleDateString("en", { weekday: "short" })
+            : d.toLocaleDateString("en", { month: "short", day: "numeric" });
+
+        series.push({
+          label,
+          signups: signupMap[key] ?? 0,
+          logins: loginMap[key] ?? 0,
+          pageViews: viewMap[key] ?? 0,
+          generations: genMap[key] ?? 0,
+        });
+      }
+
+      const totals = series.reduce((t, p) => ({
+        signups: t.signups + p.signups,
+        logins: t.logins + p.logins,
+        pageViews: t.pageViews + p.pageViews,
+        generations: t.generations + p.generations,
+      }), { signups: 0, logins: 0, pageViews: 0, generations: 0 });
+
+      res.json({ period, series, totals });
+    } catch (error) {
+      console.error("Activity analytics error:", error);
+      res.status(500).json({ error: "Failed to fetch activity" });
+    }
+  });
 
   // Get owner dashboard statistics
   app.get("/api/owner/stats", isOwnerMiddleware, async (req, res) => {

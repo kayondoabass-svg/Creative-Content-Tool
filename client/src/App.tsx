@@ -1,4 +1,5 @@
-import { Switch, Route, Link } from "wouter";
+import { Switch, Route, Link, useLocation } from "wouter";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -41,6 +42,18 @@ import HowItWorks from "@/pages/how-it-works";
 import Features from "@/pages/features";
 import AdsLanding from "@/pages/ads-landing";
 import type { OrganizationSettings } from "@shared/schema";
+
+function PageTracker() {
+  const [location] = useLocation();
+  useEffect(() => {
+    fetch("/api/track/visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: location }),
+    }).catch(() => {});
+  }, [location]);
+  return null;
+}
 
 function Router() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -241,6 +254,7 @@ function App() {
             <HeaderWithLogo />
             
             <main className="flex-1 overflow-y-auto">
+              <PageTracker />
               <Router />
             </main>
           </div>

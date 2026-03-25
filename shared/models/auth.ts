@@ -80,6 +80,25 @@ export type User = typeof users.$inferSelect;
 // Subscription tier type
 export type SubscriptionTier = "free" | "weekly" | "monthly" | "yearly";
 
+// Login event tracking (for owner analytics)
+export const loginEvents = pgTable("login_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type LoginEvent = typeof loginEvents.$inferSelect;
+
+// Page view tracking (anonymous + authenticated visitors)
+export const pageViews = pgTable("page_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"),       // null = anonymous
+  path: varchar("path"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type PageView = typeof pageViews.$inferSelect;
+
 // Feature usage tracking table
 export const featureUsage = pgTable("feature_usage", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

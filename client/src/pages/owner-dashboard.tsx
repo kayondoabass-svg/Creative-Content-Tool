@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
@@ -711,6 +712,8 @@ export default function OwnerDashboard() {
           loading={loading}
         />
       </div>
+
+      <ActivitySection />
 
       <RevenueSection />
 
@@ -1578,6 +1581,129 @@ function AffiliateManagement() {
             ))}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Traffic & Activity Analytics ─────────────────────────────────────────────
+function ActivitySection() {
+  const [period, setPeriod] = useState<"24h" | "7d" | "30d">("7d");
+
+  const { data, isLoading } = useQuery<{
+    period: string;
+    series: { label: string; signups: number; logins: number; pageViews: number; generations: number }[];
+    totals: { signups: number; logins: number; pageViews: number; generations: number };
+  }>({
+    queryKey: ["/api/owner/activity", period],
+    queryFn: () => fetch(`/api/owner/activity?period=${period}`).then(r => r.json()),
+    refetchInterval: 60_000,
+  });
+
+  const METRICS = [
+    { key: "pageViews",   label: "Page Visits",  color: "#6366f1", icon: Eye },
+    { key: "logins",      label: "Logins",        color: "#10b981", icon: UserCheck },
+    { key: "signups",     label: "New Accounts",  color: "#f59e0b", icon: UserPlus },
+    { key: "generations", label: "Generations",   color: "#8b5cf6", icon: Zap },
+  ] as const;
+
+  const totalCards = [
+    { label: "Page Visits",   value: data?.totals.pageViews ?? 0,   color: "text-indigo-600",  bg: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800",  icon: Eye },
+    { label: "Logins",        value: data?.totals.logins ?? 0,      color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800", icon: UserCheck },
+    { label: "New Accounts",  value: data?.totals.signups ?? 0,     color: "text-amber-600",   bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",  icon: UserPlus },
+    { label: "Generations",   value: data?.totals.generations ?? 0, color: "text-purple-600",  bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800", icon: Zap },
+  ];
+
+  return (
+    <Card data-testid="section-activity">
+      <CardHeader>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Traffic & Activity
+            </CardTitle>
+            <CardDescription>Visitors, logins, signups and content generation over time</CardDescription>
+          </div>
+          <div className="flex rounded-lg border overflow-hidden text-sm font-medium">
+            {(["24h", "7d", "30d"] as const).map(p => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                data-testid={`activity-period-${p}`}
+                className={`px-3 py-1.5 transition-colors ${
+                  period === p
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted text-muted-foreground"
+                }`}
+              >
+                {p === "24h" ? "24 Hours" : p === "7d" ? "7 Days" : "30 Days"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        {/* Totals row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {totalCards.map(c => (
+            <div key={c.label} className={`rounded-lg border p-3 ${c.bg}`} data-testid={`activity-card-${c.label.toLowerCase().replace(/\s+/g,"-")}`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
+                <p className={`text-xs font-medium ${c.color}`}>{c.label}</p>
+              </div>
+              {isLoading ? (
+                <div className="h-7 w-16 rounded bg-muted animate-pulse" />
+              ) : (
+                <p className="text-2xl font-bold">{c.value.toLocaleString()}</p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Chart */}
+        {isLoading ? (
+          <div className="h-64 w-full rounded bg-muted/50 animate-pulse" />
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <AreaChart data={data?.series ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <defs>
+                {METRICS.map(m => (
+                  <linearGradient key={m.key} id={`grad-${m.key}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={m.color} stopOpacity={0.25} />
+                    <stop offset="95%" stopColor={m.color} stopOpacity={0} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))", color: "hsl(var(--foreground))" }}
+                labelStyle={{ fontWeight: 600 }}
+              />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+              {METRICS.map(m => (
+                <Area
+                  key={m.key}
+                  type="monotone"
+                  dataKey={m.key}
+                  name={m.label}
+                  stroke={m.color}
+                  strokeWidth={2}
+                  fill={`url(#grad-${m.key})`}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+
+        <p className="text-xs text-muted-foreground">
+          Page visits tracked from app launch onwards · Login & signup data includes all historical records
+        </p>
       </CardContent>
     </Card>
   );
