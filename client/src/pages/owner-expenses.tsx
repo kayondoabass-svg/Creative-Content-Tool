@@ -48,8 +48,8 @@ interface ExpenseSummary {
 }
 
 const categoryInfo: Record<string, { label: string; icon: any; color: string }> = {
-  openai: { label: "Gemini API", icon: Bot, color: "bg-emerald-500" },
-  gemini: { label: "Gemini API", icon: Bot, color: "bg-emerald-500" },
+  openai: { label: "OpenAI API", icon: Bot, color: "bg-emerald-500" },
+  gemini: { label: "OpenAI API", icon: Bot, color: "bg-emerald-500" },
   resend: { label: "Resend Emails", icon: Mail, color: "bg-blue-500" },
   replit: { label: "Replit", icon: Cloud, color: "bg-orange-500" },
   cloudflare: { label: "Cloudflare", icon: SiCloudflare, color: "bg-yellow-500" },
