@@ -949,7 +949,13 @@ ${pages.map(p => `  <url>
           cnt: count(),
         }).from(table).where(gte(col, startDate))
           .groupBy(groupExpr);
-        return rows.reduce((m, r) => { m[r.bucket.slice(0, isHourly ? 13 : 10)] = r.cnt; return m; }, {} as Record<string, number>);
+        return rows.reduce((m, r) => {
+          const key = isHourly
+            ? r.bucket.slice(0, 13).replace(" ", "T")
+            : r.bucket.slice(0, 10);
+          m[key] = r.cnt;
+          return m;
+        }, {} as Record<string, number>);
       };
 
       const [signupMap, loginMap, viewMap, genMap] = await Promise.all([
