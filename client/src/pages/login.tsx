@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,17 +14,19 @@ import { SiFacebook, SiTiktok } from "react-icons/si";
 
 const RECAPTCHA_SITE_KEY = "6LfKupcsAAAAAFjtAAYI191p9gV13VpHkenZ-KJe";
 
-declare global {
-  interface Window {
-    onLoginSubmit: (token: string) => void;
-    onForgotPasswordSubmit: (token: string) => void;
+async function getRecaptchaToken(action: string): Promise<string | undefined> {
+  try {
+    await new Promise<void>((resolve) => (window as any).grecaptcha.enterprise.ready(resolve));
+    return await (window as any).grecaptcha.enterprise.execute(RECAPTCHA_SITE_KEY, { action });
+  } catch {
+    return undefined;
   }
 }
 
 export default function LoginPage() {
   const { t } = useTranslation();
-  const [location, setLocation] = useLocation();
-  const { login, forgotPassword, resetPassword, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+  const { login, isLoggingIn, forgotPassword, resetPassword, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
   const [step, setStep] = useState<"login" | "forgot" | "reset">("login");
@@ -33,21 +35,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { data: socialProviders } = useQuery<{ facebook: boolean; tiktok: boolean }>({
     queryKey: ["/api/auth/social-providers"],
   });
-
-  const loginRef = useRef({ email, password });
-  useEffect(() => {
-    loginRef.current = { email, password };
-  }, [email, password]);
-
-  const forgotRef = useRef({ email });
-  useEffect(() => {
-    forgotRef.current = { email };
-  }, [email]);
 
   useEffect(() => {
     if (isAuthenticated) setLocation("/");
@@ -70,44 +62,39 @@ export default function LoginPage() {
     }
   }, []);
 
-  useEffect(() => {
-    window.onLoginSubmit = async (token: string) => {
-      const { email, password } = loginRef.current;
-      setIsSubmitting(true);
-      try {
-        await login({ email, password, recaptchaToken: token });
-        toast({ title: "Welcome back!" });
-        setLocation("/");
-      } catch (error: any) {
-        const errorMessage = error.message || "Please check your credentials";
-        if (errorMessage.toLowerCase().includes("verify your email") || errorMessage.toLowerCase().includes("not verified")) {
-          localStorage.setItem("pendingVerificationEmail", email);
-          toast({ title: "Email not verified", description: "Redirecting you to verify your email...", variant: "destructive" });
-          setTimeout(() => setLocation(`/verify-email?email=${encodeURIComponent(email)}`), 1500);
-        } else {
-          toast({ title: "Login failed", description: errorMessage, variant: "destructive" });
-        }
-      } finally {
-        setIsSubmitting(false);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const recaptchaToken = await getRecaptchaToken("LOGIN");
+      await login({ email, password, recaptchaToken });
+      toast({ title: "Welcome back!" });
+      setLocation("/");
+    } catch (error: any) {
+      const errorMessage = error.message || "Please check your credentials";
+      if (errorMessage.toLowerCase().includes("verify your email") || errorMessage.toLowerCase().includes("not verified")) {
+        localStorage.setItem("pendingVerificationEmail", email);
+        toast({ title: "Email not verified", description: "Redirecting you to verify your email...", variant: "destructive" });
+        setTimeout(() => setLocation(`/verify-email?email=${encodeURIComponent(email)}`), 1500);
+        return;
       }
-    };
-  }, [login, toast, setLocation]);
+      toast({ title: "Login failed", description: errorMessage, variant: "destructive" });
+    }
+  };
 
-  useEffect(() => {
-    window.onForgotPasswordSubmit = async (token: string) => {
-      const { email } = forgotRef.current;
-      setIsSubmitting(true);
-      try {
-        await forgotPassword({ email, recaptchaToken: token });
-        setStep("reset");
-        toast({ title: "Check your email", description: "We sent you a reset code" });
-      } catch (error: any) {
-        toast({ title: "Request failed", description: error.message || "Please try again", variant: "destructive" });
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
-  }, [forgotPassword, toast]);
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const recaptchaToken = await getRecaptchaToken("FORGOT_PASSWORD");
+      await forgotPassword({ email, recaptchaToken });
+      setStep("reset");
+      toast({ title: "Check your email", description: "We sent you a reset code" });
+    } catch (error: any) {
+      toast({ title: "Request failed", description: error.message || "Please try again", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +102,7 @@ export default function LoginPage() {
       toast({ title: "Password must be at least 8 characters", variant: "destructive" });
       return;
     }
-    setIsSubmitting(true);
+    setIsLoading(true);
     try {
       await resetPassword({ email, code: resetCode, newPassword });
       toast({ title: "Password reset!", description: "You can now sign in with your new password" });
@@ -126,7 +113,7 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({ title: "Reset failed", description: error.message || "Please check your code", variant: "destructive" });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
@@ -147,37 +134,20 @@ export default function LoginPage() {
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="resetCode">Reset Code</Label>
-                <Input
-                  id="resetCode"
-                  type="text"
-                  placeholder="Enter 6-digit code"
-                  value={resetCode}
-                  onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="text-center text-2xl tracking-widest"
-                  maxLength={6}
-                  data-testid="input-reset-code"
-                />
+                <Input id="resetCode" type="text" placeholder="Enter 6-digit code"
+                  value={resetCode} onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="text-center text-2xl tracking-widest" maxLength={6} data-testid="input-reset-code" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
-                <Input
-                  id="newPassword"
-                  type="password"
-                  placeholder="At least 8 characters"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  data-testid="input-new-password"
-                />
+                <Input id="newPassword" type="password" placeholder="At least 8 characters"
+                  value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                  required minLength={8} data-testid="input-new-password" />
               </div>
-              <Button
-                type="submit"
+              <Button type="submit"
                 className="w-full bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600"
-                disabled={isSubmitting || resetCode.length !== 6}
-                data-testid="button-reset-password"
-              >
-                {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Resetting...</> : "Reset Password"}
+                disabled={isLoading || resetCode.length !== 6} data-testid="button-reset-password">
+                {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Resetting...</> : "Reset Password"}
               </Button>
               <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("login")} data-testid="button-back-to-login">
                 <ArrowLeft className="w-4 h-4 mr-2" />Back to Sign In
@@ -198,35 +168,22 @@ export default function LoginPage() {
             <CardDescription>Enter your email and we'll send you a reset code</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <form onSubmit={handleForgotPassword} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="forgot-email">Email</Label>
-                <Input
-                  id="forgot-email"
-                  type="email"
-                  placeholder="jane@school.edu"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  data-testid="input-forgot-email"
-                />
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" placeholder="jane@school.edu"
+                  value={email} onChange={(e) => setEmail(e.target.value)}
+                  required data-testid="input-forgot-email" />
               </div>
-
-              <button
-                className="g-recaptcha w-full py-2 px-4 rounded-md bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600 text-white font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                data-sitekey={RECAPTCHA_SITE_KEY}
-                data-callback="onForgotPasswordSubmit"
-                data-action="FORGOT_PASSWORD"
-                disabled={isSubmitting}
-                data-testid="button-send-reset-code"
-              >
-                {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Sending...</> : "Send Reset Code"}
-              </button>
-
+              <Button type="submit"
+                className="w-full bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600"
+                disabled={isLoading} data-testid="button-send-reset-code">
+                {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</> : "Send Reset Code"}
+              </Button>
               <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("login")} data-testid="button-back-to-login">
                 <ArrowLeft className="w-4 h-4 mr-2" />Back to Sign In
               </Button>
-            </div>
+            </form>
           </CardContent>
         </Card>
       </div>
@@ -246,73 +203,43 @@ export default function LoginPage() {
           <CardDescription>{t('auth.loginSubtitle')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">{t('auth.email')}</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="jane@school.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                data-testid="input-email"
-              />
+              <Input id="email" type="email" placeholder="jane@school.edu"
+                value={email} onChange={(e) => setEmail(e.target.value)}
+                required data-testid="input-email" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="password">{t('auth.password')}</Label>
               <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
+                <Input id="password" type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password" value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
-                  data-testid="input-password"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
+                  required data-testid="input-password" />
+                <Button type="button" variant="ghost" size="icon"
                   className="absolute right-0 top-0 h-full"
-                  onClick={() => setShowPassword(!showPassword)}
-                  data-testid="button-toggle-password"
-                >
+                  onClick={() => setShowPassword(!showPassword)} data-testid="button-toggle-password">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
               </div>
             </div>
-
             <div className="text-right">
-              <button
-                type="button"
-                className="text-sm text-primary underline hover:text-primary/80"
-                onClick={() => setStep("forgot")}
-                data-testid="link-forgot-password"
-              >
+              <button type="button" className="text-sm text-primary underline hover:text-primary/80"
+                onClick={() => setStep("forgot")} data-testid="link-forgot-password">
                 {t('auth.forgotPassword')}
               </button>
             </div>
-
-            <button
-              className="g-recaptcha w-full py-2 px-4 rounded-md bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600 text-white font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              data-sitekey={RECAPTCHA_SITE_KEY}
-              data-callback="onLoginSubmit"
-              data-action="LOGIN"
-              disabled={isSubmitting}
-              data-testid="button-login"
-            >
-              {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />{t('common.loading')}</> : t('common.signIn')}
-            </button>
+            <Button type="submit"
+              className="w-full bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600"
+              disabled={isLoggingIn} data-testid="button-login">
+              {isLoggingIn ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.loading')}</> : t('common.signIn')}
+            </Button>
 
             {(socialProviders?.facebook || socialProviders?.tiktok) && (
               <>
                 <div className="relative my-2">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
                   <div className="relative flex justify-center text-xs uppercase">
                     <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
                   </div>
@@ -338,16 +265,12 @@ export default function LoginPage() {
 
             <p className="text-center text-sm text-muted-foreground">
               {t('auth.noAccount')}{" "}
-              <button
-                type="button"
-                className="text-primary underline hover:text-primary/80"
-                onClick={() => setLocation("/signup")}
-                data-testid="link-signup"
-              >
+              <button type="button" className="text-primary underline hover:text-primary/80"
+                onClick={() => setLocation("/signup")} data-testid="link-signup">
                 {t('common.signUp')}
               </button>
             </p>
-          </div>
+          </form>
         </CardContent>
       </Card>
     </div>
