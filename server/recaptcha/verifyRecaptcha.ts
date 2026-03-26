@@ -41,7 +41,8 @@ export async function verifyRecaptchaToken(
     if (!response.ok) {
       const err = await response.text();
       console.error("reCAPTCHA assessment error:", err);
-      return { valid: false, reason: "reCAPTCHA assessment request failed" };
+      // Fail-open: if Google's API rejects our key, don't block legitimate users
+      return { valid: true, reason: "reCAPTCHA assessment unavailable — allowed" };
     }
 
     const assessment = await response.json();
@@ -70,6 +71,7 @@ export async function verifyRecaptchaToken(
     return { valid: true, score };
   } catch (error) {
     console.error("reCAPTCHA verification error:", error);
-    return { valid: false, reason: "reCAPTCHA verification failed" };
+    // Fail-open: network/unexpected errors should not block legitimate users
+    return { valid: true, reason: "reCAPTCHA check skipped due to error" };
   }
 }
