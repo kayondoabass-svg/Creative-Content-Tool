@@ -68,7 +68,9 @@ export default function LoginPage() {
       const recaptchaToken = await getRecaptchaToken("LOGIN");
       await login({ email, password, recaptchaToken });
       toast({ title: "Welcome back!" });
-      setLocation("/");
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirect = urlParams.get("redirect") || "/";
+      setLocation(redirect);
     } catch (error: any) {
       const errorMessage = error.message || "Please check your credentials";
       if (errorMessage.toLowerCase().includes("verify your email") || errorMessage.toLowerCase().includes("not verified")) {

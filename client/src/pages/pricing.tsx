@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +84,7 @@ const planFeatures = [
 export default function PricingPage() {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [country, setCountry] = useState<string>(() => detectCountry());
 
@@ -122,12 +124,10 @@ export default function PricingPage() {
   });
 
   const handleSubscribe = async (planId: string) => {
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please sign in to subscribe.",
-      });
+    if (!isAuthenticated) {
+      // Save chosen plan and send them to sign up
+      localStorage.setItem("pendingPlan", planId);
+      setLocation(`/signup?redirect=/pricing`);
       return;
     }
 
@@ -157,17 +157,16 @@ export default function PricingPage() {
 
   const isPremium = subscriptionStatus?.isPremium;
 
-  if (!isAuthenticated) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold mb-4">Please Sign In</h1>
-        <p className="text-muted-foreground mb-8">Sign in to view subscription options</p>
-        <Button asChild>
-          <a href="/login">Sign In</a>
-        </Button>
-      </div>
-    );
-  }
+  // Auto-start checkout if user just signed up/logged in with a pending plan
+  useEffect(() => {
+    if (isAuthenticated && pricing) {
+      const pendingPlan = localStorage.getItem("pendingPlan");
+      if (pendingPlan) {
+        localStorage.removeItem("pendingPlan");
+        handleSubscribe(pendingPlan);
+      }
+    }
+  }, [isAuthenticated, pricing]);
 
   const plans = pricing ? [
     {
@@ -355,8 +354,10 @@ export default function PricingPage() {
                     >
                       {loadingPlan === plan.id ? (
                         <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</>
-                      ) : (
+                      ) : isAuthenticated ? (
                         "Subscribe Now"
+                      ) : (
+                        "Get Started"
                       )}
                     </Button>
                   </CardContent>

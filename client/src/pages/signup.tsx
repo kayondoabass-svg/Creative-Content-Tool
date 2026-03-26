@@ -56,10 +56,11 @@ export default function SignupPage() {
       const recaptchaToken = await getRecaptchaToken("signup");
       const urlParams = new URLSearchParams(window.location.search);
       const ref = urlParams.get("ref") || undefined;
+      const redirect = urlParams.get("redirect") || "/";
       await signup({ email, password, firstName, lastName, recaptchaToken, ref });
       localStorage.setItem("pendingVerificationEmail", email);
-      toast({ title: "Welcome to BrightBoard! 🎉", description: "Check your email to verify your account when you get a chance." });
-      setLocation("/");
+      toast({ title: "Welcome to BrightBoard!", description: "Check your email to verify your account when you get a chance." });
+      setLocation(redirect);
     } catch (error: any) {
       toast({ title: "Sign up failed", description: error.message || "Please try again", variant: "destructive" });
     }
