@@ -1594,6 +1594,7 @@ function ActivitySection() {
     period: string;
     series: { label: string; signups: number; logins: number; pageViews: number; generations: number }[];
     totals: { signups: number; logins: number; pageViews: number; generations: number };
+    allTime: { signups: number; logins: number; pageViews: number; generations: number };
   }>({
     queryKey: ["/api/owner/activity", period],
     queryFn: () => fetch(`/api/owner/activity?period=${period}`).then(r => r.json()),
@@ -1607,11 +1608,13 @@ function ActivitySection() {
     { key: "generations", label: "Generations",   color: "#8b5cf6", icon: Zap },
   ] as const;
 
+  const periodLabel = period === "24h" ? "24 h" : period === "7d" ? "7 days" : "30 days";
+
   const totalCards = [
-    { label: "Page Visits",   value: data?.totals.pageViews ?? 0,   color: "text-indigo-600",  bg: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800",  icon: Eye },
-    { label: "Logins",        value: data?.totals.logins ?? 0,      color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800", icon: UserCheck },
-    { label: "New Accounts",  value: data?.totals.signups ?? 0,     color: "text-amber-600",   bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",  icon: UserPlus },
-    { label: "Generations",   value: data?.totals.generations ?? 0, color: "text-purple-600",  bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800", icon: Zap },
+    { label: "Page Visits",  allTime: data?.allTime.pageViews ?? 0,  period: data?.totals.pageViews ?? 0,  color: "text-indigo-600",  bg: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800",  icon: Eye },
+    { label: "Logins",       allTime: data?.allTime.logins ?? 0,     period: data?.totals.logins ?? 0,     color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800", icon: UserCheck },
+    { label: "Total Users",  allTime: data?.allTime.signups ?? 0,    period: data?.totals.signups ?? 0,    color: "text-amber-600",   bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",  icon: UserPlus },
+    { label: "Generations",  allTime: data?.allTime.generations ?? 0,period: data?.totals.generations ?? 0,color: "text-purple-600",  bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800", icon: Zap },
   ];
 
   return (
@@ -1645,7 +1648,7 @@ function ActivitySection() {
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Totals row */}
+        {/* Totals row — big number = all time, small = selected period */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {totalCards.map(c => (
             <div key={c.label} className={`rounded-lg border p-3 ${c.bg}`} data-testid={`activity-card-${c.label.toLowerCase().replace(/\s+/g,"-")}`}>
@@ -1656,7 +1659,12 @@ function ActivitySection() {
               {isLoading ? (
                 <div className="h-7 w-16 rounded bg-muted animate-pulse" />
               ) : (
-                <p className="text-2xl font-bold">{c.value.toLocaleString()}</p>
+                <>
+                  <p className="text-2xl font-bold">{c.allTime.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    +{c.period.toLocaleString()} in {periodLabel}
+                  </p>
+                </>
               )}
             </div>
           ))}
@@ -1702,7 +1710,7 @@ function ActivitySection() {
         )}
 
         <p className="text-xs text-muted-foreground">
-          Page visits tracked from app launch onwards · Login & signup data includes all historical records
+          Large numbers = all-time totals (every user since launch) · Small numbers = activity in the selected period · Chart shows selected period trend
         </p>
       </CardContent>
     </Card>

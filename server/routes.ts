@@ -1028,7 +1028,20 @@ ${pages.map(p => `  <url>
         generations: t.generations + p.generations,
       }), { signups: 0, logins: 0, pageViews: 0, generations: 0 });
 
-      res.json({ period, series, totals });
+      // All-time totals — used for summary cards so they always reflect every user ever
+      const [allUsers] = await db.select({ c: count() }).from(users);
+      const [allLogins] = await db.select({ c: count() }).from(loginEvents);
+      const [allViews] = await db.select({ c: count() }).from(pageViews);
+      const [allGens] = await db.select({ c: count() }).from(featureUsage);
+
+      const allTime = {
+        signups: Number(allUsers?.c ?? 0),
+        logins: Number(allLogins?.c ?? 0),
+        pageViews: Number(allViews?.c ?? 0),
+        generations: Number(allGens?.c ?? 0),
+      };
+
+      res.json({ period, series, totals, allTime });
     } catch (error) {
       console.error("Activity analytics error:", error);
       res.status(500).json({ error: "Failed to fetch activity" });

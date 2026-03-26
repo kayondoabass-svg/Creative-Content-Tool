@@ -152,6 +152,23 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
+  // One-time backfill: ensure every user has at least 1 login event (uses signup date)
+  // Safe to run repeatedly — only inserts for users with no existing event
+  (async () => {
+    try {
+      const { sql: rawSql } = await import("drizzle-orm");
+      const { db } = await import("./db");
+      await db.execute(rawSql`
+        INSERT INTO login_events (user_id, created_at)
+        SELECT id, created_at FROM users
+        WHERE id NOT IN (SELECT user_id FROM login_events)
+      `);
+      console.log("[backfill] Login events synced for all existing users");
+    } catch (err) {
+      console.error("[backfill] Login event backfill error:", err);
+    }
+  })();
+
   // Auto-send activation emails every 4 hours to users who signed up >24h ago
   // and have never generated content
   const scheduleActivationEmails = async () => {
