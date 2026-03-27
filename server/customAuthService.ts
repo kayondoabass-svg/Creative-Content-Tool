@@ -46,14 +46,6 @@ export async function signUp(
   recaptchaToken?: string
 ): Promise<{ success: boolean; message: string; userId?: string }> {
   try {
-    // Verify reCAPTCHA if token provided
-    if (recaptchaToken) {
-      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
-      if (!isValidRecaptcha) {
-        return { success: false, message: "reCAPTCHA verification failed" };
-      }
-    }
-
     // Check if email already exists
     const existingUser = await db
       .select()
