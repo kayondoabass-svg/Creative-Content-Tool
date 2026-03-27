@@ -83,8 +83,23 @@ class JobQueue {
       queuePosition: 0,
     });
 
+    // 5-minute timeout failsafe — marks the job as failed if AI hangs
+    const JOB_TIMEOUT_MS = 5 * 60 * 1000;
+    const timeoutHandle = setTimeout(() => {
+      const job = this.jobs.get(item.jobId);
+      if (job && job.status === "processing") {
+        this.updateJob(item.jobId, {
+          status: "error",
+          step: "Generation timed out — please try again",
+          error: "The AI took too long to respond. Please try again.",
+          percent: 0,
+        });
+      }
+    }, JOB_TIMEOUT_MS);
+
     try {
       const result = await item.fn();
+      clearTimeout(timeoutHandle);
       this.updateJob(item.jobId, {
         status: "complete",
         step: "Content ready!",
@@ -95,6 +110,7 @@ class JobQueue {
         error: result?.error,
       });
     } catch (err: any) {
+      clearTimeout(timeoutHandle);
       this.updateJob(item.jobId, {
         status: "error",
         step: "Generation failed",

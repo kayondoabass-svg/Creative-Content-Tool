@@ -2640,8 +2640,34 @@ This should look like it was designed by a world-class branding agency. Make it 
             let effectiveSlideCount = slideCount;
             let slideLimitReached = false;
             if (!isPremium && effectiveSlideCount && effectiveSlideCount > 4) { effectiveSlideCount = 4; slideLimitReached = true; }
-            onProgress("Generating slide content and images...", 45);
-            const presentationResult = await generatePresentation(prompt, gradeLevel, subject, effectiveSlideCount, presentationOptions, referenceImage);
+            onProgress("Generating slide content...", 35);
+
+            // Heartbeat: slowly advance from 35→88 while AI works (every 4s)
+            const heartbeatSteps = [
+              { pct: 42, msg: "Writing slide content..." },
+              { pct: 50, msg: "Building slide structure..." },
+              { pct: 58, msg: "Generating images..." },
+              { pct: 65, msg: "Rendering visuals..." },
+              { pct: 72, msg: "Adding finishing touches..." },
+              { pct: 80, msg: "Almost there..." },
+              { pct: 88, msg: "Wrapping up..." },
+            ];
+            let heartbeatIdx = 0;
+            const heartbeat = setInterval(() => {
+              if (heartbeatIdx < heartbeatSteps.length) {
+                const { pct, msg } = heartbeatSteps[heartbeatIdx++];
+                onProgress(msg, pct);
+              }
+            }, 4000);
+
+            let presentationResult: any;
+            try {
+              presentationResult = await generatePresentation(prompt, gradeLevel, subject, effectiveSlideCount, presentationOptions, referenceImage);
+            } finally {
+              clearInterval(heartbeat);
+            }
+
+            onProgress("Saving your presentation...", 95);
             if (slideLimitReached) { (presentationResult as any).slideLimitReached = true; (presentationResult as any).requestedSlides = slideCount; (presentationResult as any).maxFreeSlides = 4; }
             generatedContent = JSON.stringify(presentationResult);
             title = presentationResult.title;
