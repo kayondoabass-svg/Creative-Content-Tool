@@ -109,8 +109,8 @@ export default function Refund() {
               <div className="bg-muted/50 rounded-lg p-4 mt-2">
                 <ul className="space-y-2 text-muted-foreground">
                   <li><strong>Weekly Plan ($4.99/week):</strong> Non-refundable, cancel anytime</li>
-                  <li><strong>Monthly Plan ($14.99/month):</strong> Non-refundable, cancel anytime</li>
-                  <li><strong>Yearly Plan ($99.99/year):</strong> Non-refundable, cancel anytime</li>
+                  <li><strong>Monthly Plan ($15.00/month):</strong> Non-refundable, cancel anytime</li>
+                  <li><strong>Institution Plan ($100.00/month):</strong> Non-refundable, cancel anytime</li>
                 </ul>
               </div>
             </section>
