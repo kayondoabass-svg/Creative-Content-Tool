@@ -193,8 +193,8 @@ export async function getTransactionStatus(orderTrackingId: string): Promise<Tra
 
 const TIER_PRICES_USD: Record<string, { amount: number; days: number }> = {
   weekly: { amount: 4.99, days: 7 },
-  monthly: { amount: 14.99, days: 30 },
-  yearly: { amount: 99.99, days: 365 },
+  monthly: { amount: 15.00, days: 30 },
+  institution: { amount: 100.00, days: 30 },
 };
 
 const CURRENCY_RATES: Record<string, { rate: number; symbol: string; name: string }> = {
@@ -316,7 +316,7 @@ export function getTierPrice(tier: string, currency?: string) {
 }
 
 export function getSubscriptionEndDate(tier: string): Date {
-  const price = TIER_PRICES[tier];
+  const price = TIER_PRICES_USD[tier];
   const endDate = new Date();
   endDate.setDate(endDate.getDate() + (price?.days || 30));
   return endDate;

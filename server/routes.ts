@@ -4240,7 +4240,7 @@ export function registerSubscriptionRoutes(app: any) {
       }
 
       const { tier, currency } = req.body;
-      if (!tier || !['weekly', 'monthly', 'yearly'].includes(tier)) {
+      if (!tier || !['weekly', 'monthly', 'institution'].includes(tier)) {
         return res.status(400).json({ error: "Invalid subscription tier" });
       }
 

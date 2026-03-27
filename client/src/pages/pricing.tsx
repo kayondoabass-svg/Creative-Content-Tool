@@ -72,13 +72,23 @@ function formatPrice(amount: number, symbol: string, currency: string): string {
   return `${symbol} ${amount.toFixed(2)}`;
 }
 
-const planFeatures = [
+const individualFeatures = [
   "Unlimited content generations",
   "Up to 20 slides per presentation",
   "HD/4K image quality",
   "Premium slide transitions",
   "Tap-to-reveal animations",
-  "Priority support"
+  "Priority support",
+];
+
+const institutionFeatures = [
+  "Everything in Monthly",
+  "Up to 10 teacher accounts",
+  "School branding on all content",
+  "Admin dashboard & usage overview",
+  "Bulk content generation",
+  "Dedicated account support",
+  "Early access to new features",
 ];
 
 export default function PricingPage() {
@@ -174,24 +184,23 @@ export default function PricingPage() {
       name: "Weekly",
       price: formatPrice(pricing.plans.weekly.amount, pricing.symbol, pricing.currency),
       period: "per week",
-      features: [...planFeatures],
+      features: [...individualFeatures],
     },
     {
       id: "monthly",
       name: "Monthly",
       price: formatPrice(pricing.plans.monthly.amount, pricing.symbol, pricing.currency),
       period: "per month",
-      badge: "Save 25%",
-      features: [...planFeatures],
+      features: [...individualFeatures],
     },
     {
-      id: "yearly",
-      name: "Yearly",
-      price: formatPrice(pricing.plans.yearly.amount, pricing.symbol, pricing.currency),
-      period: "per year",
-      badge: "Best Value",
+      id: "institution",
+      name: "Institution",
+      price: formatPrice(pricing.plans.institution.amount, pricing.symbol, pricing.currency),
+      period: "per month",
+      badge: "For Schools & Businesses",
       highlight: true,
-      features: [...planFeatures, "2 months free"],
+      features: [...institutionFeatures],
     },
   ] : [];
 
