@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, ArrowLeft, Loader2, Shield, Globe } from "lucide-react";
+import { Check, Crown, ArrowLeft, Loader2, Shield, Globe, Tag } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { PricingPDFDownload } from "@/components/pricing-pdf";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -183,6 +183,8 @@ export default function PricingPage() {
       id: "weekly",
       name: "Weekly",
       price: formatPrice(pricing.plans.weekly.amount, pricing.symbol, pricing.currency),
+      originalPrice: formatPrice(Math.round(pricing.plans.weekly.amount * (7.99 / 4.99) * 100) / 100, pricing.symbol, pricing.currency),
+      savings: "Save 38%",
       period: "per week",
       features: [...individualFeatures],
     },
@@ -190,6 +192,8 @@ export default function PricingPage() {
       id: "monthly",
       name: "Monthly",
       price: formatPrice(pricing.plans.monthly.amount, pricing.symbol, pricing.currency),
+      originalPrice: formatPrice(Math.round(pricing.plans.monthly.amount * (19.99 / 15.00) * 100) / 100, pricing.symbol, pricing.currency),
+      savings: "Save 25%",
       period: "per month",
       features: [...individualFeatures],
     },
@@ -197,6 +201,8 @@ export default function PricingPage() {
       id: "institution",
       name: "Institution",
       price: formatPrice(pricing.plans.institution.amount, pricing.symbol, pricing.currency),
+      originalPrice: formatPrice(Math.round(pricing.plans.institution.amount * (150 / 100) * 100) / 100, pricing.symbol, pricing.currency),
+      savings: "Save 33%",
       period: "per month",
       badge: "Schools & Businesses",
       highlight: true,
@@ -304,6 +310,14 @@ export default function PricingPage() {
 
       {!isPremium && (
         <>
+          {/* Launch Offer Banner */}
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="bg-gradient-to-r from-purple-600 to-teal-500 text-white text-sm font-semibold px-5 py-2 rounded-full flex items-center gap-2 shadow-md">
+              <Tag className="w-4 h-4" />
+              Launch Offer — Limited Time Discounts on All Plans
+            </div>
+          </div>
+
           <div className="flex items-center justify-center gap-2 mb-6 text-sm text-muted-foreground">
             <Shield className="w-4 h-4" />
             <span>Secure payments powered by PesaPal — Mobile Money, Cards & more</span>
@@ -341,7 +355,24 @@ export default function PricingPage() {
                     </div>
                   )}
                   <CardContent className="p-6 pt-8">
-                    <h3 className="font-semibold text-lg mb-2">{plan.name}</h3>
+                    <h3 className="font-semibold text-lg mb-1">{plan.name}</h3>
+
+                    {/* Savings badge */}
+                    <span className="inline-block bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-xs font-bold px-2 py-0.5 rounded-full mb-3">
+                      {plan.savings}
+                    </span>
+
+                    {/* Original crossed-out price */}
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-sm text-muted-foreground line-through" data-testid={`text-original-price-${plan.id}`}>
+                        {plan.originalPrice}
+                      </span>
+                    </div>
+
+                    {/* Current price */}
+                    <div className="mb-1">
+                      <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Now only</span>
+                    </div>
                     <div className="mb-4">
                       <span className="text-3xl font-bold" data-testid={`text-price-${plan.id}`}>{plan.price}</span>
                       <span className="text-muted-foreground text-sm">/{plan.period}</span>
