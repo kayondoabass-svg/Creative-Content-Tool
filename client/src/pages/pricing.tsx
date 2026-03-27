@@ -264,6 +264,13 @@ export default function PricingPage() {
                 <SelectItem value="MA">Morocco (MAD)</SelectItem>
                 <SelectItem value="SN">Senegal (CFA)</SelectItem>
                 <SelectItem value="CM">Cameroon (FCFA)</SelectItem>
+                <SelectItem value="VN">Vietnam (VND)</SelectItem>
+                <SelectItem value="BR">Brazil (BRL)</SelectItem>
+                <SelectItem value="MX">Mexico (MXN)</SelectItem>
+                <SelectItem value="CO">Colombia (COP)</SelectItem>
+                <SelectItem value="AR">Argentina (ARS)</SelectItem>
+                <SelectItem value="CL">Chile (CLP)</SelectItem>
+                <SelectItem value="PE">Peru (PEN)</SelectItem>
               </SelectContent>
             </Select>
           </div>
