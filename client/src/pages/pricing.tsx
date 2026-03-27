@@ -198,7 +198,7 @@ export default function PricingPage() {
       name: "Institution",
       price: formatPrice(pricing.plans.institution.amount, pricing.symbol, pricing.currency),
       period: "per month",
-      badge: "For Schools & Businesses",
+      badge: "Schools & Businesses",
       highlight: true,
       features: [...institutionFeatures],
     },
@@ -334,8 +334,8 @@ export default function PricingPage() {
                   data-testid={`card-plan-${plan.id}`}
                 >
                   {plan.badge && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                      <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
                         {plan.badge}
                       </span>
                     </div>
