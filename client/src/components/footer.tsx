@@ -181,9 +181,14 @@ export function Footer() {
         </div>
 
         <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-muted-foreground">
-            &copy; {currentYear} BrightBoard. All rights reserved.
-          </p>
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted-foreground">
+              &copy; {currentYear} BrightBoard. All rights reserved.
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              Powered by Afro AI (Keyo Technologies)
+            </p>
+          </div>
           <a
             href={FACEBOOK_URL}
             target="_blank"
