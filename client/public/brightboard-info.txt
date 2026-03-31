@@ -1,0 +1,109 @@
+## About BrightBoard
+Website: https://www.brightboardapp.com
+Title: BrightBoard - AI Content for Teachers
+Company: Keyo Technologies
+Support Email: support@brightboardapp.com
+Description: BrightBoard is an AI-powered educational content creation platform built for teachers. It helps educators save time by instantly generating high-quality classroom materials using artificial intelligence.
+
+## What BrightBoard Does
+BrightBoard allows teachers to create:
+- AI-generated educational images and illustrations
+- Complete slide presentations with speaker notes
+- Printable worksheets with questions and fill-in-the-blanks
+- Animated video storyboards frame-by-frame
+- Stories, explanations and learning materials
+- Mind maps for brainstorming and concept exploration
+- Activity plans for any grade level and subject
+
+## Who It's For
+BrightBoard is designed for teachers, educators, tutors, homeschoolers, and school administrators who want to save time creating classroom content. It works for all grade levels and subjects.
+
+## Pricing Plans
+1. Weekly Plan - $4.99 per week
+   - Full access to all AI tools
+   - Cancel anytime
+
+2. Monthly Plan - $15 per month
+   - Full access to all AI tools
+   - Save compared to weekly
+   - Cancel anytime
+
+3. Institution Plan - $100 per month
+   - For schools and businesses
+   - Multiple teachers / users
+   - Priority support
+   - Contact us for onboarding
+
+All plans include a free trial with limited generations before subscribing.
+
+## Free Plan Limits
+- Images: 2 free generations
+- Presentations: 1 free generation
+- Storyboards: 1 free generation
+- Mind Maps: 2 free generations
+- Worksheets: 2 free generations
+- Text content: 3 free generations
+- Activities: 2 free generations
+
+## Payment Methods
+BrightBoard accepts payments via PesaPal, which supports:
+- Mobile money (M-Pesa, Airtel Money, MTN, etc.)
+- Visa and Mastercard
+- Bank transfers
+Available in multiple currencies including USD, KES, UGX, TZS, GHS, ZAR, NGN, and more.
+
+## Affiliate Program
+Teachers and creators can earn commissions by referring others to BrightBoard:
+- Weekly plan referral: $1 per referral/week
+- Monthly plan referral: $2 per referral/month
+- Institution plan referral: $5 per referral/month
+- 90-day cookie duration
+- Monthly payouts on the 15th
+- Minimum payout: $50
+
+## Refund Policy
+BrightBoard offers refunds within 7 days of purchase if you are not satisfied. Contact support@brightboardapp.com to request a refund.
+
+## Contact & Support
+Email: support@brightboardapp.com
+Website: https://www.brightboardapp.com/contact
+Facebook: https://www.facebook.com/brightboardapp
+
+## Key Pages
+- Home: https://www.brightboardapp.com
+- Pricing: https://www.brightboardapp.com/pricing
+- Features: https://www.brightboardapp.com/features
+- How It Works: https://www.brightboardapp.com/how-it-works
+- About Us: https://www.brightboardapp.com/about
+- Blog: https://www.brightboardapp.com/blog
+- Contact: https://www.brightboardapp.com/contact
+- Affiliate Program: https://www.brightboardapp.com/affiliate
+- Privacy Policy: https://www.brightboardapp.com/privacy
+- Terms & Conditions: https://www.brightboardapp.com/terms
+- Refund Policy: https://www.brightboardapp.com/refund
+
+## Frequently Asked Questions
+
+Q: How do I get started?
+A: Sign up for free at https://www.brightboardapp.com. You get free generations to try all tools before subscribing.
+
+Q: What AI model does BrightBoard use?
+A: BrightBoard uses OpenAI GPT-4o for text and content generation, and gpt-image-1 for image generation.
+
+Q: Can I cancel my subscription?
+A: Yes, you can cancel anytime from your account settings. No long-term commitment required.
+
+Q: Is BrightBoard suitable for all subjects?
+A: Yes. BrightBoard works for all subjects including Math, Science, English, History, Art, Languages, and more.
+
+Q: How long does it take to generate content?
+A: Images and text generate in seconds. Presentations may take up to 2 minutes depending on complexity.
+
+Q: Can schools get a group plan?
+A: Yes. The Institution Plan at $100/month is designed for schools and businesses with multiple teachers. Contact support@brightboardapp.com for onboarding.
+
+Q: What languages are supported?
+A: BrightBoard can generate content in multiple languages depending on the prompt you provide.
+
+Q: How do I become an affiliate?
+A: Visit https://www.brightboardapp.com/affiliate to join the affiliate program and get your referral link.
