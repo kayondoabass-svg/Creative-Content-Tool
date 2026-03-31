@@ -259,3 +259,8 @@
     animation: pulse-glow 2s ease-in-out infinite;
   }
 }
+
+/* Push reCAPTCHA badge up so it doesn't overlap the chat widget */
+.grecaptcha-badge {
+  bottom: 80px !important;
+}
