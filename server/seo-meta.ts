@@ -1,3 +1,5 @@
+import { articles as blogArticles } from "../shared/blog-data";
+
 const BASE = "https://www.brightboardapp.com";
 const DEFAULT_IMAGE = `${BASE}/og-image.png`;
 const DEFAULT_TITLE = "BrightBoard - AI Content for Teachers";
@@ -157,6 +159,34 @@ const STATIC_ROUTES: Record<string, RouteMeta> = {
   },
 };
 
+function generateBlogHtml(slug: string): string {
+  const article = blogArticles[slug];
+  if (!article) return "";
+  const sectionsHtml = article.sections.map(s => `
+    <section>
+      <h2>${s.heading}</h2>
+      ${s.paragraphs.map(p => `<p>${p}</p>`).join("")}
+    </section>`).join("");
+  return `
+  <div id="ssr-article" style="font-family:Georgia,serif;max-width:780px;margin:0 auto;padding:24px 20px;color:#1a1a1a;line-height:1.75">
+    <nav style="margin-bottom:16px;font-size:14px">
+      <a href="${BASE}" style="color:#7c3aed;text-decoration:none">BrightBoard</a>
+      &rsaquo; <a href="${BASE}/blog" style="color:#7c3aed;text-decoration:none">Blog</a>
+      &rsaquo; ${article.category}
+    </nav>
+    <article>
+      <h1 style="font-size:2rem;font-weight:700;line-height:1.25;margin-bottom:16px">${article.title}</h1>
+      <p style="font-size:1.125rem;color:#555;border-left:4px solid #7c3aed;padding-left:16px;margin-bottom:32px">${article.excerpt}</p>
+      ${sectionsHtml}
+      <div style="margin-top:40px;padding:24px;background:#f5f3ff;border-radius:12px;text-align:center">
+        <h3 style="font-size:1.25rem;font-weight:700;margin-bottom:8px">Put this into practice with BrightBoard</h3>
+        <p style="color:#555;margin-bottom:16px">Create AI-powered presentations, worksheets, games and more — designed specifically for teachers.</p>
+        <a href="${BASE}/signup" style="background:#7c3aed;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600">Get Started Free</a>
+      </div>
+    </article>
+  </div>`;
+}
+
 export function getRouteMeta(url: string): RouteMeta & { canonical: string } {
   const path = url.split("?")[0].replace(/\/$/, "") || "/";
 
@@ -216,6 +246,15 @@ export function injectSEOMeta(html: string, url: string): string {
 
   html = html.replace("<head>", `<head>${headTags}`);
   html = html.replace("<body>", `<body>${bodyNoscript}`);
+
+  const path = url.split("?")[0].replace(/\/$/, "");
+  const blogMatch = path.match(/^\/blog\/([^/]+)$/);
+  if (blogMatch) {
+    const blogHtml = generateBlogHtml(blogMatch[1]);
+    if (blogHtml) {
+      html = html.replace('<div id="root"></div>', `<div id="root">${blogHtml}</div>`);
+    }
+  }
 
   return html;
 }
