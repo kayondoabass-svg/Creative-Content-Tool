@@ -566,7 +566,19 @@ ${pages.map(p => `  <url>
     try {
       const path = (req.body?.path as string | undefined)?.slice(0, 255) || "/";
       const userId = req.session?.userId || null;
-      await db.insert(pageViews).values({ userId, path });
+
+      // Anonymize visitor IP with a one-way hash (no raw IPs stored)
+      const rawIp = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim()
+        || req.socket?.remoteAddress
+        || "";
+      const salt = process.env.SESSION_SECRET || "bb-salt";
+      const ipHash = crypto.createHash("sha256").update(rawIp + salt).digest("hex").slice(0, 16);
+
+      // Detect bots by User-Agent
+      const ua = req.get("User-Agent") || "";
+      const isBot = /bot|googlebot|crawler|spider|robot|crawling|headless|phantom|selenium|slurp|bingbot|yandex|baidu/i.test(ua);
+
+      await db.insert(pageViews).values({ userId, path, ipHash, isBot });
       res.json({ ok: true });
     } catch {
       res.json({ ok: false });
@@ -1032,16 +1044,35 @@ ${pages.map(p => `  <url>
       const [allUsers] = await db.select({ c: count() }).from(users);
       const [allLogins] = await db.select({ c: count() }).from(loginEvents);
       const [allViews] = await db.select({ c: count() }).from(pageViews);
+      const [allRealViews] = await db.select({ c: count() }).from(pageViews).where(eq(pageViews.isBot, false));
+      const [allBotViews] = await db.select({ c: count() }).from(pageViews).where(eq(pageViews.isBot, true));
       const [allGens] = await db.select({ c: count() }).from(featureUsage);
+
+      // Unique visitors (distinct ipHash, humans only, all-time)
+      const uniqueVisitorRows = await db
+        .selectDistinct({ ipHash: pageViews.ipHash })
+        .from(pageViews)
+        .where(and(eq(pageViews.isBot, false)));
+      const allUniqueVisitors = uniqueVisitorRows.length;
+
+      // Unique visitors in selected period
+      const periodUniqueRows = await db
+        .selectDistinct({ ipHash: pageViews.ipHash })
+        .from(pageViews)
+        .where(and(eq(pageViews.isBot, false), gte(pageViews.createdAt, startDate)));
+      const periodUniqueVisitors = periodUniqueRows.length;
 
       const allTime = {
         signups: Number(allUsers?.c ?? 0),
         logins: Number(allLogins?.c ?? 0),
         pageViews: Number(allViews?.c ?? 0),
+        realPageViews: Number(allRealViews?.c ?? 0),
+        botPageViews: Number(allBotViews?.c ?? 0),
+        uniqueVisitors: allUniqueVisitors,
         generations: Number(allGens?.c ?? 0),
       };
 
-      res.json({ period, series, totals, allTime });
+      res.json({ period, series, totals: { ...totals, uniqueVisitors: periodUniqueVisitors }, allTime });
     } catch (error) {
       console.error("Activity analytics error:", error);
       res.status(500).json({ error: "Failed to fetch activity" });

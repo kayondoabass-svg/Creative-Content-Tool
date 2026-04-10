@@ -94,6 +94,8 @@ export const pageViews = pgTable("page_views", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id"),       // null = anonymous
   path: varchar("path"),
+  ipHash: varchar("ip_hash"),       // anonymized visitor fingerprint (sha256 of IP+salt)
+  isBot: boolean("is_bot").default(false), // true if User-Agent matches bot patterns
   createdAt: timestamp("created_at").defaultNow(),
 });
 

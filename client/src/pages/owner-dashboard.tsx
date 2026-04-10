@@ -1593,8 +1593,8 @@ function ActivitySection() {
   const { data, isLoading } = useQuery<{
     period: string;
     series: { label: string; signups: number; logins: number; pageViews: number; generations: number }[];
-    totals: { signups: number; logins: number; pageViews: number; generations: number };
-    allTime: { signups: number; logins: number; pageViews: number; generations: number };
+    totals: { signups: number; logins: number; pageViews: number; generations: number; uniqueVisitors: number };
+    allTime: { signups: number; logins: number; pageViews: number; realPageViews: number; botPageViews: number; uniqueVisitors: number; generations: number };
   }>({
     queryKey: ["/api/owner/activity", period],
     queryFn: () => fetch(`/api/owner/activity?period=${period}`).then(r => r.json()),
@@ -1602,7 +1602,7 @@ function ActivitySection() {
   });
 
   const METRICS = [
-    { key: "pageViews",   label: "Page Visits",  color: "#6366f1", icon: Eye },
+    { key: "pageViews",   label: "Page Views",   color: "#6366f1", icon: Eye },
     { key: "logins",      label: "Logins",        color: "#10b981", icon: UserCheck },
     { key: "signups",     label: "New Accounts",  color: "#f59e0b", icon: UserPlus },
     { key: "generations", label: "Generations",   color: "#8b5cf6", icon: Zap },
@@ -1610,11 +1610,47 @@ function ActivitySection() {
 
   const periodLabel = period === "24h" ? "24 h" : period === "7d" ? "7 days" : "30 days";
 
+  const botPct = data?.allTime.pageViews
+    ? Math.round((data.allTime.botPageViews / data.allTime.pageViews) * 100)
+    : 0;
+
   const totalCards = [
-    { label: "Page Visits",  allTime: data?.allTime.pageViews ?? 0,  period: data?.totals.pageViews ?? 0,  color: "text-indigo-600",  bg: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800",  icon: Eye },
-    { label: "Logins",       allTime: data?.allTime.logins ?? 0,     period: data?.totals.logins ?? 0,     color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800", icon: UserCheck },
-    { label: "Total Users",  allTime: data?.allTime.signups ?? 0,    period: data?.totals.signups ?? 0,    color: "text-amber-600",   bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",  icon: UserPlus },
-    { label: "Generations",  allTime: data?.allTime.generations ?? 0,period: data?.totals.generations ?? 0,color: "text-purple-600",  bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800", icon: Zap },
+    {
+      label: "Unique Visitors",
+      allTime: data?.allTime.uniqueVisitors ?? 0,
+      period: data?.totals.uniqueVisitors ?? 0,
+      sub: `${data?.allTime.realPageViews.toLocaleString() ?? 0} real views`,
+      color: "text-indigo-600",
+      bg: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800",
+      icon: Eye,
+    },
+    {
+      label: "Logins",
+      allTime: data?.allTime.logins ?? 0,
+      period: data?.totals.logins ?? 0,
+      sub: null,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800",
+      icon: UserCheck,
+    },
+    {
+      label: "Total Users",
+      allTime: data?.allTime.signups ?? 0,
+      period: data?.totals.signups ?? 0,
+      sub: null,
+      color: "text-amber-600",
+      bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",
+      icon: UserPlus,
+    },
+    {
+      label: "Generations",
+      allTime: data?.allTime.generations ?? 0,
+      period: data?.totals.generations ?? 0,
+      sub: `${botPct}% bot traffic`,
+      color: "text-purple-600",
+      bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800",
+      icon: Zap,
+    },
   ];
 
   return (
@@ -1664,6 +1700,9 @@ function ActivitySection() {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     +{c.period.toLocaleString()} in {periodLabel}
                   </p>
+                  {c.sub && (
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">{c.sub}</p>
+                  )}
                 </>
               )}
             </div>
