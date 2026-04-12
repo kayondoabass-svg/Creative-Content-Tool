@@ -65,9 +65,18 @@ Allow: /contact
 Allow: /privacy
 Allow: /terms
 Allow: /refund
+Allow: /affiliate
 Disallow: /api/
+Disallow: /dashboard
+Disallow: /generate
+Disallow: /login
+Disallow: /signup
+Disallow: /profile
+Disallow: /settings
 Disallow: /owner-dashboard
 Disallow: /owner-expenses
+Disallow: /verify-email
+Disallow: /reset-password
 Sitemap: https://www.brightboardapp.com/sitemap.xml`
     );
   });
