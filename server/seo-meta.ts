@@ -211,6 +211,25 @@ export function getRouteMeta(url: string): RouteMeta & { canonical: string } {
   };
 }
 
+// Internal links footer injected into every static page so crawlers always find outgoing links
+const INTERNAL_LINKS_FOOTER = `
+  <footer id="ssr-links" style="font-family:sans-serif;max-width:780px;margin:32px auto;padding:24px 20px;border-top:1px solid #e5e7eb;color:#555;font-size:14px">
+    <p style="font-weight:600;margin-bottom:12px">Explore BrightBoard</p>
+    <nav style="display:flex;flex-wrap:wrap;gap:12px">
+      <a href="${BASE}/" style="color:#7c3aed;text-decoration:none">Home</a>
+      <a href="${BASE}/features" style="color:#7c3aed;text-decoration:none">Features</a>
+      <a href="${BASE}/how-it-works" style="color:#7c3aed;text-decoration:none">How It Works</a>
+      <a href="${BASE}/pricing" style="color:#7c3aed;text-decoration:none">Pricing</a>
+      <a href="${BASE}/about" style="color:#7c3aed;text-decoration:none">About</a>
+      <a href="${BASE}/blog" style="color:#7c3aed;text-decoration:none">Blog</a>
+      <a href="${BASE}/contact" style="color:#7c3aed;text-decoration:none">Contact</a>
+      <a href="${BASE}/affiliate" style="color:#7c3aed;text-decoration:none">Affiliate Program</a>
+      <a href="${BASE}/privacy" style="color:#7c3aed;text-decoration:none">Privacy Policy</a>
+      <a href="${BASE}/terms" style="color:#7c3aed;text-decoration:none">Terms of Service</a>
+      <a href="${BASE}/refund" style="color:#7c3aed;text-decoration:none">Refund Policy</a>
+    </nav>
+  </footer>`;
+
 export function injectSEOMeta(html: string, url: string): string {
   const { title, description, h1, canonical, ogType, image } = getRouteMeta(url);
   const img = image ?? DEFAULT_IMAGE;
@@ -254,6 +273,9 @@ export function injectSEOMeta(html: string, url: string): string {
     if (blogHtml) {
       html = html.replace('<div id="root"></div>', `<div id="root">${blogHtml}</div>`);
     }
+  } else {
+    // Inject outgoing links footer into all non-blog pages so every page has crawlable outgoing links
+    html = html.replace('<div id="root"></div>', `<div id="root">${INTERNAL_LINKS_FOOTER}</div>`);
   }
 
   return html;
