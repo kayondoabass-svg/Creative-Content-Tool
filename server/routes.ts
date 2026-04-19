@@ -2559,6 +2559,49 @@ This should look like it was designed by a world-class branding agency. Make it 
     }
   });
 
+  // Suggest key points for a presentation topic
+  app.post("/api/suggest-key-points", async (req, res) => {
+    try {
+      const { topic, gradeLevel, subject } = req.body;
+      if (!topic) return res.status(400).json({ error: "Topic required" });
+      const levelStr = gradeLevel ? ` for ${gradeLevel} students` : "";
+      const subjStr = subject ? ` in ${subject}` : "";
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: `Suggest exactly 6 specific key points or subtopics for an educational presentation about "${topic}"${levelStr}${subjStr}. Return ONLY a JSON array of short strings (max 6 words each). Example: ["What is photosynthesis", "Role of sunlight", "Chlorophyll explained"]` }],
+        max_tokens: 200,
+        temperature: 0.7,
+      });
+      const raw = response.choices[0]?.message?.content || "[]";
+      const clean = raw.replace(/```json\n?|\n?```/g, "").trim();
+      const points = JSON.parse(clean);
+      res.json({ points: Array.isArray(points) ? points.slice(0, 6) : [] });
+    } catch (err) {
+      res.json({ points: [] });
+    }
+  });
+
+  // Extract text from a base64-encoded PDF for use as presentation context
+  app.post("/api/extract-pdf-text", async (req, res) => {
+    try {
+      const { pdfBase64 } = req.body;
+      if (!pdfBase64) return res.status(400).json({ error: "No PDF provided" });
+      const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      const pdfExtract = new PDFExtract();
+      const pdfData = await pdfExtract.extractBuffer(buffer, {});
+      const text = pdfData.pages
+        .flatMap(p => p.content.map((c: any) => c.str))
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .substring(0, 4000);
+      res.json({ text, pages: pdfData.pages.length });
+    } catch (err) {
+      res.status(500).json({ error: "Could not extract PDF text" });
+    }
+  });
+
   // Job status polling endpoint
   app.get("/api/generate/job/:jobId", (req, res) => {
     const job = jobQueue.getJob(req.params.jobId);
@@ -3147,16 +3190,40 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   const layout = options?.layout || "single";
   const imageStyle = options?.imageStyle || "animation";
   const imageQuality = options?.imageQuality || "hd";
+  const keyPoints = options?.keyPoints || [];
+  const documentContext = options?.documentContext || "";
   // Premium features
   const transition = options?.transition || "none";
   const transitionDelay = options?.transitionDelay || 0;
   const tapToReveal = options?.tapToReveal || false;
   
   // Determine number of images per slide based on layout
-  const imagesPerSlide = layout === "grid" ? 4 : 1;
+  const imagesPerSlide = layout === "grid" ? 4 : (layout === "infographic" ? 0 : 1);
   
+  // Build key points instruction if provided
+  const keyPointsInstruction = keyPoints.length > 0
+    ? `\n\nMUST COVER THESE KEY POINTS (distribute across slides): ${keyPoints.map((kp, i) => `${i + 1}. ${kp}`).join(", ")}`
+    : "";
+
+  // Build document context instruction if a PDF was uploaded
+  const docContextInstruction = documentContext
+    ? `\n\nBASE THIS PRESENTATION ON THE FOLLOWING DOCUMENT CONTENT:\n---\n${documentContext}\n---\nUse the document content as the primary source of facts and structure.`
+    : "";
+
   let contentInstructions = "";
-  if (tapToReveal) {
+  if (layout === "infographic") {
+    contentInstructions = `INFOGRAPHIC MODE: Each slide must contain rich structured data. For EACH slide choose ONE infographic type from:
+1. "table" — a comparison/data table (3-5 columns, 3-6 rows). Use for comparisons, classifications, or data.
+2. "stats" — 3-5 key statistics or numbers (e.g. "95%", "3.8 billion", "1st place"). Use for facts, achievements, metrics.
+3. "facts" — 3-4 fact boxes, each with a short title and a 1-sentence explanation. Use for definitions or did-you-know content.
+4. "comparison" — side-by-side comparison of 2 things, each with 3-4 bullet points. Use for vs/contrast topics.
+Include a brief title for each slide (5-8 words), and 1-3 short bullet points in "content" as a summary. Add speaker notes. NO image prompts needed.
+Return each slide with the appropriate fields:
+- For "table": tableHeaders (array of strings), tableRows (array of arrays of strings)
+- For "stats": stats (array of {value, label, color} where color is a hex color)
+- For "facts": facts (array of {title, text})
+- For "comparison": compLeft (left item name), compRight (right item name), compLeftItems (array of strings), compRightItems (array of strings)`;
+  } else if (tapToReveal) {
     contentInstructions = `
 GAME MODE — TAP TO REVEAL:
 This presentation will be played as an interactive classroom game. Each bullet point is revealed ONE AT A TIME when the teacher taps. Design each slide so that the reveal is exciting and makes students think before seeing the answer.
@@ -3199,30 +3266,49 @@ ${style !== "textOnly" ? `- Include ${imagesPerSlide} fun, colourful image descr
     contentInstructions = `Each slide MUST have a title, 3-5 informative bullet points with the actual educational content, and ${imagesPerSlide} image description(s). The bullet points should contain ALL the key information, facts, and learning points - images are only decorative illustrations. NEVER put educational text, words, sentences, fill-in-the-blank exercises, or written content inside image descriptions. Images should only describe visual scenes (e.g., "children exploring a forest" NOT "a worksheet with sentences to complete").`;
   }
   
-  const slideStructure = style === "imagesOnly" 
-    ? `{
+  const infographicSlideStructure = `{
+        "title": "Slide Title",
+        "content": ["1-line summary"],
+        "notes": "Speaker notes",
+        "infographicType": "table|stats|facts|comparison",
+        "tableHeaders": ["Col1","Col2"],
+        "tableRows": [["val","val"]],
+        "stats": [{"value":"42%","label":"description","color":"#3b82f6"}],
+        "facts": [{"title":"Key Term","text":"One sentence explanation"}],
+        "compLeft": "Item A", "compRight": "Item B",
+        "compLeftItems": ["point1","point2"], "compRightItems": ["point1","point2"]
+      }`;
+
+  const slideStructure = layout === "infographic"
+    ? infographicSlideStructure
+    : (style === "imagesOnly" 
+      ? `{
         "title": "Slide Title",
         "content": [],
         "notes": "Speaker notes for the teacher",
         "imagePrompts": ["Detailed description of image 1"${layout === "grid" ? ', "Image 2", "Image 3", "Image 4"' : ''}]
       }`
-    : `{
+      : `{
         "title": "Slide Title",
         "content": ["Bullet point 1", "Bullet point 2"],
         "notes": "Speaker notes for the teacher",
         "imagePrompts": ["Detailed description of image"${layout === "grid" ? ', "Image 2", "Image 3", "Image 4"' : ''}]
-      }`;
+      }`);
   
   // Build user message - include reference image if provided
-  let userMessage: any = tapToReveal
+  let basePrompt = tapToReveal
     ? `Create a fun, interactive TAP TO REVEAL classroom game presentation about: ${prompt}. Create exactly ${numSlides} slides. Each slide is a different game challenge — mix quiz questions, clue games, true/false, fill-in-the-blank, and fun fact reveals. Make it feel like a game show!`
     : `Create an engaging educational presentation about: ${prompt}. Create exactly ${numSlides} slides.`;
+
+  basePrompt += keyPointsInstruction + docContextInstruction;
+
+  let userMessage: any = basePrompt;
   
   if (referenceImage) {
     userMessage = [
       {
         type: "text",
-        text: `Analyze this image of a lesson or educational material and create an engaging presentation based on its content and visual style. The user's additional instructions: ${prompt}. Create exactly ${numSlides} slides that match the topic and teaching approach shown in the image.`
+        text: `Analyze this image of a lesson or educational material and create an engaging presentation based on its content and visual style. The user's additional instructions: ${basePrompt}.`
       },
       {
         type: "image_url",
@@ -3315,8 +3401,8 @@ CRITICAL IMAGE DESCRIPTION RULES:
   presentationData.transitionDelay = transitionDelay;
   presentationData.tapToReveal = tapToReveal;
   
-  // Skip image generation for text-only style
-  if (style === "textOnly") {
+  // Skip image generation for text-only style or infographic layout
+  if (style === "textOnly" || layout === "infographic") {
     return presentationData;
   }
   

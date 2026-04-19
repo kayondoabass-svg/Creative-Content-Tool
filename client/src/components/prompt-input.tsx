@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
-import { Sparkles, Loader2, Upload, X, Image as ImageIcon, Lock, Crown, Mic, MicOff, Square } from "lucide-react";
+import { Sparkles, Loader2, Upload, X, Image as ImageIcon, Lock, Crown, Mic, MicOff, Square, FileText, CheckSquare } from "lucide-react";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useTranslation } from "react-i18next";
@@ -16,7 +16,7 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; keyPoints?: string[]; documentContext?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }) => void;
   isGenerating: boolean;
   defaultGameType?: string | null;
   externalPrompt?: string | null;
@@ -73,6 +73,7 @@ const presentationStyles = [
 const presentationLayouts = [
   { value: "single", key: "home.singleImage" },
   { value: "grid", key: "home.imageGrid" },
+  { value: "infographic", label: "Infographic", key: "" },
 ];
 
 const presentationImageStyles = [
@@ -216,6 +217,17 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const [mindmapImages, setMindmapImages] = useState<(string | null)[]>([null]);
   const [mindmapImageSlots, setMindmapImageSlots] = useState<1 | 4>(1);
   const mindmapImageRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Key points suggestion state
+  const [keyPointSuggestions, setKeyPointSuggestions] = useState<string[]>([]);
+  const [selectedKeyPoints, setSelectedKeyPoints] = useState<Set<string>>(new Set());
+  const [isSuggestingKeyPoints, setIsSuggestingKeyPoints] = useState(false);
+
+  // PDF upload state for presentations
+  const [pdfContext, setPdfContext] = useState<string | null>(null);
+  const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+  const [isExtractingPdf, setIsExtractingPdf] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   
   const {
     isListening,
@@ -392,6 +404,70 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     }
   };
 
+  const handleSuggestKeyPoints = async () => {
+    const topic = form.getValues("prompt");
+    if (!topic.trim()) return;
+    setIsSuggestingKeyPoints(true);
+    try {
+      const res = await fetch("/api/suggest-key-points", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic,
+          gradeLevel: form.getValues("gradeLevel"),
+          subject: form.getValues("subject"),
+        }),
+      });
+      const data = await res.json();
+      const points: string[] = data.points || [];
+      setKeyPointSuggestions(points);
+      setSelectedKeyPoints(new Set(points));
+    } catch {
+      setKeyPointSuggestions([]);
+    } finally {
+      setIsSuggestingKeyPoints(false);
+    }
+  };
+
+  const toggleKeyPoint = (point: string) => {
+    setSelectedKeyPoints(prev => {
+      const next = new Set(prev);
+      if (next.has(point)) next.delete(point);
+      else next.add(point);
+      return next;
+    });
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsExtractingPdf(true);
+    setPdfFileName(file.name);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const base64 = ev.target?.result as string;
+        const res = await fetch("/api/extract-pdf-text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pdfBase64: base64 }),
+        });
+        const data = await res.json();
+        setPdfContext(data.text || null);
+        setIsExtractingPdf(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setIsExtractingPdf(false);
+    }
+  };
+
+  const clearPdf = () => {
+    setPdfContext(null);
+    setPdfFileName(null);
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
+  };
+
   const onSubmit = (values: FormValues) => {
     const slideCount = values.slideCount ? parseInt(values.slideCount) : undefined;
     const videoOptions = selectedType === "storyboard" ? {
@@ -405,6 +481,8 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       layout: values.presentationLayout,
       imageStyle: values.presentationImageStyle,
       imageQuality: values.presentationImageQuality,
+      keyPoints: selectedKeyPoints.size > 0 ? Array.from(selectedKeyPoints) : undefined,
+      documentContext: pdfContext || undefined,
       transition: values.presentationTransition,
       transitionDelay: values.presentationTransitionDelay ? parseFloat(values.presentationTransitionDelay) : undefined,
       tapToReveal: values.presentationTapToReveal,
@@ -1022,7 +1100,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                       <SelectContent>
                         {presentationLayouts.map((l) => (
                           <SelectItem key={l.value} value={l.value}>
-                            {t(l.key)}
+                            {l.key ? t(l.key) : l.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1089,6 +1167,100 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                   </FormItem>
                 )}
               />
+            </div>
+          )}
+
+          {/* PDF Upload for presentations */}
+          {selectedType === "presentation" && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <input
+                ref={pdfInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={handlePdfUpload}
+                data-testid="input-pdf-upload"
+              />
+              {pdfFileName ? (
+                <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-1.5">
+                  <FileText className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm text-blue-600 dark:text-blue-400 truncate max-w-[180px]">{pdfFileName}</span>
+                  {isExtractingPdf && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
+                  {!isExtractingPdf && pdfContext && <span className="text-xs text-green-600 dark:text-green-400">✓ Ready</span>}
+                  <button type="button" onClick={clearPdf} className="text-muted-foreground hover:text-foreground ml-1" data-testid="button-clear-pdf">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => pdfInputRef.current?.click()}
+                  className="h-8 gap-1.5 text-xs border-dashed"
+                  data-testid="button-upload-pdf"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Upload PDF
+                </Button>
+              )}
+
+              {/* Key Points Suggester */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSuggestKeyPoints}
+                disabled={isSuggestingKeyPoints || !form.watch("prompt")?.trim()}
+                className="h-8 gap-1.5 text-xs"
+                data-testid="button-suggest-key-points"
+              >
+                {isSuggestingKeyPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                Key Points
+              </Button>
+            </div>
+          )}
+
+          {/* Key Points checkboxes */}
+          {selectedType === "presentation" && keyPointSuggestions.length > 0 && (
+            <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">Select key points to include in your slides:</p>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => {
+                    if (selectedKeyPoints.size === keyPointSuggestions.length) {
+                      setSelectedKeyPoints(new Set());
+                    } else {
+                      setSelectedKeyPoints(new Set(keyPointSuggestions));
+                    }
+                  }}
+                >
+                  {selectedKeyPoints.size === keyPointSuggestions.length ? "Deselect all" : "Select all"}
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {keyPointSuggestions.map((point, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => toggleKeyPoint(point)}
+                    className={`flex items-start gap-2 text-left text-xs rounded-md px-2.5 py-2 border transition-colors ${
+                      selectedKeyPoints.has(point)
+                        ? "bg-primary/10 border-primary/40 text-foreground"
+                        : "bg-transparent border-border text-muted-foreground"
+                    }`}
+                    data-testid={`button-key-point-${i}`}
+                  >
+                    {selectedKeyPoints.has(point)
+                      ? <CheckSquare className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-primary" />
+                      : <Square className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    }
+                    {point}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

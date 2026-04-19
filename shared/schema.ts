@@ -41,9 +41,11 @@ export type VideoOptions = z.infer<typeof videoOptionsSchema>;
 // Presentation options schema
 export const presentationOptionsSchema = z.object({
   style: z.enum(["textAndImages", "imagesOnly", "textOnly"]).optional(),
-  layout: z.enum(["single", "grid"]).optional(),
+  layout: z.enum(["single", "grid", "infographic"]).optional(),
   imageStyle: z.enum(["animation", "reallife"]).optional(),
   imageQuality: z.enum(["2d", "3d", "hd", "4k"]).optional(),
+  keyPoints: z.array(z.string()).optional(),
+  documentContext: z.string().optional(),
   // Premium animation features
   transition: z.enum(["none", "fade", "slide", "zoom", "flip"]).optional(),
   transitionDelay: z.number().min(0).max(5).optional(),
@@ -143,6 +145,16 @@ export const slideSchema = z.object({
   imagePrompts: z.array(z.string()).optional(),
   image: z.string().optional(),
   images: z.array(z.string()).optional(),
+  // Infographic fields
+  infographicType: z.enum(["table", "stats", "facts", "comparison"]).optional(),
+  tableHeaders: z.array(z.string()).optional(),
+  tableRows: z.array(z.array(z.string())).optional(),
+  stats: z.array(z.object({ value: z.string(), label: z.string(), color: z.string().optional() })).optional(),
+  facts: z.array(z.object({ title: z.string(), text: z.string() })).optional(),
+  compLeft: z.string().optional(),
+  compRight: z.string().optional(),
+  compLeftItems: z.array(z.string()).optional(),
+  compRightItems: z.array(z.string()).optional(),
 });
 
 export type Slide = z.infer<typeof slideSchema>;

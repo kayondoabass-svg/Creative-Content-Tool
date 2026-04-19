@@ -338,6 +338,50 @@ export function GeneratedContentDisplay({
               { x: txtX, y: CONTENT_Y, w: CONTENT_X + CONTENT_W - txtX, h: CONTENT_H, valign: "top" }
             );
           }
+        } else if (layout === "infographic") {
+          const infSlide = slide as Slide & { infographicType?: string; tableHeaders?: string[]; tableRows?: string[][]; stats?: { value: string; label: string; color: string }[]; facts?: { title: string; text: string }[]; compLeft?: string; compRight?: string; compLeftItems?: string[]; compRightItems?: string[] };
+          const infType = infSlide.infographicType || "facts";
+
+          if (infType === "table" && infSlide.tableHeaders && infSlide.tableRows) {
+            const headers = infSlide.tableHeaders.map(h => ([{ text: h, options: { bold: true, color: "ffffff", fill: { color: "3b82f6" }, fontSize: 13 } }]));
+            const rows = infSlide.tableRows.map(row => row.map(cell => ([{ text: cell, options: { fontSize: 12, color: "333333" } }])));
+            pptSlide.addTable([headers, ...rows] as any, { x: CONTENT_X, y: CONTENT_Y, w: CONTENT_W, h: CONTENT_H, border: { color: "cccccc", pt: 1 }, fill: { color: "f8fafc" } });
+          } else if (infType === "stats" && infSlide.stats) {
+            const stats = infSlide.stats.slice(0, 5);
+            const boxW = CONTENT_W / stats.length - 0.1;
+            stats.forEach((stat, i) => {
+              const bx = CONTENT_X + i * (boxW + 0.1);
+              pptSlide.addText(stat.value, { x: bx, y: CONTENT_Y + 0.5, w: boxW, h: 1.4, fontSize: 36, bold: true, color: (stat.color || "#3b82f6").replace("#", ""), align: "center" });
+              pptSlide.addText(stat.label, { x: bx, y: CONTENT_Y + 2.1, w: boxW, h: 0.8, fontSize: 13, color: "555555", align: "center", wrap: true });
+            });
+          } else if (infType === "comparison" && infSlide.compLeft && infSlide.compRight) {
+            const colW = CONTENT_W / 2 - 0.15;
+            pptSlide.addText(infSlide.compLeft, { x: CONTENT_X, y: CONTENT_Y, w: colW, h: 0.44, fontSize: 16, bold: true, color: "ffffff", fill: { color: "3b82f6" }, align: "center" });
+            pptSlide.addText(infSlide.compRight, { x: CONTENT_X + colW + 0.3, y: CONTENT_Y, w: colW, h: 0.44, fontSize: 16, bold: true, color: "ffffff", fill: { color: "ef4444" }, align: "center" });
+            (infSlide.compLeftItems || []).forEach((item, i) => {
+              pptSlide.addText(item, { x: CONTENT_X, y: CONTENT_Y + 0.55 + i * 0.62, w: colW, h: 0.55, fontSize: 13, color: "333333", fill: { color: "eff6ff" }, wrap: true });
+            });
+            (infSlide.compRightItems || []).forEach((item, i) => {
+              pptSlide.addText(item, { x: CONTENT_X + colW + 0.3, y: CONTENT_Y + 0.55 + i * 0.62, w: colW, h: 0.55, fontSize: 13, color: "333333", fill: { color: "fef2f2" }, wrap: true });
+            });
+          } else if (infSlide.facts) {
+            const facts = infSlide.facts.slice(0, 4);
+            const half = Math.ceil(facts.length / 2);
+            facts.forEach((fact, i) => {
+              const col = i >= half ? 1 : 0;
+              const row = i >= half ? i - half : i;
+              const bx = CONTENT_X + col * (CONTENT_W / 2 + 0.1);
+              const by = CONTENT_Y + row * (CONTENT_H / half + 0.1);
+              const bw = CONTENT_W / 2 - 0.15;
+              const bh = CONTENT_H / half - 0.1;
+              pptSlide.addText([{ text: fact.title + "\n", options: { bold: true, fontSize: 14, color: "1e40af" } }, { text: fact.text, options: { fontSize: 12, color: "444444" } }], { x: bx, y: by, w: bw, h: bh, fill: { color: "f0f9ff" }, inset: 0.12, valign: "top", wrap: true });
+            });
+          } else if (hasContent) {
+            pptSlide.addText(
+              visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 18, color: "333333", breakLine: true } })),
+              { x: CONTENT_X, y: CONTENT_Y, w: CONTENT_W, h: CONTENT_H, valign: "top" }
+            );
+          }
         } else if (hasContent) {
           pptSlide.addText(
             visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 20, color: "333333", breakLine: true } })),
@@ -619,7 +663,7 @@ function PresentationContent({ content }: { content: string }) {
               )}
               {layout && style !== "textOnly" && (
                 <Badge variant="outline" data-testid="badge-presentation-layout">
-                  {layout === "grid" ? "Grid Layout" : "Single Image"}
+                  {layout === "grid" ? "Grid Layout" : layout === "infographic" ? "Infographic" : "Single Image"}
                 </Badge>
               )}
               {style !== "textOnly" && (
@@ -674,8 +718,81 @@ function PresentationContent({ content }: { content: string }) {
                     <h4 className="font-semibold text-base">{slide.title}</h4>
                   </div>
                   
+                  {/* Infographic layout */}
+                  {layout === "infographic" && (() => {
+                    const infSlide = slide as Slide & { infographicType?: string; tableHeaders?: string[]; tableRows?: string[][]; stats?: { value: string; label: string; color: string }[]; facts?: { title: string; text: string }[]; compLeft?: string; compRight?: string; compLeftItems?: string[]; compRightItems?: string[] };
+                    const infType = infSlide.infographicType || "facts";
+                    return (
+                      <div className="ml-11 space-y-2">
+                        {infType === "table" && infSlide.tableHeaders && (
+                          <div className="overflow-x-auto rounded-lg border">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-blue-500 text-white">
+                                  {infSlide.tableHeaders.map((h, hi) => <th key={hi} className="px-3 py-2 text-left font-semibold">{h}</th>)}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(infSlide.tableRows || []).map((row, ri) => (
+                                  <tr key={ri} className={ri % 2 === 0 ? "bg-slate-50 dark:bg-slate-900" : ""}>
+                                    {row.map((cell, ci) => <td key={ci} className="px-3 py-1.5 text-muted-foreground">{cell}</td>)}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        {infType === "stats" && infSlide.stats && (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                            {infSlide.stats.map((stat, si) => (
+                              <div key={si} className="rounded-xl border p-3 text-center" style={{ borderColor: stat.color + "66", background: stat.color + "11" }}>
+                                <div className="text-2xl font-extrabold" style={{ color: stat.color }}>{stat.value}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {infType === "facts" && infSlide.facts && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {infSlide.facts.map((fact, fi) => (
+                              <div key={fi} className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 p-3">
+                                <div className="font-semibold text-sm text-blue-700 dark:text-blue-400 mb-1">{fact.title}</div>
+                                <div className="text-xs text-muted-foreground">{fact.text}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {infType === "comparison" && infSlide.compLeft && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <div className="rounded-t-lg bg-blue-500 text-white text-sm font-bold text-center py-1.5 px-2">{infSlide.compLeft}</div>
+                              {(infSlide.compLeftItems || []).map((item, ii) => (
+                                <div key={ii} className="border border-t-0 border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800 px-2 py-1.5 text-xs text-muted-foreground">{item}</div>
+                              ))}
+                            </div>
+                            <div>
+                              <div className="rounded-t-lg bg-red-500 text-white text-sm font-bold text-center py-1.5 px-2">{infSlide.compRight}</div>
+                              {(infSlide.compRightItems || []).map((item, ii) => (
+                                <div key={ii} className="border border-t-0 border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800 px-2 py-1.5 text-xs text-muted-foreground">{item}</div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {slide.content && slide.content.length > 0 && (
+                          <ul className="space-y-1">
+                            {slide.content.map((point, i) => (
+                              <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                                <span className="text-primary mt-0.5">•</span>{point}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Grid layout - multiple images */}
-                  {layout === "grid" && slide.images && slide.images.length > 0 && (
+                  {layout !== "infographic" && layout === "grid" && slide.images && slide.images.length > 0 && (
                     <div className="grid grid-cols-2 gap-2 ml-11">
                       {slide.images.map((img, imgIndex) => (
                         <div key={imgIndex} className="relative">
@@ -692,7 +809,7 @@ function PresentationContent({ content }: { content: string }) {
                   )}
                   
                   {/* Single layout - image + text side by side */}
-                  {layout !== "grid" && slide.image && slide.content && slide.content.length > 0 ? (
+                  {layout !== "grid" && layout !== "infographic" && slide.image && slide.content && slide.content.length > 0 ? (
                     <div className="flex flex-col sm:flex-row gap-3 ml-11">
                       <div className="sm:w-2/5 flex-shrink-0 relative">
                         <img 
@@ -714,7 +831,7 @@ function PresentationContent({ content }: { content: string }) {
                     </div>
                   ) : (
                     <>
-                      {layout !== "grid" && slide.image && (
+                      {layout !== "grid" && layout !== "infographic" && slide.image && (
                         <div className="ml-11 relative inline-block">
                           <img 
                             src={slide.image} 
@@ -725,7 +842,7 @@ function PresentationContent({ content }: { content: string }) {
                           <BrightBoardLogo show={showBranding} />
                         </div>
                       )}
-                      {slide.content && slide.content.length > 0 && (
+                      {layout !== "infographic" && slide.content && slide.content.length > 0 && (
                         <ul className="space-y-1.5 ml-11">
                           {slide.content.map((point, i) => (
                             <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
