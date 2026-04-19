@@ -8,6 +8,7 @@ import { PromptInput } from "@/components/prompt-input";
 import { GeneratedContentDisplay } from "@/components/generated-content-display";
 import { GenerationProgress } from "@/components/generation-progress";
 import { HistorySidebar } from "@/components/history-sidebar";
+import { Footer } from "@/components/footer";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -246,7 +247,8 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex flex-col min-h-full">
+      <div className="flex flex-1">
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
@@ -385,6 +387,9 @@ export default function Home() {
           selectedId={selectedHistoryItem?.id}
         />
       </div>
+      </div>
+      {/* Footer - same as homepage */}
+      <Footer />
     </div>
   );
 }

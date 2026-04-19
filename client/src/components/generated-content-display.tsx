@@ -140,15 +140,7 @@ export function GeneratedContentDisplay({
       );
     }
 
-    return (
-      <Card className="p-8 flex flex-col items-center justify-center min-h-[400px] bg-muted/30">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-          <Sparkles className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <p className="text-lg font-medium text-muted-foreground">Your content will appear here</p>
-        <p className="mt-1 text-sm text-muted-foreground">Choose a type and describe what you want to create</p>
-      </Card>
-    );
+    return null;
   }
 
   const handleCopy = async () => {
