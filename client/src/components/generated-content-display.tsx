@@ -251,6 +251,34 @@ export function GeneratedContentDisplay({
         return;
       }
 
+      // Compress + re-encode images via canvas so they embed cleanly in PPTX
+      // (raw 1024x1024 PNGs from gpt-image-1 can be 3-5 MB each and cause corruption)
+      const compressImageForPptx = (src: string): Promise<string> => {
+        return new Promise((resolve) => {
+          if (!src) { resolve(src); return; }
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const MAX = 900;
+              const scale = Math.min(1, MAX / Math.max(img.naturalWidth || MAX, img.naturalHeight || MAX));
+              const w = Math.round((img.naturalWidth || MAX) * scale);
+              const h = Math.round((img.naturalHeight || MAX) * scale);
+              const canvas = document.createElement("canvas");
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) { resolve(src); return; }
+              ctx.drawImage(img, 0, 0, w, h);
+              resolve(canvas.toDataURL("image/jpeg", 0.88));
+            } catch {
+              resolve(src);
+            }
+          };
+          img.onerror = () => resolve(src);
+          img.src = src;
+        });
+      };
+
       const pptx = new pptxgen();
       pptx.title = data.title || "Presentation";
       pptx.author = "BrightBoard";
@@ -259,64 +287,82 @@ export function GeneratedContentDisplay({
       const layout = data.layout || "single";
       const slideData = slides as (Slide & { images?: string[] })[];
 
-      const addSlideContent = (slide: Slide & { images?: string[] }, visibleBullets: string[]) => {
+      // LAYOUT_16x9 = 10" × 5.625". Keep all content within TV-safe margins
+      // (TVs apply overscan that crops ~5% of edges). Safe area: x 0.4–9.6, y 0.3–5.3
+      const TITLE_Y = 0.28;
+      const CONTENT_Y = 1.02;
+      const CONTENT_H = 3.92; // ends at y=4.94, well inside 5.625"
+      const CONTENT_W = 9.2;
+      const CONTENT_X = 0.4;
+
+      const addSlideContent = async (slide: Slide & { images?: string[] }, visibleBullets: string[]) => {
         const pptSlide = pptx.addSlide();
         const hasImage = !!(slide.image || (slide.images && slide.images.length > 0));
         const hasContent = visibleBullets.length > 0;
 
         pptSlide.addText(slide.title || "Slide", {
-          x: 0.5, y: 0.3, w: 9, h: 0.7,
-          fontSize: 32, bold: true, color: "363636",
+          x: CONTENT_X, y: TITLE_Y, w: CONTENT_W, h: 0.68,
+          fontSize: 30, bold: true, color: "1a1a2e",
         });
 
         if (hasImage && layout === "single" && slide.image) {
+          const imgData = await compressImageForPptx(slide.image);
           if (hasContent) {
-            pptSlide.addImage({ data: slide.image, x: 0.3, y: 1.1, w: 4.8, h: 4.2 });
+            const imgW = 4.55;
+            const txtX = CONTENT_X + imgW + 0.18;
+            pptSlide.addImage({ data: imgData, x: CONTENT_X, y: CONTENT_Y, w: imgW, h: CONTENT_H });
             pptSlide.addText(
-              visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 18, color: "555555", breakLine: true } })),
-              { x: 5.3, y: 1.1, w: 4.4, h: 4.2, valign: "top" }
+              visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 17, color: "333333", breakLine: true } })),
+              { x: txtX, y: CONTENT_Y, w: CONTENT_X + CONTENT_W - txtX, h: CONTENT_H, valign: "top" }
             );
           } else {
-            pptSlide.addImage({ data: slide.image, x: 0.5, y: 1.1, w: 9, h: 4.3, sizing: { type: "contain", w: 9, h: 4.3 } });
+            pptSlide.addImage({ data: imgData, x: CONTENT_X, y: CONTENT_Y, w: CONTENT_W, h: CONTENT_H, sizing: { type: "contain", w: CONTENT_W, h: CONTENT_H } });
           }
         } else if (hasImage && layout === "grid" && slide.images && slide.images.length > 0) {
-          const imgSize = 2.15;
-          const gridPos = [{ x: 0.3, y: 1.1 }, { x: 2.6, y: 1.1 }, { x: 0.3, y: 3.35 }, { x: 2.6, y: 3.35 }];
-          slide.images.slice(0, 4).forEach((img, idx) => {
-            pptSlide.addImage({ data: img, x: gridPos[idx].x, y: gridPos[idx].y, w: imgSize, h: imgSize });
-          });
+          const imgSize = 2.0;
+          const gapX = 0.15;
+          const gridPos = [
+            { x: CONTENT_X,               y: CONTENT_Y },
+            { x: CONTENT_X + imgSize + gapX, y: CONTENT_Y },
+            { x: CONTENT_X,               y: CONTENT_Y + imgSize + gapX },
+            { x: CONTENT_X + imgSize + gapX, y: CONTENT_Y + imgSize + gapX },
+          ];
+          await Promise.all(slide.images.slice(0, 4).map(async (img, idx) => {
+            const imgData = await compressImageForPptx(img);
+            pptSlide.addImage({ data: imgData, x: gridPos[idx].x, y: gridPos[idx].y, w: imgSize, h: imgSize });
+          }));
           if (hasContent) {
+            const txtX = CONTENT_X + imgSize * 2 + gapX * 2 + 0.1;
             pptSlide.addText(
-              visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 16, color: "555555", breakLine: true } })),
-              { x: 5.0, y: 1.1, w: 4.7, h: 4.2, valign: "top" }
+              visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 15, color: "333333", breakLine: true } })),
+              { x: txtX, y: CONTENT_Y, w: CONTENT_X + CONTENT_W - txtX, h: CONTENT_H, valign: "top" }
             );
           }
         } else if (hasContent) {
           pptSlide.addText(
-            visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 20, color: "555555", breakLine: true } })),
-            { x: 0.5, y: 1.2, w: 9, h: 4, valign: "top" }
+            visibleBullets.map(point => ({ text: point, options: { bullet: true, fontSize: 20, color: "333333", breakLine: true } })),
+            { x: CONTENT_X, y: CONTENT_Y, w: CONTENT_W, h: CONTENT_H, valign: "top" }
           );
         }
 
         if (slide.notes) pptSlide.addNotes(slide.notes);
 
         pptSlide.addText("brightboardapp.com", {
-          x: 7.2, y: 5.2, w: 2.5, h: 0.3,
-          fontSize: 9, color: "999999", align: "right", italic: true,
+          x: 6.8, y: 4.98, w: 2.8, h: 0.28,
+          fontSize: 9, color: "aaaaaa", align: "right", italic: true,
         });
       };
 
-      slideData.forEach((slide) => {
+      for (const slide of slideData) {
         const allBullets = slide.content || [];
         if (tapToReveal && allBullets.length > 1) {
-          // Build slides: one slide per reveal step (each shows one more bullet)
           for (let i = 1; i <= allBullets.length; i++) {
-            addSlideContent(slide, allBullets.slice(0, i));
+            await addSlideContent(slide, allBullets.slice(0, i));
           }
         } else {
-          addSlideContent(slide, allBullets);
+          await addSlideContent(slide, allBullets);
         }
-      });
+      }
 
       // Generate the PPTX as a Blob, then post-process with JSZip to inject transitions
       const needsPostProcess = transition && transition !== "none" || transitionDelay > 0;
