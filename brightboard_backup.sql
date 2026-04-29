@@ -1,3 +1,5 @@
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:~# psql -U brightboard -d brightboard_db -f /tmp/brightboard_backup.sql
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "brightboard"
 --
 -- PostgreSQL database dump
 --
