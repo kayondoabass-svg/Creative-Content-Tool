@@ -1,0 +1,130 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Try the new cross-platform PowerShell https://aka.ms/pscore6
+
+PS C:\Users\SV STORE> ssh root@165.232.64.81
+Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.8.0-71-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Wed Apr 29 18:34:19 UTC 2026
+
+  System load:           0.0
+  Usage of /:            37.0% of 23.17GB
+  Memory usage:          32%
+  Swap usage:            1%
+  Processes:             107
+  Users logged in:       0
+  IPv4 address for eth0: 165.232.64.81
+  IPv4 address for eth0: 10.19.0.5
+  IPv6 address for eth0: 2a03:b0c0:3:f0:0:2:5363:5000
+
+Expanded Security Maintenance for Applications is not enabled.
+
+0 updates can be applied immediately.
+
+1 additional security update can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+
+*** System restart required ***
+Last login: Wed Apr 29 18:23:56 2026 from 123.24.236.57
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:~# cd /var/www/brightboardapp.com
+-bash: cd: /var/www/brightboardapp.com: No such file or directory
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:~# npm install
+
+npm error code ENOENT
+npm error syscall open
+npm error path /root/package.json
+npm error errno -2
+npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/root/package.json'
+npm error enoent This is related to npm not being able to find a file.
+npm error enoent
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-04-29T18_34_31_559Z-debug-0.log
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:~# npm run build
+npm error code ENOENT
+npm error syscall open
+npm error path /root/package.json
+npm error errno -2
+npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/root/package.json'
+npm error enoent This is related to npm not being able to find a file.
+npm error enoent
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-04-29T18_34_33_113Z-debug-0.log
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:~# mkdir -p /var/www
+com/kayoroot@ubuntu-s-1vcpu-1gb-fra1-AfroAI:~# cd /var/www
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# git clone https://github.com/kayondoabass-svg/brightboardapp.git brightboardapp.com
+Cloning into 'brightboardapp.com'...
+lone https://github.com/kayondoabass-svg/theoptionsapp.git theoptions.appwarning: You appear to have cloned an empty repository.
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# git clone https://github.com/kayondoabass-svg/theoptionsapp.git theoptions.app
+Cloning into 'theoptions.app'...
+warning: You appear to have cloned an empty repository.
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# cd /var/www
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# rm -rf brightboardapp.com
+/github.com/kayondoabass-svg/brightboardapp.git brightboardapp.croot@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# git clone https://github.com/kayondoabass-svg/brightboardapp.git brightboardapp.com
+Cloning into 'brightboardapp.com'...
+warning: You appear to have cloned an empty repository.
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# cd brightboardapp.com
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# cd /var/www
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# rm -rf brightboardapp.com
+/github.root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# git clone https://github.com/kayondoabass-svg/Creative-Content-Tool.git brightboardapp.com
+Cloning into 'brightboardapp.com'...
+remote: Enumerating objects: 3139, done.
+remote: Total 3139 (delta 0), reused 0 (delta 0), pack-reused 3139 (from 1)
+Receiving objects: 100% (3139/3139), 376.41 MiB | 36.25 MiB/s, done.
+Resolving deltas: 100% (2322/2322), done.
+Updating files: 100% (577/577), done.
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# cd brightboardapp.comnpm install
+-bash: cd: too many arguments
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# npm run build
+npm error code ENOENT
+npm error syscall open
+npm error path /var/www/package.json
+npm error errno -2
+npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/var/www/package.json'
+npm error enoent This is related to npm not being able to find a file.
+npm error enoent
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-04-29T18_46_36_456Z-debug-0.log
+npm error code ENOENT
+npm error syscall open
+npm error path /var/www/package.json
+npm error errno -2
+npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/var/www/package.json'
+npm error enoent This is related to npm not being able to find a file.
+npm error enoent
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-04-29T18_46_50_235Z-debug-0.log
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# npm run build
+npm error code ENOENT
+npm error syscall open
+npm error path /var/www/package.json
+npm error errno -2
+npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/var/www/package.json'
+npm error enoent This is related to npm not being able to find a file.
+npm error enoent
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-04-29T18_46_51_504Z-debug-0.log
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www# cd /var/www/brightboardapp.com
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# DATABASE_URL=postgresql://brightboard:Bahrain21@localhost/brightboard_db
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# OPENAI_API_KEY=paste_from_replit
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# PESAPAL_CONSUMER_KEY=paste_from_replit
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# PESAPAL_CONSUMER_SECRET=paste_from_replit
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# RECAPTCHA_SITE_KEY=paste_from_replit
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# TIKTOK_CLIENT_KEY=paste_from_replit
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# TIKTOK_CLIENT_SECRET=paste_from_replit
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# RESEND_API_KEY=paste_from_replit
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# SESSION_SECRET=09c75bc40d37ee99428bd507917a47d32121ffea4307a9059cf7cbede9544d43
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# NODE_ENV=production
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# PORT=5000
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# APP_URL=https://brightboardapp.com
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# ISSUER_URL=https://replit.com/oidc
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# REPL_ID=paste_from_replit_project_settings
+sh: 1: tsx: not found
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com#
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# pm install
+Command 'pm' not found, but can be installed with:
+apt install powerman
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# npm run build
+
+> rest-express@1.0.0 build
+> tsx script/build.ts
