@@ -7,8 +7,7 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { PDFExtract } from "pdf.js-extract";
 import sharp from "sharp";
 import PptxGenJS from "pptxgenjs";
-import { stripeService } from "./stripeService";
-import { getStripePublishableKey } from "./stripeClient";
+import * as paymentService from "./paymentService";
 import { generateVideoFromStoryboard } from "./videoService";
 import { jobQueue } from "./jobQueue";
 
@@ -19,7 +18,6 @@ function isAuthenticated(req: any, res: any, next: any) {
   }
   return res.status(401).json({ error: "Not authenticated" });
 }
-import * as paddleService from "./paddleService";
 import crypto from "crypto";
 import { verifyRecaptchaToken } from "./recaptcha/verifyRecaptcha";
 import * as customAuth from "./customAuthService";
@@ -1645,7 +1643,7 @@ ${pages.map(p => `  <url>
       
       // Check subscription status - premium feature (CEO gets bypass)
       if (!isCEO) {
-        const subscriptionStatus = await stripeService.getSubscriptionStatus(sessionUserId);
+        const subscriptionStatus = await paymentService.getSubscriptionStatus(sessionUserId);
         if (!subscriptionStatus.isPremium) {
           return res.status(403).json({ 
             error: "Logo generation is a premium feature. Upgrade to access this feature!",
@@ -1836,34 +1834,11 @@ This should look like it was designed by a world-class branding agency. Make it 
   async function checkPremiumStatus(userId: string | undefined): Promise<boolean> {
     if (!userId) return false;
     try {
-      const user = await stripeService.getUser(userId);
-      if (!user?.email) return false;
-      
-      // Owner (CEO) always gets premium access
+      const user = await paymentService.getUser(userId);
+      if (!user) return false;
       const OWNER_EMAILS = ["kayondoabass@gmail.com"];
-      if (OWNER_EMAILS.includes(user.email.toLowerCase())) {
-        return true;
-      }
-      
-      // Check Paddle subscription
-      const paddleApiKey = process.env.PADDLE_API_KEY;
-      if (paddleApiKey) {
-        const response = await fetch("https://api.paddle.com/subscriptions", {
-          headers: {
-            "Authorization": `Bearer ${paddleApiKey}`,
-            "Content-Type": "application/json"
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          const activeSubscription = data.data?.find((sub: any) => 
-            sub.status === "active" && 
-            sub.custom_data?.user_id === userId
-          );
-          if (activeSubscription) return true;
-        }
-      }
-      return false;
+      if (user.email && OWNER_EMAILS.includes(user.email.toLowerCase())) return true;
+      return user.subscriptionTier !== 'free' && user.subscriptionStatus === 'active';
     } catch (error) {
       console.error("Error checking premium status:", error);
       return false;
@@ -2291,8 +2266,7 @@ This should look like it was designed by a world-class branding agency. Make it 
         isPremium = true;
       } else if (userId) {
         try {
-          const { getSubscriptionStatus } = await import('./paddleService');
-          const subscriptionStatus = await getSubscriptionStatus(userId);
+          const subscriptionStatus = await paymentService.getSubscriptionStatus(userId);
           isPremium = subscriptionStatus.isPremium;
         } catch (err) {
           console.error('Error checking subscription status:', err);
@@ -2536,7 +2510,7 @@ This should look like it was designed by a world-class branding agency. Make it 
         });
       }
       
-      const subscriptionStatus = await stripeService.getSubscriptionStatus(user.claims.sub);
+      const subscriptionStatus = await paymentService.getSubscriptionStatus(user.claims.sub);
       if (subscriptionStatus.isPremium) {
         return res.json({
           imageCount: 0, presentationCount: 0, videoCount: 0,
@@ -2545,7 +2519,7 @@ This should look like it was designed by a world-class branding agency. Make it 
         });
       }
       
-      const usage = await stripeService.getUserUsage(user.claims.sub);
+      const usage = await paymentService.getUserUsage(user.claims.sub);
       res.json({
         ...usage,
         imageLimit: FREE_LIMITS.image,
@@ -2655,12 +2629,12 @@ This should look like it was designed by a world-class branding agency. Make it 
         onProgress("Checking your account...", 5);
 
         // Check subscription status
-        const subscriptionStatus = await stripeService.getSubscriptionStatus(userId);
+        const subscriptionStatus = await paymentService.getSubscriptionStatus(userId);
         const isPremium = isCEO || subscriptionStatus.isPremium;
 
         // Check free tier usage limits
         if (!isPremium) {
-          const usage = await stripeService.getUserUsage(userId);
+          const usage = await paymentService.getUserUsage(userId);
           if (type === 'image' && usage.imageCount >= FREE_LIMITS.image) {
             return { error: `You've used your ${FREE_LIMITS.image} free images for today. Upgrade to Premium for unlimited generations!`, limitReached: true, limitType: 'image' };
           }
@@ -2813,16 +2787,16 @@ This should look like it was designed by a world-class branding agency. Make it 
 
         // Increment usage counters for free users
         if (!isPremium) {
-          if (type === 'image') await stripeService.incrementUsage(userId, 'image');
-          else if (type === 'presentation') await stripeService.incrementUsage(userId, 'presentation');
-          else if (type === 'storyboard') await stripeService.incrementUsage(userId, 'video');
-          else if (type === 'mindmap') await stripeService.incrementUsage(userId, 'mindmap');
-          else if (type === 'worksheet') await stripeService.incrementUsage(userId, 'worksheet');
-          else if (type === 'text') await stripeService.incrementUsage(userId, 'text');
-          else if (type === 'activity') await stripeService.incrementUsage(userId, 'activity');
+          if (type === 'image') await paymentService.incrementUsage(userId, 'image');
+          else if (type === 'presentation') await paymentService.incrementUsage(userId, 'presentation');
+          else if (type === 'storyboard') await paymentService.incrementUsage(userId, 'video');
+          else if (type === 'mindmap') await paymentService.incrementUsage(userId, 'mindmap');
+          else if (type === 'worksheet') await paymentService.incrementUsage(userId, 'worksheet');
+          else if (type === 'text') await paymentService.incrementUsage(userId, 'text');
+          else if (type === 'activity') await paymentService.incrementUsage(userId, 'activity');
         }
 
-        await stripeService.trackFeatureUsage(userId, type);
+        await paymentService.trackFeatureUsage(userId, type);
 
         // Log costs
         const costMap: Record<string, number> = { image: 5, text: 2, activity: 2, worksheet: 2, mindmap: 2 };
@@ -4087,56 +4061,10 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
 }
 
 // ============================================
-// SUBSCRIPTION & STRIPE ROUTES
+// SUBSCRIPTION & PAYMENT ROUTES
 // ============================================
 
 export function registerSubscriptionRoutes(app: any) {
-  // Get Stripe publishable key for frontend
-  app.get("/api/stripe/config", async (req: any, res: any) => {
-    try {
-      const publishableKey = await getStripePublishableKey();
-      res.json({ publishableKey });
-    } catch (error) {
-      console.error("Error getting Stripe config:", error);
-      res.status(500).json({ error: "Failed to get Stripe configuration" });
-    }
-  });
-
-  // Get subscription plans/prices
-  app.get("/api/subscription/plans", async (req: any, res: any) => {
-    try {
-      const rows = await stripeService.listProductsWithPrices();
-      
-      // Group prices by product
-      const productsMap = new Map();
-      for (const row of rows as any[]) {
-        if (!productsMap.has(row.product_id)) {
-          productsMap.set(row.product_id, {
-            id: row.product_id,
-            name: row.product_name,
-            description: row.product_description,
-            metadata: row.product_metadata,
-            prices: []
-          });
-        }
-        if (row.price_id) {
-          productsMap.get(row.product_id).prices.push({
-            id: row.price_id,
-            unit_amount: row.unit_amount,
-            currency: row.currency,
-            recurring: row.recurring,
-            metadata: row.price_metadata,
-          });
-        }
-      }
-
-      res.json({ plans: Array.from(productsMap.values()) });
-    } catch (error) {
-      console.error("Error fetching plans:", error);
-      res.status(500).json({ error: "Failed to fetch subscription plans" });
-    }
-  });
-
   // Get current user subscription status
   app.get("/api/subscription/status", isAuthenticated, async (req: any, res: any) => {
     try {
@@ -4144,34 +4072,18 @@ export function registerSubscriptionRoutes(app: any) {
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
       }
-      
-      // CEO bypass - founder always gets premium access
+
       const CEO_EMAILS = ["kayondoabass@gmail.com"];
       const userEmail = req.session?.user?.email || req.user?.claims?.email;
       const isCEO = userEmail && CEO_EMAILS.includes(userEmail.toLowerCase());
-      
+
       if (isCEO) {
-        return res.json({
-          tier: "yearly",
-          status: "active",
-          isPremium: true,
-          isCEO: true,
-          subscriptionEndsAt: null
-        });
+        return res.json({ tier: "yearly", status: "active", isPremium: true, isCEO: true, subscriptionEndsAt: null });
       }
 
-      const user = await stripeService.getUser(userId);
+      const user = await paymentService.getUser(userId);
       if (!user) {
-        return res.json({ 
-          tier: "free",
-          status: "inactive",
-          isPremium: false
-        });
-      }
-
-      let subscription = null;
-      if (user.stripeSubscriptionId) {
-        subscription = await stripeService.getSubscription(user.stripeSubscriptionId);
+        return res.json({ tier: "free", status: "inactive", isPremium: false });
       }
 
       res.json({
@@ -4179,186 +4091,10 @@ export function registerSubscriptionRoutes(app: any) {
         status: user.subscriptionStatus || "inactive",
         isPremium: user.subscriptionTier !== "free" && user.subscriptionStatus === "active",
         subscriptionEndsAt: user.subscriptionEndsAt,
-        subscription
       });
     } catch (error) {
       console.error("Error fetching subscription status:", error);
       res.status(500).json({ error: "Failed to fetch subscription status" });
-    }
-  });
-
-  // Create checkout session for subscription
-  app.post("/api/subscription/checkout", isAuthenticated, async (req: any, res: any) => {
-    try {
-      const userId = req.user?.claims?.sub;
-      const userEmail = req.user?.claims?.email;
-      const { priceId } = req.body;
-
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      if (!priceId) {
-        return res.status(400).json({ error: "Price ID is required" });
-      }
-
-      let user = await stripeService.getUser(userId);
-      let customerId = user?.stripeCustomerId;
-
-      // Create customer if doesn't exist
-      if (!customerId) {
-        const customer = await stripeService.createCustomer(userEmail || "", userId);
-        await stripeService.updateUserStripeInfo(userId, { stripeCustomerId: customer.id });
-        customerId = customer.id;
-      }
-
-      // Create checkout session
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const session = await stripeService.createCheckoutSession(
-        customerId,
-        priceId,
-        `${baseUrl}/?checkout=success`,
-        `${baseUrl}/pricing?checkout=cancelled`
-      );
-
-      res.json({ url: session.url });
-    } catch (error) {
-      console.error("Error creating checkout session:", error);
-      res.status(500).json({ error: "Failed to create checkout session" });
-    }
-  });
-
-  // Create customer portal session for managing subscription
-  app.post("/api/subscription/portal", isAuthenticated, async (req: any, res: any) => {
-    try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = await stripeService.getUser(userId);
-      if (!user?.stripeCustomerId) {
-        return res.status(400).json({ error: "No subscription found" });
-      }
-
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const session = await stripeService.createCustomerPortalSession(
-        user.stripeCustomerId,
-        `${baseUrl}/`
-      );
-
-      res.json({ url: session.url });
-    } catch (error) {
-      console.error("Error creating portal session:", error);
-      res.status(500).json({ error: "Failed to create portal session" });
-    }
-  });
-
-  // ============ PADDLE ROUTES ============
-
-  // Get Paddle client config (public)
-  app.get("/api/paddle/config", async (req: any, res: any) => {
-    try {
-      res.json({
-        clientToken: process.env.PADDLE_CLIENT_TOKEN || "",
-      });
-    } catch (error) {
-      console.error("Error fetching Paddle config:", error);
-      res.status(500).json({ error: "Failed to fetch config" });
-    }
-  });
-
-  // Get Paddle price IDs
-  app.get("/api/paddle/prices", isAuthenticated, async (req: any, res: any) => {
-    try {
-      res.json({
-        weekly: process.env.PADDLE_WEEKLY_PRICE_ID || "",
-        monthly: process.env.PADDLE_MONTHLY_PRICE_ID || "",
-        yearly: process.env.PADDLE_YEARLY_PRICE_ID || "",
-      });
-    } catch (error) {
-      console.error("Error fetching Paddle prices:", error);
-      res.status(500).json({ error: "Failed to fetch prices" });
-    }
-  });
-
-  // Cancel subscription via Paddle
-  app.post("/api/subscription/cancel", isAuthenticated, async (req: any, res: any) => {
-    try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const success = await paddleService.cancelSubscription(userId);
-      if (success) {
-        res.json({ success: true, message: "Subscription will be cancelled at end of billing period" });
-      } else {
-        res.status(400).json({ error: "No active subscription found" });
-      }
-    } catch (error) {
-      console.error("Error canceling subscription:", error);
-      res.status(500).json({ error: "Failed to cancel subscription" });
-    }
-  });
-
-  // Paddle webhook handler
-  app.post("/api/paddle/webhook", async (req: any, res: any) => {
-    try {
-      const signature = req.headers["paddle-signature"];
-      const rawBody = JSON.stringify(req.body);
-      
-      // Verify webhook signature if secret is set
-      const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
-      if (webhookSecret && signature) {
-        const parts = signature.split(";").reduce((acc: any, part: string) => {
-          const [key, value] = part.split("=");
-          acc[key] = value;
-          return acc;
-        }, {});
-        
-        const timestamp = parts["ts"];
-        const receivedHash = parts["h1"];
-        
-        const signedPayload = `${timestamp}:${rawBody}`;
-        const expectedHash = crypto
-          .createHmac("sha256", webhookSecret)
-          .update(signedPayload)
-          .digest("hex");
-        
-        if (expectedHash !== receivedHash) {
-          console.error("Invalid Paddle webhook signature");
-          return res.status(401).json({ error: "Invalid signature" });
-        }
-      }
-
-      const event = req.body;
-      const eventType = event.event_type;
-      const data = event.data;
-
-      console.log(`Paddle webhook received: ${eventType}`);
-
-      switch (eventType) {
-        case "subscription.created":
-          await paddleService.handleSubscriptionCreated(data);
-          break;
-        case "subscription.updated":
-          await paddleService.handleSubscriptionUpdated(data);
-          break;
-        case "subscription.canceled":
-          await paddleService.handleSubscriptionCanceled(data);
-          break;
-        case "subscription.activated":
-          await paddleService.handleSubscriptionUpdated(data);
-          break;
-        default:
-          console.log(`Unhandled Paddle event: ${eventType}`);
-      }
-
-      res.json({ received: true });
-    } catch (error) {
-      console.error("Error processing Paddle webhook:", error);
-      res.status(500).json({ error: "Webhook processing failed" });
     }
   });
 
@@ -4694,7 +4430,7 @@ export function registerSubscriptionRoutes(app: any) {
         .from(featureUsage)
         .where(eq(featureUsage.userId, sessionUserId));
 
-      const subscriptionStatus = await stripeService.getSubscriptionStatus(sessionUserId);
+      const subscriptionStatus = await paymentService.getSubscriptionStatus(sessionUserId);
 
       res.json({
         usageByType,
