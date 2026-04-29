@@ -1,0 +1,65 @@
+Since your GitHub is already connected to your DigitalOcean VPS, you are in a great position. You don't *strictly* have to use GitHub, but **you absolutely should.**
+Using GitHub as the "bridge" between your development environment and your VPS is the professional way to maintain independence. It ensures that even if your computer breaks or a hosting provider has an issue, your code is safe and portable.
+### The Workflow for Independence
+Instead of Replit "hosting" the code and the live site, the flow looks like this:
+ 1. **Develop:** Write your code locally or in an editor.
+ 2. **Push:** Send your updates to **GitHub**.
+ 3. **Pull:** Your **DigitalOcean VPS** "pulls" the latest code from GitHub and runs it.
+### How to set it up for two websites
+#### 1. Organize your GitHub Repos
+You should have two separate repositories:
+ * username/brightboard-app
+ * username/theoptions-app
+#### 2. Clone them into your VPS
+On your DigitalOcean Droplet, you will "clone" each repository into the specific folders we discussed earlier. Run these commands inside your VPS:
+```bash
+# Go to your web directory
+cd /var/www
+
+# Clone BrightBoard
+git clone https://github.com/your-username/brightboard-app.git brightboardapp.com
+
+# Clone TheOptions
+git clone https://github.com/your-username/theoptions-app.git theoptions.app
+
+```
+#### 3. Handling the "Node.js" Factor
+Since your Replit projects are likely Node.js apps, they don't just "sit there" like HTML files—they need to be **running** in the background.
+To do this independently, use a tool called **PM2** (Process Manager 2). It ensures your websites stay online even if the server restarts.
+**Install PM2 on your VPS:**
+```bash
+sudo npm install pm2 -g
+
+```
+**Start your apps:**
+```bash
+# Go to App 1 and start it
+cd /var/www/brightboardapp.com
+pm2 start npm --name "brightboard" -- start
+
+# Go to App 2 and start it
+cd /var/www/theoptions.app
+pm2 start npm --name "theoptions" -- start
+
+```
+#### 4. The "Reverse Proxy" (The Final Piece)
+Now, instead of Nginx looking for an index.html file, you tell Nginx to look at the **Port** where your Node.js app is running (e.g., Port 3000 for one and Port 4000 for the other).
+Your Nginx config (/etc/nginx/sites-available/brightboardapp.com) would look like this:
+```nginx
+location / {
+    proxy_pass http://localhost:3000; # Points to your Node app
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+}
+
+```
+### Summary of your "Independence" Stack
+ * **Code Storage:** GitHub (You own the source).
+ * **Server:** DigitalOcean (You own the hardware/OS).
+ * **Traffic Control:** Nginx (You own the routing).
+ * **Process Manager:** PM2 (You own the uptime).
+By doing this, no one can "hold you hostage." If you ever get tired of DigitalOcean, you just push your code to GitHub, buy a different VPS, and pull it down there.
+Are both of your apps running on the same port (like 3000) right now? We will need to make sure they use different port numbers so they don't crash into each other.
