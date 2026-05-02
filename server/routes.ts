@@ -570,9 +570,102 @@ ${pages.map(p => `  <url>
     }
   });
 
+  // ─── Social OAuth: Google ─────────────────────────────────────────────────
+
+  app.get("/api/auth/google", (req, res) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) return res.status(503).json({ error: "Google login not configured" });
+
+    const state = crypto.randomBytes(16).toString("hex");
+    (req as any).session.oauthState = state;
+
+    const redirectUri = encodeURIComponent(`${process.env.APP_URL || "https://brightboardapp.com"}/api/auth/google/callback`);
+    const scope = encodeURIComponent("openid email profile");
+    res.redirect(
+      `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}&access_type=offline&prompt=select_account`
+    );
+  });
+
+  app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code, state, error: googleError } = req.query as Record<string, string>;
+
+      if (googleError) return res.redirect("/login?error=google_denied");
+
+      const savedState = (req as any).session.oauthState;
+      if (!state || state !== savedState) return res.redirect("/login?error=invalid_state");
+      delete (req as any).session.oauthState;
+
+      const clientId = process.env.GOOGLE_CLIENT_ID!;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
+      const redirectUri = `${process.env.APP_URL || "https://brightboardapp.com"}/api/auth/google/callback`;
+
+      // Exchange code for tokens
+      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, grant_type: "authorization_code" }),
+      });
+      const tokenData = await tokenRes.json() as any;
+      if (!tokenData.access_token) {
+        console.error("Google token error:", tokenData);
+        return res.redirect("/login?error=google_token_failed");
+      }
+
+      // Get user info from Google
+      const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      const gUser = await userRes.json() as any;
+      if (!gUser.id) return res.redirect("/login?error=google_user_failed");
+
+      // Find by socialId+provider, or by email, or create new
+      let [existingUser] = await db.select().from(users).where(
+        and(eq(users.socialProvider, "google"), eq(users.socialId, gUser.id))
+      ).limit(1);
+
+      if (!existingUser && gUser.email) {
+        const [byEmail] = await db.select().from(users).where(eq(users.email, gUser.email.toLowerCase())).limit(1);
+        if (byEmail) {
+          await db.update(users).set({ socialProvider: "google", socialId: gUser.id, emailVerified: true }).where(eq(users.id, byEmail.id));
+          existingUser = { ...byEmail, socialProvider: "google", socialId: gUser.id, emailVerified: true };
+        }
+      }
+
+      if (!existingUser) {
+        const isOwnerEmail = gUser.email?.toLowerCase() === "kayondoabass@gmail.com";
+        const nameParts = (gUser.name || "").split(" ");
+        const [newUser] = await db.insert(users).values({
+          email: gUser.email?.toLowerCase() || null,
+          firstName: gUser.given_name || nameParts[0] || "User",
+          lastName: gUser.family_name || nameParts.slice(1).join(" ") || "",
+          profileImageUrl: gUser.picture || null,
+          socialProvider: "google",
+          socialId: gUser.id,
+          emailVerified: true,
+          isOwner: isOwnerEmail,
+          subscriptionTier: isOwnerEmail ? "yearly" : "free",
+          subscriptionStatus: isOwnerEmail ? "active" : "inactive",
+        }).returning();
+        existingUser = newUser;
+      }
+
+      (req as any).session.userId = existingUser.id;
+      (req as any).session.user = existingUser;
+      await db.update(users).set({ lastActiveAt: new Date() }).where(eq(users.id, existingUser.id));
+      db.insert(loginEvents).values({ userId: existingUser.id }).catch(() => {});
+
+      res.redirect("/?social_login=success");
+    } catch (err) {
+      console.error("Google callback error:", err);
+      res.redirect("/login?error=google_failed");
+    }
+  });
+
   // ─── Social login availability (for frontend) ─────────────────────────────
   app.get("/api/auth/social-providers", (_req, res) => {
     res.json({
+      google: !!process.env.GOOGLE_CLIENT_ID,
       facebook: !!process.env.FACEBOOK_APP_ID,
       // TikTok hidden until TikTok Developer app review is approved
       // Set TIKTOK_ENABLED=true in secrets to re-enable once approved

@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ArrowLeft, Mail } from "lucide-react";
 import { LanguageSelector } from "@/components/language-selector";
 import { useQuery } from "@tanstack/react-query";
-import { SiFacebook, SiTiktok } from "react-icons/si";
+import { SiFacebook, SiTiktok, SiGoogle } from "react-icons/si";
 
 const RECAPTCHA_SITE_KEY = "6LfKupcsAAAAAFjtAAYI191p9gV13VpHkenZ-KJe";
 
@@ -37,7 +37,7 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const { data: socialProviders } = useQuery<{ facebook: boolean; tiktok: boolean }>({
+  const { data: socialProviders } = useQuery<{ google: boolean; facebook: boolean; tiktok: boolean }>({
     queryKey: ["/api/auth/social-providers"],
   });
 
@@ -52,10 +52,13 @@ export default function LoginPage() {
       const messages: Record<string, string> = {
         facebook_denied: "Facebook login was cancelled.",
         tiktok_denied: "TikTok login was cancelled.",
+        google_denied: "Google login was cancelled.",
         facebook_failed: "Facebook login failed. Please try again.",
         tiktok_failed: "TikTok login failed. Please try again.",
+        google_failed: "Google login failed. Please try again.",
         facebook_token_failed: "Could not authenticate with Facebook.",
         tiktok_token_failed: "Could not authenticate with TikTok.",
+        google_token_failed: "Could not authenticate with Google.",
         invalid_state: "Login session expired. Please try again.",
       };
       toast({ title: "Login error", description: messages[error] || "Something went wrong.", variant: "destructive" });
@@ -118,6 +121,8 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  const hasSocialProviders = socialProviders?.google || socialProviders?.facebook || socialProviders?.tiktok;
 
   if (step === "reset") {
     return (
@@ -238,7 +243,7 @@ export default function LoginPage() {
               {isLoggingIn ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('common.loading')}</> : t('common.signIn')}
             </Button>
 
-            {(socialProviders?.facebook || socialProviders?.tiktok) && (
+            {hasSocialProviders && (
               <>
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
@@ -247,6 +252,13 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
+                  {socialProviders?.google && (
+                    <a href="/api/auth/google" data-testid="button-login-google">
+                      <Button type="button" variant="outline" className="w-full flex items-center gap-2 border-[#4285F4] text-[#4285F4] hover:bg-[#4285F4] hover:text-white transition-colors">
+                        <SiGoogle className="w-4 h-4" />Continue with Google
+                      </Button>
+                    </a>
+                  )}
                   {socialProviders?.facebook && (
                     <a href="/api/auth/facebook" data-testid="button-login-facebook">
                       <Button type="button" variant="outline" className="w-full flex items-center gap-2 border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2] hover:text-white transition-colors">
