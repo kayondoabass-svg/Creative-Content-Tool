@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions, type ImageOptions, type TextOptions, type ActivityOptions } from "@shared/schema";
 import OpenAI from "openai";
+import { generateGeminiImage } from "./geminiImageService";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { PDFExtract } from "pdf.js-extract";
 import sharp from "sharp";
@@ -28,8 +29,8 @@ import * as pesapalService from "./pesapalService";
 import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.GEMINI_API_KEY,
+  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
 });
 
 export async function registerRoutes(
@@ -1791,13 +1792,7 @@ Requirements:
 
 This should look like it was designed by a world-class branding agency. Make it distinctive, elegant, and instantly recognizable.`;
 
-        return openai.images.generate({
-          model: "gpt-image-1",
-          prompt,
-          n: 1,
-          size: "1024x1024",
-          quality: "high",
-        });
+        return generateGeminiImage(prompt);
       });
       
       const responses = await Promise.all(logoPromises);
@@ -2646,7 +2641,7 @@ This should look like it was designed by a world-class branding agency. Make it 
       const levelStr = gradeLevel ? ` for ${gradeLevel} students` : "";
       const subjStr = subject ? ` in ${subject}` : "";
       const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gemini-2.0-flash",
         messages: [{ role: "user", content: `Suggest exactly 6 specific key points or subtopics for an educational presentation about "${topic}"${levelStr}${subjStr}. Return ONLY a JSON array of short strings (max 6 words each). Example: ["What is photosynthesis", "Role of sunlight", "Chlorophyll explained"]` }],
         max_tokens: 200,
         temperature: 0.7,
@@ -3215,12 +3210,7 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
   const numImages = layout === "grid" ? 4 : 1;
   
   if (numImages === 1) {
-    const response = await openai.images.generate({
-      model: "gpt-image-1",
-      prompt: enhancedPrompt,
-      size: "1024x1024",
-      n: 1,
-    });
+    const response = await generateGeminiImage(enhancedPrompt);
 
     const imageData = response.data?.[0];
     if (!imageData) {
@@ -3238,12 +3228,7 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
     // Generate 4 images for grid layout
     const images: string[] = [];
     for (let i = 0; i < 4; i++) {
-      const response = await openai.images.generate({
-        model: "gpt-image-1",
-        prompt: `${enhancedPrompt} (variation ${i + 1})`,
-        size: "1024x1024",
-        n: 1,
-      });
+      const response = await generateGeminiImage(`${enhancedPrompt} (variation ${i + 1})`);
       const imageData = response.data?.[0];
       if (imageData?.b64_json) {
         images.push(imageData.b64_json);
@@ -3438,7 +3423,7 @@ CRITICAL IMAGE DESCRIPTION RULES:
 - All educational content (facts, exercises, questions, answers) must go in the "content" array as bullet points, NOT in imagePrompts.`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gemini-2.0-flash",
     messages: [
       {
         role: "system",
@@ -3513,12 +3498,7 @@ CRITICAL IMAGE DESCRIPTION RULES:
   const imageResults = await Promise.all(
     allImageTasks.map(async (task) => {
       try {
-        const imageResponse = await openai.images.generate({
-          model: "gpt-image-1",
-          prompt: `${stylePrompt}. ${qualityPrompt}. Educational illustration for children: ${task.prompt}. Suitable for classroom presentation. IMPORTANT: Do NOT include any text, words, letters, numbers, labels, or captions in the image. The image should be purely visual with no written text whatsoever.`,
-          n: 1,
-          size: imageSize,
-        });
+        const imageResponse = await generateGeminiImage(`${stylePrompt}. ${qualityPrompt}. Educational illustration for children: ${task.prompt}. Suitable for classroom presentation. IMPORTANT: Do NOT include any text, words, letters, numbers, labels, or captions in the image. The image should be purely visual with no written text whatsoever.`);
         
         const imageData = imageResponse.data?.[0]?.b64_json;
         return { ...task, image: imageData ? `data:image/png;base64,${imageData}` : null };
@@ -3562,7 +3542,7 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
   };
   
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gemini-2.0-flash",
     messages: [
       {
         role: "system",
@@ -3680,7 +3660,7 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
   const gameInfo = gameTypeDescriptions[gameType] || gameTypeDescriptions.luckySpinner;
   
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gemini-2.0-flash",
     messages: [
       {
         role: "system",
@@ -3786,7 +3766,7 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
   }[length] || "2 minutes";
   
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gemini-2.0-flash",
     messages: [
       {
         role: "system",
@@ -3844,12 +3824,7 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
             ? "Photorealistic, educational photography style"
             : "Colorful animated style like Pixar or Cocomelon";
           
-          const imageResponse = await openai.images.generate({
-            model: "gpt-image-1",
-            prompt: `${stylePrompt}: ${frame.imagePrompt}. Child-friendly, educational, vibrant colors. Do NOT include any text, words, or labels in the image.`,
-            n: 1,
-            size: "1024x1024",
-          });
+          const imageResponse = await generateGeminiImage(`${stylePrompt}: ${frame.imagePrompt}. Child-friendly, educational, vibrant colors. Do NOT include any text, words, or labels in the image.`);
           
           const imageData = imageResponse.data?.[0]?.b64_json;
           if (imageData) {
@@ -3886,7 +3861,7 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
     : "Use colorful, engaging design with colored backgrounds, borders, and visual elements.";
   
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gemini-2.0-flash",
     messages: [
       {
         role: "system",
@@ -4060,7 +4035,7 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
         - Sub-topics can include more detail and abstract concepts`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gemini-2.0-flash",
     messages: [
       {
         role: "system",
@@ -4127,12 +4102,7 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
           const styleAddition = imageStyle === "reallife" 
             ? " Realistic photograph, high quality, professional photography." 
             : " Cute cartoon illustration, colorful, educational style, bright colors.";
-          const imgResponse = await openai.images.generate({
-            model: "gpt-image-1",
-            prompt: item.prompt + styleAddition + " IMPORTANT: Do NOT include any text, words, letters, numbers, or labels in the image. Show ONE clear recognizable object or scene.",
-            n: 1,
-            size: "1024x1024",
-          });
+          const imgResponse = await generateGeminiImage(item.prompt + styleAddition + " IMPORTANT: Do NOT include any text, words, letters, numbers, or labels in the image. Show ONE clear recognizable object or scene.");
           const imageData = imgResponse.data[0];
           if (!imageData) return { key: item.key, url: null };
           if (imageData.b64_json) {
