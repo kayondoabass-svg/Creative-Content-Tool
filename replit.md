@@ -22,7 +22,7 @@ The landing page includes:
 - Testimonials section with teacher quotes from around the world
 - FAQ accordion with common questions and answers
 - Daily Teaching Tip section (30 rotating tips, changes daily based on day of year)
-- Newsletter subscription section (email signup with Resend welcome email)
+- Newsletter subscription section (email signup with AfroAI welcome email)
 - Welcome Back banner for returning visitors (localStorage-based detection, auto-dismisses after 8 seconds)
 - Final CTA section with call to action buttons
 
@@ -33,9 +33,9 @@ BrightBoard is built with a React, TypeScript, and Vite frontend utilizing Tailw
 - **Content Generation**: Supports 7 types: images (educational illustrations), presentations (slide decks with speaker notes, PowerPoint export, slideshow mode, customizable slide counts, premium animations, transitions, and tap-to-reveal), text (stories, explanations), activities/games (12 interactive, playable online game types like Lucky Spinner, Mystery Box, Memory Match), video storyboards (with variable video lengths, frame counts, AI narration, background music, subtitles, and multi-language audio/subtitle options), worksheets (printable with various section types and multiple download formats), and mind maps (SVG-based visual radial mind maps with three layout styles: Radial/spider, Sketch/hand-drawn, Infographic/circles; AI-generated images for center and branches, curved bezier connections, customizable branch count 3-8, image style, image quality, and content style options).
 - **User Management**: Custom email/password authentication, email verification, password reset, and reCAPTCHA support. Owner dashboard and expense tracking for administrative oversight.
 - **File Management**: Integrated file converter (PDF, JPEG, PNG) and reference image upload for presentation generation using GPT-4o vision.
-- **Subscription Model**: Free tier with limited generations and max 4 slides per presentation; premium tiers (weekly $4.99, monthly $14.99, yearly $99.99 base USD) offering unlimited generations, up to 20 slides, HD/4K quality, premium animations, and ad-free video exports. Payment processing via PesaPal (mobile money, cards). Email receipts sent via Resend after successful payment. Localized currency display: pricing page auto-detects user's country via timezone and shows prices in local currency (22 currencies supported including UGX, KES, TZS, GBP, EUR, NGN, etc.). Users can manually switch currency via dropdown. API: `GET /api/pricing?country=XX`.
+- **Subscription Model**: Free tier with limited generations and max 4 slides per presentation; premium tiers (weekly $4.99, monthly $14.99, yearly $99.99 base USD) offering unlimited generations, up to 20 slides, HD/4K quality, premium animations, and ad-free video exports. Payment processing via PesaPal (mobile money, cards). Email receipts sent via AfroAI after successful payment. Localized currency display: pricing page auto-detects user's country via timezone and shows prices in local currency (22 currencies supported including UGX, KES, TZS, GBP, EUR, NGN, etc.). Users can manually switch currency via dropdown. API: `GET /api/pricing?country=XX`.
 - **Internationalization**: Full i18n support for 11 languages, including RTL for Arabic, with language preference saving.
-- **Admin Tools**: Owner Dashboard provides real-time statistics (user metrics, content metrics, subscription breakdown, recent signups, 30-day trends), revenue/payment tracking (total revenue, by tier, by payment method, monthly trends, recent payments table), URA tax summary (VAT @ 18%, TIN 1008176770, estimated VAT calculations), business registration details (Keyo Technologies, URSB Reg: 80030812159711, P.O. Box 22900 Kampala), and Owner Expenses tracks costs (OpenAI, Resend, Paddle, ads, etc.). Owner can control video branding settings (watermark visibility, end logo). Revenue API: `/api/owner/revenue`.
+- **Admin Tools**: Owner Dashboard provides real-time statistics (user metrics, content metrics, subscription breakdown, recent signups, 30-day trends), revenue/payment tracking (total revenue, by tier, by payment method, monthly trends, recent payments table), URA tax summary (VAT @ 18%, TIN 1008176770, estimated VAT calculations), business registration details (Keyo Technologies, URSB Reg: 80030812159711, P.O. Box 22900 Kampala), and Owner Expenses tracks costs (OpenAI, AfroAI, ads, etc.). Owner can control video branding settings (watermark visibility, end logo). Revenue API: `/api/owner/revenue`.
 - **Branding**: BrightBoard logo badge (favicon + "brightboardapp.com") appears on all generated content (images, presentations, storyboards, games, slideshows, PPT exports, videos). Free users get watermark overlay; all content shows the brand badge via shared `BrightBoardLogo` component (`client/src/components/brightboard-logo.tsx`).
 - **Image Generation**: DALL-E prompts explicitly instruct no text/labels in generated images to prevent text overlap with slide content.
 
@@ -43,11 +43,11 @@ BrightBoard is built with a React, TypeScript, and Vite frontend utilizing Tailw
 
 ## External Dependencies
 - **OpenAI**: Used for AI content generation (images, text, presentations, storyboards, worksheets) and voice-to-text.
-- **Resend**: For email delivery (verification codes, password resets).
+- **AfroAI Email API**: For email delivery (verification codes, password resets, receipts, marketing). API key stored as AFROAI_EMAIL_API_KEY. Sends from noreply@brightboardapp.com and support@brightboardapp.com.
 - **PesaPal**: Payment processor for subscription management (API 3.0). Supports mobile money (MTN, Airtel), cards, and multiple currencies. Service in `server/pesapalService.ts`.
 - **pptxgenjs**: For generating PowerPoint (.pptx) files.
 - **express-session**: For session-based authentication.
 - **Web Audio API**: For sound effects in interactive games.
 - **Web Speech API**: For voice-to-text input.
 - **Zod**: For schema validation.
-- **Cloudflare**: For domain management (as per Resend setup).
+- **Cloudflare**: For domain management. DNS must include SPF (v=spf1 include:amazonses.com ~all) and DMARC records for brightboardapp.com email delivery via AfroAI.

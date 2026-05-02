@@ -2821,7 +2821,7 @@ This should look like it was designed by a world-class branding agency. Make it 
 
   // ========== OWNER EXPENSES ENDPOINTS ==========
   
-  // Helper to log automatic expenses (OpenAI, Resend)
+  // Helper to log automatic expenses (OpenAI, AfroAI)
   async function logAutomaticExpense(
     category: string,
     description: string,
