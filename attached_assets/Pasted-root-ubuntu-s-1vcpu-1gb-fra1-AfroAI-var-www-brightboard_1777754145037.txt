@@ -1,0 +1,218 @@
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# pm2 delete brightboard
+[PM2] Applying action deleteProcessId on app [brightboard](ids: [ 0 ])
+[PM2] [brightboard](0) ✓
+┌────┬───────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name      │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+└────┴───────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# cd /var/www/brightboardapp.com
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# git pull origin main
+From https://github.com/kayondoabass-svg/Creative-Content-Tool
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# npm install
+
+up to date, audited 613 packages in 6s
+
+104 packages are looking for funding
+  run `npm fund` for details
+
+16 vulnerabilities (1 low, 4 moderate, 10 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# npm run build
+
+> rest-express@1.0.0 build
+> tsx script/build.ts
+
+building client...
+vite v7.3.0 building client environment for production...
+transforming (1) src/main.tsxBrowserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+transforming (5) src/App.tsx
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+
+<--- Last few GCs --->
+
+[169689:0x3c05e4b0]    53488 ms: Mark-Compact 471.5 (490.0) -> 467.5 (490.3) MB, 1242.91 / 0.00 ms  (average mu = 0.165, current mu = 0.119) allocation failure; scavenge might not succeed
+[169689:0x3c05e4b0]    54950 ms: Mark-Compact 471.6 (490.3) -> 467.7 (490.5) MB, 1310.15 / 0.00 ms  (average mu = 0.135, current mu = 0.104) allocation failure; scavenge might not succeed
+
+
+<--- JS stacktrace --->
+
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 0xb78db3 node::OOMErrorHandler(char const*, v8::OOMDetails const&) [/usr/bin/node]
+ 2: 0xee8300 v8::Utils::ReportOOMFailure(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [/usr/bin/node]
+ 3: 0xee85e7 v8::internal::V8::FatalProcessOutOfMemory(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [/usr/bin/node]
+ 4: 0x10fb205  [/usr/bin/node]
+ 5: 0x10fb794 v8::internal::Heap::RecomputeLimits(v8::internal::GarbageCollector) [/usr/bin/node]
+ 6: 0x1112684 v8::internal::Heap::PerformGarbageCollection(v8::internal::GarbageCollector, v8::internal::GarbageCollectionReason, char const*) [/usr/bin/node]
+ 7: 0x1112e9c v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags) [/usr/bin/node]
+ 8: 0x10e91f1 v8::internal::HeapAllocator::AllocateRawWithLightRetrySlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/usr/bin/node]
+ 9: 0x10ea385 v8::internal::HeapAllocator::AllocateRawWithRetryOrFailSlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/usr/bin/node]
+10: 0x10c69a6 v8::internal::Factory::AllocateRaw(int, v8::internal::AllocationType, v8::internal::AllocationAlignment) [/usr/bin/node]
+11: 0x10b7e4a v8::internal::FactoryBase<v8::internal::Factory>::AllocateRawArray(int, v8::internal::AllocationType, v8::internal::AllocationAlignment) [/usr/bin/node]
+12: 0x10b7fb4 v8::internal::FactoryBase<v8::internal::Factory>::NewFixedArrayWithFiller(v8::internal::Handle<v8::internal::Map>, int, v8::internal::Handle<v8::internal::Oddball>, v8::internal::AllocationType) [/usr/bin/node]
+13: 0x13dc0cd v8::internal::Handle<v8::internal::NameDictionary> v8::internal::HashTable<v8::internal::NameDictionary, v8::internal::NameDictionaryShape>::New<v8::internal::Isolate>(v8::internal::Isolate*, int, v8::internal::AllocationType, v8::internal::MinimumCapacity) [/usr/bin/node]
+14: 0x13dd3f9 v8::internal::Handle<v8::internal::NameDictionary> v8::internal::BaseNameDictionary<v8::internal::NameDictionary, v8::internal::NameDictionaryShape>::New<v8::internal::Isolate>(v8::internal::Isolate*, int, v8::internal::AllocationType, v8::internal::MinimumCapacity) [/usr/bin/node]
+15: 0x13dd479 v8::internal::Handle<v8::internal::NameDictionary> v8::internal::NameDictionary::New<v8::internal::Isolate>(v8::internal::Isolate*, int, v8::internal::AllocationType, v8::internal::MinimumCapacity) [/usr/bin/node]
+16: 0x10d4458 v8::internal::Factory::NewSlowJSObjectFromMap(v8::internal::Handle<v8::internal::Map>, int, v8::internal::AllocationType, v8::internal::Handle<v8::internal::AllocationSite>) [/usr/bin/node]
+17: 0x1330a14 v8::internal::JSObject::ObjectCreate(v8::internal::Isolate*, v8::internal::Handle<v8::internal::Object>) [/usr/bin/node]
+18: 0x152dfdb v8::internal::Runtime_ObjectCreate(int, unsigned long*, v8::internal::Isolate*) [/usr/bin/node]
+19: 0x195e476  [/usr/bin/node]
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# npm run db:push
+
+> rest-express@1.0.0 db:push
+> drizzle-kit push
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/var/www/brightboardapp.com/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
+[i] No changes detected
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# pm2 start npm --name "brightboard" -- start
+[PM2] Starting /usr/bin/npm in fork_mode (1 instance)
+[PM2] Done.
+┌────┬────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name           │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ brightboard    │ default     │ N/A     │ fork    │ 169752   │ 0s     │ 0    │ online    │ 0%       │ 28.6mb   │ root     │ disabled │
+└────┴────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+root@ubuntu-s-1vcpu-1gb-fra1-AfroAI:/var/www/brightboardapp.com# pm2 logs brightboard --lines 20
+[TAILING] Tailing last 20 lines for [brightboard] process (change the value with --lines option)
+/root/.pm2/logs/brightboard-out.log last 20 lines:
+0|brightbo |
+0|brightbo | > rest-express@1.0.0 start
+0|brightbo | > NODE_ENV=production node dist/index.cjs
+0|brightbo |
+0|brightbo |
+0|brightbo | > rest-express@1.0.0 start
+0|brightbo | > NODE_ENV=production node dist/index.cjs
+0|brightbo |
+0|brightbo |
+0|brightbo | > rest-express@1.0.0 start
+0|brightbo | > NODE_ENV=production node dist/index.cjs
+0|brightbo |
+0|brightbo |
+0|brightbo | > rest-express@1.0.0 start
+0|brightbo | > NODE_ENV=production node dist/index.cjs
+0|brightbo |
+0|brightbo |
+0|brightbo | > rest-express@1.0.0 start
+0|brightbo | > NODE_ENV=production node dist/index.cjs
+0|brightbo |
+
+/root/.pm2/logs/brightboard-error.log last 20 lines:
+0|brightbo |     at node:internal/main/run_main_module:28:49 {
+0|brightbo |   code: 'MODULE_NOT_FOUND',
+0|brightbo |   requireStack: []
+0|brightbo | }
+0|brightbo |
+0|brightbo | Node.js v20.20.2
+0|brightbo | node:internal/modules/cjs/loader:1210
+0|brightbo |   throw err;
+0|brightbo |   ^
+0|brightbo |
+0|brightbo | Error: Cannot find module '/var/www/brightboardapp.com/dist/index.cjs'
+0|brightbo |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|brightbo |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|brightbo |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|brightbo |     at node:internal/main/run_main_module:28:49 {
+0|brightbo |   code: 'MODULE_NOT_FOUND',
+0|brightbo |   requireStack: []
+0|brightbo | }
+0|brightbo |
+0|brightbo | Node.js v20.20.2
+
+0|brightboard  | > rest-express@1.0.0 start
+0|brightboard  | > NODE_ENV=production node dist/index.cjs
+0|brightboard  | node:internal/modules/cjs/loader:1210
+0|brightboard  |   throw err;
+0|brightboard  |   ^
+0|brightboard  | Error: Cannot find module '/var/www/brightboardapp.com/dist/index.cjs'
+0|brightboard  |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|brightboard  |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|brightboard  |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|brightboard  |     at node:internal/main/run_main_module:28:49 {
+0|brightboard  |   code: 'MODULE_NOT_FOUND',
+0|brightboard  |   requireStack: []
+0|brightboard  | }
+0|brightboard  | Node.js v20.20.2
+0|brightboard  | > rest-express@1.0.0 start
+0|brightboard  | > NODE_ENV=production node dist/index.cjs
+0|brightboard  | node:internal/modules/cjs/loader:1210
+0|brightboard  |   throw err;
+0|brightboard  |   ^
+0|brightboard  | Error: Cannot find module '/var/www/brightboardapp.com/dist/index.cjs'
+0|brightboard  |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|brightboard  |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|brightboard  |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|brightboard  |     at node:internal/main/run_main_module:28:49 {
+0|brightboard  |   code: 'MODULE_NOT_FOUND',
+0|brightboard  |   requireStack: []
+0|brightboard  | }
+0|brightboard  | Node.js v20.20.2
+0|brightboard  | > rest-express@1.0.0 start
+0|brightboard  | > NODE_ENV=production node dist/index.cjs
+0|brightboard  | node:internal/modules/cjs/loader:1210
+0|brightboard  |   throw err;
+0|brightboard  |   ^
+0|brightboard  | Error: Cannot find module '/var/www/brightboardapp.com/dist/index.cjs'
+0|brightboard  |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|brightboard  |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|brightboard  |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|brightboard  |     at node:internal/main/run_main_module:28:49 {
+0|brightboard  |   code: 'MODULE_NOT_FOUND',
+0|brightboard  |   requireStack: []
+0|brightboard  | }
+0|brightboard  | Node.js v20.20.2
+0|brightboard  | > rest-express@1.0.0 start
+0|brightboard  | > NODE_ENV=production node dist/index.cjs
+0|brightboard  | node:internal/modules/cjs/loader:1210
+0|brightboard  |   throw err;
+0|brightboard  |   ^
+0|brightboard  | Error: Cannot find module '/var/www/brightboardapp.com/dist/index.cjs'
+0|brightboard  |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|brightboard  |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|brightboard  |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|brightboard  |     at node:internal/main/run_main_module:28:49 {
+0|brightboard  |   code: 'MODULE_NOT_FOUND',
+0|brightboard  |   requireStack: []
+0|brightboard  | }
+0|brightboard  | Node.js v20.20.2
+0|brightboard  | > rest-express@1.0.0 start
+0|brightboard  | > NODE_ENV=production node dist/index.cjs
+0|brightboard  | node:internal/modules/cjs/loader:1210
+0|brightboard  |   throw err;
+0|brightboard  |   ^
+0|brightboard  | Error: Cannot find module '/var/www/brightboardapp.com/dist/index.cjs'
+0|brightboard  |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|brightboard  |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|brightboard  |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|brightboard  |     at node:internal/main/run_main_module:28:49 {
+0|brightboard  |   code: 'MODULE_NOT_FOUND',
+0|brightboard  |   requireStack: []
+0|brightboard  | }
+0|brightboard  | Node.js v20.20.2
+0|brightboard  | > rest-express@1.0.0 start
+0|brightboard  | > NODE_ENV=production node dist/index.cjs
+0|brightboard  | node:internal/modules/cjs/loader:1210
+0|brightboard  |   throw err;
+0|brightboard  |   ^
+0|brightboard  | Error: Cannot find module '/var/www/brightboardapp.com/dist/index.cjs'
+0|brightboard  |     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|brightboard  |     at Module._load (node:internal/modules/cjs/loader:1038:27)
+0|brightboard  |     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+0|brightboard  |     at node:internal/main/run_main_module:28:49 {
+0|brightboard  |   code: 'MODULE_NOT_FOUND',
+0|brightboard  |   requireStack: []
+0|brightboard  | }
+0|brightboard  | Node.js v20.20.2
