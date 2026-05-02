@@ -21,6 +21,7 @@ function isAuthenticated(req: any, res: any, next: any) {
 import crypto from "crypto";
 import { verifyRecaptchaToken } from "./recaptcha/verifyRecaptcha";
 import * as customAuth from "./customAuthService";
+import { afroaiSignup, afroaiLogin } from "./afroaiAuthService";
 import { db } from "./db";
 import { users, featureUsage, loginEvents, pageViews, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
@@ -164,6 +165,10 @@ ${pages.map(p => `  <url>
             (req as any).session.userId = newUser.id;
             (req as any).session.user = newUser;
             db.insert(loginEvents).values({ userId: newUser.id }).catch(() => {});
+            // Register with AfroAI auth (non-blocking)
+            afroaiSignup(email, password).then(afroai => {
+              if (afroai.token) (req as any).session.afroaiToken = afroai.token;
+            }).catch(() => {});
             return res.json({ message: result.message, userId: result.userId, user: newUser });
           }
         } catch (sessionErr) {
@@ -248,6 +253,11 @@ ${pages.map(p => `  <url>
 
       // Log login event for analytics (fire-and-forget)
       db.insert(loginEvents).values({ userId: result.user.id }).catch(() => {});
+
+      // Authenticate with AfroAI and store token in session (non-blocking)
+      afroaiLogin(email, password).then(afroai => {
+        if (afroai.token) (req as any).session.afroaiToken = afroai.token;
+      }).catch(() => {});
 
       res.json({ user: result.user });
     } catch (error) {
