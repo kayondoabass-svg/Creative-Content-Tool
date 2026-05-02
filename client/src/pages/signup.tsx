@@ -59,8 +59,8 @@ export default function SignupPage() {
       const redirect = urlParams.get("redirect") || "/";
       await signup({ email, password, firstName, lastName, recaptchaToken, ref });
       localStorage.setItem("pendingVerificationEmail", email);
-      toast({ title: "Welcome to BrightBoard!", description: "Check your email to verify your account when you get a chance." });
-      setLocation(redirect);
+      toast({ title: "Account created!", description: "Enter the 6-digit code we sent to your email." });
+      setLocation(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       toast({ title: "Sign up failed", description: error.message || "Please try again", variant: "destructive" });
     }
