@@ -564,7 +564,9 @@ ${pages.map(p => `  <url>
   app.get("/api/auth/social-providers", (_req, res) => {
     res.json({
       facebook: !!process.env.FACEBOOK_APP_ID,
-      tiktok: !!process.env.TIKTOK_CLIENT_KEY,
+      // TikTok hidden until TikTok Developer app review is approved
+      // Set TIKTOK_ENABLED=true in secrets to re-enable once approved
+      tiktok: process.env.TIKTOK_ENABLED === "true" && !!process.env.TIKTOK_CLIENT_KEY,
     });
   });
 
