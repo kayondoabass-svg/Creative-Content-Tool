@@ -1,0 +1,23 @@
+To move **BrightBoard** into **Production** mode and open it to all users, you must complete Google's **Brand Verification** process. This is essential to remove the "unverified app" warning and allow more than 100 users.
+### **1. Immediate Setup in Google Cloud Console**
+Go to your project's **OAuth consent screen** settings and ensure these fields are finalized:
+ * **App Logo:** Upload a 120x120px square image.
+ * **Homepage Link:** Use [https://brightboardapp.com](https://brightboardapp.com). This page must be publicly accessible and explain what your app does.
+ * **Privacy Policy & Terms of Service Links:** You must host these on your domain and provide the exact URLs (e.g., [https://brightboardapp.com/privacy](https://brightboardapp.com/privacy)).
+ * **Authorized Domains:** Ensure brightboardapp.com is listed. You must also be an **Owner** or **Editor** of this domain in Google Search Console.
+### **2. Creating Your AI Privacy Policy**
+Since **BrightBoard** uses AI to generate content for teachers, your privacy policy must be transparent about data use. It should include:
+ * **What Data is Collected:** Names, emails, and any data provided in AI prompts.
+ * **Purpose of Processing:** Explain how data is used to generate lesson plans and if it is used to "train" or improve your models.
+ * **Third-Party Sharing:** Disclose if data is sent to AI providers (like Google's Gemini API).
+ * **User Rights:** Clearly state how users can access, correct, or delete their data.
+### **3. The Verification Timeline**
+ 1. **Submit:** Once you click **Confirm** on the "In production" screen and submit, Google's Trust & Safety team will review your app.
+ 2. **Review:** Brand verification typically takes **2–3 business days**.
+ 3. **Scopes:** If you only use basic sign-in (**email**, **profile**, **openid**), the process is "light-weight" and does not require a deep security audit.
+ 4. **Testing while waiting:** You can still have up to 100 users while "Under Review," but they will see a warning screen until you are fully approved.
+### **Checklist for Launch**
+ * [ ] Is your homepage accessible without logging in?
+ * [ ] Do your "Sign in with Google" buttons follow Google’s branding guidelines?
+ * [ ] Is your support email (kayondoabass@gmail.com) active and checked regularly?
+Would you like a sample template for an AI-specific Privacy Policy to host on your site?
