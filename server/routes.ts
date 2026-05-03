@@ -29,7 +29,7 @@ import * as pesapalService from "./pesapalService";
 import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
 const openai = new OpenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_KEY || "missing-key",
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
 });
 
