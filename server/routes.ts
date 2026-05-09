@@ -3450,7 +3450,7 @@ CRITICAL IMAGE DESCRIPTION RULES:
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 8000,
+    max_tokens: 8000,
   });
 
   const content = response.choices[0]?.message?.content || "{}";
@@ -3567,7 +3567,7 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 2048,
+    max_tokens: 2048,
   });
 
   const content = response.choices[0]?.message?.content || "{}";
@@ -3696,7 +3696,7 @@ Make it exciting and educational! Teachers should want to use this in their clas
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 3000,
+    max_tokens: 3000,
   });
 
   const content = response.choices[0]?.message?.content || "{}";
@@ -3808,7 +3808,7 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 6000,
+    max_tokens: 6000,
   });
 
   const jsonContent = response.choices[0]?.message?.content || "{}";
@@ -3897,7 +3897,7 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 4000,
+    max_tokens: 4000,
   });
 
   const jsonContent = response.choices[0]?.message?.content || "{}";
@@ -4075,7 +4075,7 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
       }
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 4000,
+    max_tokens: 4000,
   });
 
   const content = response.choices[0]?.message?.content || "{}";
