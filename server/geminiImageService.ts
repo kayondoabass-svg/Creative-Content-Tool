@@ -6,8 +6,8 @@
  */
 
 const IMAGE_MODELS = [
-  "gemini-2.0-flash-exp",
-  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash-lite",
 ];
 
 async function tryModel(apiKey: string, model: string, prompt: string): Promise<string | null> {
