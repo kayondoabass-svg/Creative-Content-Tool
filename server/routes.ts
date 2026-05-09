@@ -33,6 +33,25 @@ const openai = new OpenAI({
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
 });
 
+// Patch openai.chat.completions.create to auto-retry on 429 rate limit errors
+const _origCreate = openai.chat.completions.create.bind(openai.chat.completions);
+(openai.chat.completions as any).create = async (...args: any[]) => {
+  for (let attempt = 0; attempt <= 3; attempt++) {
+    try {
+      return await _origCreate(...args);
+    } catch (err: any) {
+      const is429 = err?.status === 429 || String(err?.message).includes("429");
+      if (is429 && attempt < 3) {
+        const wait = 5000 * (attempt + 1);
+        console.log(`[Gemini] 429 rate limit — retrying in ${wait}ms (attempt ${attempt + 1}/3)`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      throw err;
+    }
+  }
+};
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -2641,7 +2660,7 @@ This should look like it was designed by a world-class branding agency. Make it 
       const levelStr = gradeLevel ? ` for ${gradeLevel} students` : "";
       const subjStr = subject ? ` in ${subject}` : "";
       const response = await openai.chat.completions.create({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         messages: [{ role: "user", content: `Suggest exactly 6 specific key points or subtopics for an educational presentation about "${topic}"${levelStr}${subjStr}. Return ONLY a JSON array of short strings (max 6 words each). Example: ["What is photosynthesis", "Role of sunlight", "Chlorophyll explained"]` }],
         max_tokens: 200,
         temperature: 0.7,
@@ -3423,7 +3442,7 @@ CRITICAL IMAGE DESCRIPTION RULES:
 - All educational content (facts, exercises, questions, answers) must go in the "content" array as bullet points, NOT in imagePrompts.`;
 
   const response = await openai.chat.completions.create({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     messages: [
       {
         role: "system",
@@ -3542,7 +3561,7 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
   };
   
   const response = await openai.chat.completions.create({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     messages: [
       {
         role: "system",
@@ -3660,7 +3679,7 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
   const gameInfo = gameTypeDescriptions[gameType] || gameTypeDescriptions.luckySpinner;
   
   const response = await openai.chat.completions.create({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     messages: [
       {
         role: "system",
@@ -3766,7 +3785,7 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
   }[length] || "2 minutes";
   
   const response = await openai.chat.completions.create({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     messages: [
       {
         role: "system",
@@ -3861,7 +3880,7 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
     : "Use colorful, engaging design with colored backgrounds, borders, and visual elements.";
   
   const response = await openai.chat.completions.create({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     messages: [
       {
         role: "system",
@@ -4035,7 +4054,7 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
         - Sub-topics can include more detail and abstract concepts`;
 
   const response = await openai.chat.completions.create({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     messages: [
       {
         role: "system",
