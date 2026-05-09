@@ -182,28 +182,22 @@ async function generateSubtitleFile(
 
 async function generateBackgroundMusic(duration: number, tempDir: string): Promise<string> {
   const musicFile = path.join(tempDir, 'background_music.mp3');
-  
+  const fadeOut = Math.max(0, duration - 2);
+
+  // aevalsrc generates a soft C-major chord (C4+E4+G4) as a single lavfi source
+  // No complex filter chain needed — avoids "Invalid argument" errors
+  const expr = '0.08*sin(2*PI*261.63*t)+0.06*sin(2*PI*329.63*t)+0.05*sin(2*PI*392*t)';
+
   return new Promise((resolve, reject) => {
-    const loopCount = Math.ceil(duration / 4);
-    
     ffmpeg()
-      .input('anullsrc=r=44100:cl=stereo')
+      .input(`aevalsrc=${expr}:s=44100:d=${duration}`)
       .inputOptions(['-f', 'lavfi'])
-      .complexFilter([
-        `sine=f=261.63:d=1,volume=0.08[c];` +
-        `sine=f=329.63:d=1,volume=0.06[e];` +
-        `sine=f=392:d=1,volume=0.05[g];` +
-        `sine=f=293.66:d=1,volume=0.07[d];` +
-        `sine=f=349.23:d=1,volume=0.06[f];` +
-        `sine=f=440:d=1,volume=0.05[a];` +
-        `[c][e][g]amix=inputs=3:duration=first[chord1];` +
-        `[d][f][a]amix=inputs=3:duration=first[chord2];` +
-        `[chord1][chord2][chord1][chord2]concat=n=4:v=0:a=1[loop];` +
-        `[loop]aloop=loop=${loopCount}:size=176400,atrim=0:${duration},` +
-        `afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(0, duration - 2)}:d=2,` +
-        `lowpass=f=2000,volume=0.4[out]`
-      ])
-      .outputOptions(['-map', '[out]'])
+      .audioFilter([
+        'volume=0.35',
+        'afade=t=in:st=0:d=1',
+        `afade=t=out:st=${fadeOut}:d=2`,
+        'lowpass=f=1800',
+      ].join(','))
       .audioCodec('libmp3lame')
       .audioBitrate('128k')
       .output(musicFile)
