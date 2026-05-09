@@ -247,7 +247,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col min-h-full bg-background">
       <div className="flex flex-1">
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
