@@ -2,7 +2,6 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions, type ImageOptions, type TextOptions, type ActivityOptions } from "@shared/schema";
-import { GoogleGenAI } from "@google/genai";
 import { generateGeminiImage } from "./geminiImageService";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { PDFExtract } from "pdf.js-extract";
@@ -28,7 +27,8 @@ import { users, featureUsage, loginEvents, pageViews, expenses, insertExpenseSch
 import * as pesapalService from "./pesapalService";
 import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "missing-key" });
+// ── Gemini via raw REST fetch — zero external dependencies ──────────────────
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 // Ordered list — first model that responds without 404 wins and is cached
 const TEXT_MODELS_PRIORITY = [
@@ -40,7 +40,6 @@ const TEXT_MODELS_PRIORITY = [
 ];
 let _workingTextModel: string | null = null;
 
-// Native Gemini SDK wrapper — same response shape as OpenAI so all call sites work unchanged
 async function geminiCreate(opts: {
   model?: string;
   messages: Array<{
@@ -51,8 +50,9 @@ async function geminiCreate(opts: {
   temperature?: number;
   response_format?: { type: string };
 }) {
+  const apiKey = process.env.GEMINI_API_KEY || "";
   const systemMsg = opts.messages.find(m => m.role === "system");
-  const userMsgs = opts.messages.filter(m => m.role !== "system");
+  const userMsgs  = opts.messages.filter(m => m.role !== "system");
 
   const contents = userMsgs.map((m: any) => {
     let parts: any[];
@@ -63,9 +63,9 @@ async function geminiCreate(opts: {
         if (part.type === "text") return { text: part.text };
         if (part.type === "image_url") {
           const url = part.image_url?.url || "";
-          const dataMatch = url.match(/^data:([^;]+);base64,(.+)$/);
-          if (dataMatch) return { inlineData: { mimeType: dataMatch[1], data: dataMatch[2] } };
-          return { text: `[Reference image URL: ${url}]` };
+          const dm = url.match(/^data:([^;]+);base64,(.+)$/);
+          if (dm) return { inlineData: { mimeType: dm[1], data: dm[2] } };
+          return { text: `[Image URL: ${url}]` };
         }
         return { text: JSON.stringify(part) };
       });
@@ -73,45 +73,60 @@ async function geminiCreate(opts: {
     return { role: m.role === "assistant" ? "model" : "user", parts };
   });
 
-  const config: any = {
+  const generationConfig: any = {
     maxOutputTokens: opts.max_tokens || 4096,
     temperature: opts.temperature ?? 0.7,
   };
-  if (systemMsg) config.systemInstruction = systemMsg.content as string;
-  if (opts.response_format?.type === "json_object") config.responseMimeType = "application/json";
+  if (opts.response_format?.type === "json_object") generationConfig.responseMimeType = "application/json";
 
-  // Build candidate list: cached winner first, then full priority list
+  const body: any = { contents, generationConfig };
+  if (systemMsg) body.systemInstruction = { parts: [{ text: systemMsg.content }] };
+
   const candidates = _workingTextModel
     ? [_workingTextModel, ...TEXT_MODELS_PRIORITY.filter(m => m !== _workingTextModel)]
     : TEXT_MODELS_PRIORITY;
 
   let lastErr: any;
   for (const model of candidates) {
-    // Rate-limit retry loop per model
     for (let attempt = 0; attempt <= 2; attempt++) {
       try {
-        const result = await genAI.models.generateContent({ model, contents, config });
-        if (!_workingTextModel || _workingTextModel !== model) {
+        const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const json = await resp.json() as any;
+        if (!resp.ok) {
+          const code = json?.error?.code || resp.status;
+          const msg  = json?.error?.message || resp.statusText;
+          if (code === 404 || String(msg).includes("not found")) {
+            console.warn(`[Gemini] ${model} not available (404), trying next...`);
+            lastErr = new Error(msg);
+            break;
+          }
+          if (code === 429 && attempt < 2) {
+            const wait = 2000 * (attempt + 1);
+            console.log(`[Gemini] Rate limit on ${model} — retrying in ${wait}ms`);
+            await new Promise(r => setTimeout(r, wait));
+            continue;
+          }
+          throw new Error(`Gemini ${code}: ${msg}`);
+        }
+        const text = json.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") ?? "";
+        if (_workingTextModel !== model) {
           console.log(`[Gemini] Using model: ${model}`);
           _workingTextModel = model;
         }
-        return { choices: [{ message: { content: result.text } }] };
+        return { choices: [{ message: { content: text } }] };
       } catch (err: any) {
+        lastErr = err;
         const msg = String(err?.message || "");
-        const is404 = err?.status === 404 || msg.includes("not found") || msg.includes("404");
-        const is429 = err?.status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota");
-        if (is404) {
-          console.warn(`[Gemini] Model ${model} not available (404), trying next...`);
-          lastErr = err;
-          break; // try next model
-        }
-        if (is429 && attempt < 2) {
-          const wait = 2000 * (attempt + 1);
-          console.log(`[Gemini] Rate limit on ${model} — retrying in ${wait}ms`);
-          await new Promise(r => setTimeout(r, wait));
+        if (msg.includes("not found") || msg.includes("404")) break;
+        if (attempt < 2 && (msg.includes("429") || msg.includes("quota"))) {
+          await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
           continue;
         }
-        lastErr = err;
         break;
       }
     }

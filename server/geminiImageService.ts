@@ -1,9 +1,7 @@
 /**
- * Gemini native image generation service using @google/genai SDK.
- * Returns { data: [{ b64_json }] } shape so all existing callers work unchanged.
- * Tries gemini-2.0-flash-preview-image-generation first, falls back to imagen-3.
+ * Gemini image generation via raw REST API — no SDK, no external dependencies.
+ * Returns { data: [{ b64_json }] } so all callers work unchanged.
  */
-import { GoogleGenAI } from "@google/genai";
 
 const IMAGE_MODELS = [
   "imagen-3.0-generate-001",
@@ -12,49 +10,60 @@ const IMAGE_MODELS = [
 
 export async function generateGeminiImage(
   prompt: string
-): Promise<{ data: Array<{ b64_json?: string; url?: string }> }> {
+): Promise<{ data: Array<{ b64_json?: string }> }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "missing-key") {
-    console.warn("[ImageGen] GEMINI_API_KEY not set, skipping");
+    console.warn("[ImageGen] GEMINI_API_KEY not set");
     return { data: [{}] };
   }
-
-  const genAI = new GoogleGenAI({ apiKey });
 
   for (const model of IMAGE_MODELS) {
     try {
       const isImagen = model.startsWith("imagen-");
+      const endpoint = isImagen
+        ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`
+        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const body = isImagen
+        ? {
+            instances: [{ prompt }],
+            parameters: { sampleCount: 1 },
+          }
+        : {
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+          };
+
+      const resp = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        console.warn(`[ImageGen] ${model} HTTP ${resp.status}: ${err.slice(0, 200)}`);
+        continue;
+      }
+
+      const data = await resp.json() as any;
 
       let b64: string | null = null;
-
       if (isImagen) {
-        // Imagen uses generateImages
-        const result = await (genAI.models as any).generateImages({
-          model,
-          prompt,
-          config: { numberOfImages: 1, outputMimeType: "image/png" },
-        });
-        b64 = result.generatedImages?.[0]?.image?.imageBytes ?? null;
+        b64 = data.predictions?.[0]?.bytesBase64Encoded ?? null;
       } else {
-        // Gemini image generation model
-        const result = await genAI.models.generateContent({
-          model,
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          config: { responseModalities: ["IMAGE", "TEXT"] } as any,
-        });
-        const imagePart = result.candidates?.[0]?.content?.parts?.find(
-          (p: any) => p.inlineData?.data
-        );
-        b64 = imagePart?.inlineData?.data ?? null;
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        const imgPart = parts.find((p: any) => p.inlineData?.data);
+        b64 = imgPart?.inlineData?.data ?? null;
       }
 
       if (b64) {
-        console.log(`[ImageGen] Success with model: ${model}`);
+        console.log(`[ImageGen] Success: ${model}`);
         return { data: [{ b64_json: b64 }] };
       }
       console.warn(`[ImageGen] ${model} returned no image data`);
     } catch (err: any) {
-      console.warn(`[ImageGen] ${model} failed: ${err.message?.slice(0, 150)}`);
+      console.warn(`[ImageGen] ${model} error: ${err.message?.slice(0, 150)}`);
     }
   }
 
