@@ -83,7 +83,7 @@ export function registerChatRoutes(app: Express): void {
         .map((m: any) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
       const systemMsg = chatMessages.find((m: any) => m.role === "system");
       const stream = await genAI.models.generateContentStream({
-        model: "gemini-2.5-flash",
+        model: "gemini-1.5-flash",
         contents,
         config: { maxOutputTokens: 2048, ...(systemMsg ? { systemInstruction: systemMsg.content } : {}) } as any,
       });

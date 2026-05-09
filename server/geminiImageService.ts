@@ -6,8 +6,8 @@
 import { GoogleGenAI } from "@google/genai";
 
 const IMAGE_MODELS = [
+  "imagen-3.0-generate-001",
   "gemini-2.0-flash-preview-image-generation",
-  "imagen-3.0-fast-generate-001",
 ];
 
 export async function generateGeminiImage(

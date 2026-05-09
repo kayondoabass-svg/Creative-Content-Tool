@@ -29,7 +29,7 @@ import * as pesapalService from "./pesapalService";
 import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "missing-key" });
-const TEXT_MODEL = "gemini-2.5-flash";
+const TEXT_MODEL = "gemini-1.5-flash";
 
 // Native Gemini SDK wrapper — same response shape as OpenAI so all call sites work unchanged
 async function geminiCreate(opts: {
