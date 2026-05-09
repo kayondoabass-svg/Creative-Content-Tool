@@ -29,7 +29,16 @@ import * as pesapalService from "./pesapalService";
 import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "missing-key" });
-const TEXT_MODEL = "gemini-1.5-flash";
+
+// Ordered list — first model that responds without 404 wins and is cached
+const TEXT_MODELS_PRIORITY = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-preview-04-17",
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-latest",
+];
+let _workingTextModel: string | null = null;
 
 // Native Gemini SDK wrapper — same response shape as OpenAI so all call sites work unchanged
 async function geminiCreate(opts: {
@@ -71,29 +80,44 @@ async function geminiCreate(opts: {
   if (systemMsg) config.systemInstruction = systemMsg.content as string;
   if (opts.response_format?.type === "json_object") config.responseMimeType = "application/json";
 
-  for (let attempt = 0; attempt <= 2; attempt++) {
-    try {
-      const result = await genAI.models.generateContent({
-        model: TEXT_MODEL,
-        contents,
-        config,
-      });
-      return { choices: [{ message: { content: result.text } }] };
-    } catch (err: any) {
-      const is429 = err?.status === 429 ||
-        String(err?.message).includes("429") ||
-        String(err?.message).includes("RESOURCE_EXHAUSTED") ||
-        String(err?.message).includes("quota");
-      if (is429 && attempt < 2) {
-        const wait = 2000 * (attempt + 1);
-        console.log(`[Gemini] Rate limit — retrying in ${wait}ms (attempt ${attempt + 1}/2)`);
-        await new Promise(r => setTimeout(r, wait));
-        continue;
+  // Build candidate list: cached winner first, then full priority list
+  const candidates = _workingTextModel
+    ? [_workingTextModel, ...TEXT_MODELS_PRIORITY.filter(m => m !== _workingTextModel)]
+    : TEXT_MODELS_PRIORITY;
+
+  let lastErr: any;
+  for (const model of candidates) {
+    // Rate-limit retry loop per model
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      try {
+        const result = await genAI.models.generateContent({ model, contents, config });
+        if (!_workingTextModel || _workingTextModel !== model) {
+          console.log(`[Gemini] Using model: ${model}`);
+          _workingTextModel = model;
+        }
+        return { choices: [{ message: { content: result.text } }] };
+      } catch (err: any) {
+        const msg = String(err?.message || "");
+        const is404 = err?.status === 404 || msg.includes("not found") || msg.includes("404");
+        const is429 = err?.status === 429 || msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota");
+        if (is404) {
+          console.warn(`[Gemini] Model ${model} not available (404), trying next...`);
+          lastErr = err;
+          break; // try next model
+        }
+        if (is429 && attempt < 2) {
+          const wait = 2000 * (attempt + 1);
+          console.log(`[Gemini] Rate limit on ${model} — retrying in ${wait}ms`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        lastErr = err;
+        break;
       }
-      throw err;
     }
   }
-  throw new Error("All Gemini retries exhausted");
+  console.error("[Gemini] All text models failed:", lastErr?.message);
+  throw lastErr || new Error("All Gemini text models failed");
 }
 
 export async function registerRoutes(
