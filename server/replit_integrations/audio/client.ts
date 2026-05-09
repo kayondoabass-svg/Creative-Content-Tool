@@ -180,26 +180,69 @@ export async function voiceChatStream(
   })();
 }
 
+// Map OpenAI voice names → Gemini TTS voice names
+const VOICE_MAP: Record<string, string> = {
+  alloy: "Aoede",
+  echo: "Charon",
+  fable: "Fenrir",
+  onyx: "Kore",
+  nova: "Puck",
+  shimmer: "Zephyr",
+};
+
+const TTS_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"];
+const GEMINI_TTS_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+
 /**
- * Text-to-Speech: Converts text to speech verbatim.
- * Uses gpt-audio model via Replit AI Integrations.
+ * Text-to-Speech using Gemini native TTS via raw fetch.
+ * Confirmed available models: gemini-2.5-flash-preview-tts, gemini-3.1-flash-tts-preview
  */
 export async function textToSpeech(
   text: string,
   voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = "alloy",
   format: "wav" | "mp3" | "flac" | "opus" | "pcm16" = "wav"
 ): Promise<Buffer> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-audio",
-    modalities: ["text", "audio"],
-    audio: { voice, format },
-    messages: [
-      { role: "system", content: "You are an assistant that performs text-to-speech." },
-      { role: "user", content: `Repeat the following text verbatim: ${text}` },
-    ],
-  });
-  const audioData = (response.choices[0]?.message as any)?.audio?.data ?? "";
-  return Buffer.from(audioData, "base64");
+  const apiKey = process.env.GEMINI_API_KEY || "";
+  const geminiVoice = VOICE_MAP[voice] || "Aoede";
+
+  for (const model of TTS_MODELS) {
+    try {
+      const url = `${GEMINI_TTS_BASE}/${model}:generateContent?key=${apiKey}`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: geminiVoice } },
+            },
+          },
+        }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        console.warn(`[TTS] ${model} HTTP ${resp.status}: ${err.slice(0, 150)}`);
+        continue;
+      }
+
+      const data = await resp.json() as any;
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      const audioPart = parts.find((p: any) => p.inlineData?.data);
+      if (audioPart?.inlineData?.data) {
+        console.log(`[TTS] Success: ${model} voice=${geminiVoice}`);
+        return Buffer.from(audioPart.inlineData.data, "base64");
+      }
+      console.warn(`[TTS] ${model} returned no audio data`);
+    } catch (err: any) {
+      console.warn(`[TTS] ${model} error: ${err.message?.slice(0, 150)}`);
+    }
+  }
+
+  console.error("[TTS] All TTS models failed — returning silent buffer");
+  return Buffer.alloc(0);
 }
 
 /**
