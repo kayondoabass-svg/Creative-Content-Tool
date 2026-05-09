@@ -180,6 +180,25 @@ export async function voiceChatStream(
   })();
 }
 
+/** Wrap raw PCM bytes in a RIFF/WAV header so FFmpeg can process them */
+function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bitsPerSample = 16): Buffer {
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(pcm.length + 36, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);          // PCM
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * channels * bitsPerSample / 8, 28);
+  header.writeUInt16LE(channels * bitsPerSample / 8, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
+}
+
 // Map OpenAI voice names → Gemini TTS voice names
 const VOICE_MAP: Record<string, string> = {
   alloy: "Aoede",
@@ -232,8 +251,14 @@ export async function textToSpeech(
       const parts = data.candidates?.[0]?.content?.parts || [];
       const audioPart = parts.find((p: any) => p.inlineData?.data);
       if (audioPart?.inlineData?.data) {
-        console.log(`[TTS] Success: ${model} voice=${geminiVoice}`);
-        return Buffer.from(audioPart.inlineData.data, "base64");
+        console.log(`[TTS] Success: ${model} voice=${geminiVoice} mime=${audioPart.inlineData.mimeType}`);
+        const raw = Buffer.from(audioPart.inlineData.data, "base64");
+        // Gemini TTS returns raw PCM (audio/pcm;rate=24000) — wrap in WAV header
+        const mimeType: string = audioPart.inlineData.mimeType || "";
+        if (mimeType.includes("pcm") || mimeType.includes("l16")) {
+          return pcmToWav(raw);
+        }
+        return raw; // already WAV or other format
       }
       console.warn(`[TTS] ${model} returned no audio data`);
     } catch (err: any) {

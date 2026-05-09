@@ -74,8 +74,8 @@ async function generateNarrationAudio(
     
     if (narrationText) {
       try {
-        const audioBuffer = await textToSpeech(narrationText, voice, 'mp3');
-        const audioFile = path.join(tempDir, `narration_${String(i).padStart(3, '0')}.mp3`);
+        const audioBuffer = await textToSpeech(narrationText, voice, 'wav');
+        const audioFile = path.join(tempDir, `narration_${String(i).padStart(3, '0')}.wav`);
         await fs.promises.writeFile(audioFile, audioBuffer);
         audioFiles.push(audioFile);
       } catch (error) {
