@@ -1,11 +1,8 @@
 import type { Express, Request, Response } from "express";
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import { chatStorage } from "./storage";
 
-const openai = new OpenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-});
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "missing-key" });
 
 export function registerChatRoutes(app: Express): void {
   // Get all conversations
@@ -80,18 +77,21 @@ export function registerChatRoutes(app: Express): void {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      // Stream response from OpenAI
-      const stream = await openai.chat.completions.create({
-        model: "gemini-2.0-flash-lite",
-        messages: chatMessages,
-        stream: true,
-        max_completion_tokens: 2048,
+      // Stream response from Gemini native SDK
+      const contents = chatMessages
+        .filter((m: any) => m.role !== "system")
+        .map((m: any) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
+      const systemMsg = chatMessages.find((m: any) => m.role === "system");
+      const stream = await genAI.models.generateContentStream({
+        model: "gemini-2.5-flash",
+        contents,
+        config: { maxOutputTokens: 2048, ...(systemMsg ? { systemInstruction: systemMsg.content } : {}) } as any,
       });
 
       let fullResponse = "";
 
       for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || "";
+        const content = chunk.text || "";
         if (content) {
           fullResponse += content;
           res.write(`data: ${JSON.stringify({ content })}\n\n`);

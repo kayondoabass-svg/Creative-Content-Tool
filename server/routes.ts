@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions, type ImageOptions, type TextOptions, type ActivityOptions } from "@shared/schema";
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import { generateGeminiImage } from "./geminiImageService";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { PDFExtract } from "pdf.js-extract";
@@ -28,29 +28,73 @@ import { users, featureUsage, loginEvents, pageViews, expenses, insertExpenseSch
 import * as pesapalService from "./pesapalService";
 import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
-const openai = new OpenAI({
-  apiKey: process.env.GEMINI_API_KEY || "missing-key",
-  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-});
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "missing-key" });
+const TEXT_MODEL = "gemini-2.5-flash";
 
-// Patch openai.chat.completions.create to auto-retry on 429 rate limit errors
-const _origCreate = openai.chat.completions.create.bind(openai.chat.completions);
-(openai.chat.completions as any).create = async (...args: any[]) => {
+// Native Gemini SDK wrapper — same response shape as OpenAI so all call sites work unchanged
+async function geminiCreate(opts: {
+  model?: string;
+  messages: Array<{
+    role: string;
+    content: string | Array<{ type: string; text?: string; image_url?: { url: string; detail?: string } }>;
+  }>;
+  max_tokens?: number;
+  temperature?: number;
+  response_format?: { type: string };
+}) {
+  const systemMsg = opts.messages.find(m => m.role === "system");
+  const userMsgs = opts.messages.filter(m => m.role !== "system");
+
+  const contents = userMsgs.map((m: any) => {
+    let parts: any[];
+    if (typeof m.content === "string") {
+      parts = [{ text: m.content }];
+    } else {
+      parts = (m.content as any[]).map((part: any) => {
+        if (part.type === "text") return { text: part.text };
+        if (part.type === "image_url") {
+          const url = part.image_url?.url || "";
+          const dataMatch = url.match(/^data:([^;]+);base64,(.+)$/);
+          if (dataMatch) return { inlineData: { mimeType: dataMatch[1], data: dataMatch[2] } };
+          return { text: `[Reference image URL: ${url}]` };
+        }
+        return { text: JSON.stringify(part) };
+      });
+    }
+    return { role: m.role === "assistant" ? "model" : "user", parts };
+  });
+
+  const config: any = {
+    maxOutputTokens: opts.max_tokens || 4096,
+    temperature: opts.temperature ?? 0.7,
+  };
+  if (systemMsg) config.systemInstruction = systemMsg.content as string;
+  if (opts.response_format?.type === "json_object") config.responseMimeType = "application/json";
+
   for (let attempt = 0; attempt <= 2; attempt++) {
     try {
-      return await _origCreate(...args);
+      const result = await genAI.models.generateContent({
+        model: TEXT_MODEL,
+        contents,
+        config,
+      });
+      return { choices: [{ message: { content: result.text } }] };
     } catch (err: any) {
-      const is429 = err?.status === 429 || String(err?.message).includes("429");
+      const is429 = err?.status === 429 ||
+        String(err?.message).includes("429") ||
+        String(err?.message).includes("RESOURCE_EXHAUSTED") ||
+        String(err?.message).includes("quota");
       if (is429 && attempt < 2) {
         const wait = 2000 * (attempt + 1);
-        console.log(`[Gemini] 429 rate limit — retrying in ${wait}ms (attempt ${attempt + 1}/2)`);
+        console.log(`[Gemini] Rate limit — retrying in ${wait}ms (attempt ${attempt + 1}/2)`);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
       throw err;
     }
   }
-};
+  throw new Error("All Gemini retries exhausted");
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -2659,7 +2703,7 @@ This should look like it was designed by a world-class branding agency. Make it 
       if (!topic) return res.status(400).json({ error: "Topic required" });
       const levelStr = gradeLevel ? ` for ${gradeLevel} students` : "";
       const subjStr = subject ? ` in ${subject}` : "";
-      const response = await openai.chat.completions.create({
+      const response = await geminiCreate({
         model: "gemini-2.0-flash-lite",
         messages: [{ role: "user", content: `Suggest exactly 6 specific key points or subtopics for an educational presentation about "${topic}"${levelStr}${subjStr}. Return ONLY a JSON array of short strings (max 6 words each). Example: ["What is photosynthesis", "Role of sunlight", "Chlorophyll explained"]` }],
         max_tokens: 200,
@@ -3441,7 +3485,7 @@ CRITICAL IMAGE DESCRIPTION RULES:
 - The images will be generated by AI and should be purely visual illustrations that complement the text content in the bullet points.
 - All educational content (facts, exercises, questions, answers) must go in the "content" array as bullet points, NOT in imagePrompts.`;
 
-  const response = await openai.chat.completions.create({
+  const response = await geminiCreate({
     model: "gemini-2.0-flash-lite",
     messages: [
       {
@@ -3560,7 +3604,7 @@ async function generateText(prompt: string, gradeLevel?: string, subject?: strin
     dialogue: "Write an engaging dialogue/conversation between characters that teaches the concept.",
   };
   
-  const response = await openai.chat.completions.create({
+  const response = await geminiCreate({
     model: "gemini-2.0-flash-lite",
     messages: [
       {
@@ -3678,7 +3722,7 @@ async function generateActivity(prompt: string, gradeLevel?: string, subject?: s
   
   const gameInfo = gameTypeDescriptions[gameType] || gameTypeDescriptions.luckySpinner;
   
-  const response = await openai.chat.completions.create({
+  const response = await geminiCreate({
     model: "gemini-2.0-flash-lite",
     messages: [
       {
@@ -3784,7 +3828,7 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
     "30min": "30 minutes",
   }[length] || "2 minutes";
   
-  const response = await openai.chat.completions.create({
+  const response = await geminiCreate({
     model: "gemini-2.0-flash-lite",
     messages: [
       {
@@ -3879,7 +3923,7 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
     ? "Design for black and white printing. Use clear borders, no background colors, high contrast elements."
     : "Use colorful, engaging design with colored backgrounds, borders, and visual elements.";
   
-  const response = await openai.chat.completions.create({
+  const response = await geminiCreate({
     model: "gemini-2.0-flash-lite",
     messages: [
       {
@@ -4053,7 +4097,7 @@ async function generateMindmap(prompt: string, gradeLevel?: string, subject?: st
         - imagePrompt should represent the category with a clear, recognizable visual
         - Sub-topics can include more detail and abstract concepts`;
 
-  const response = await openai.chat.completions.create({
+  const response = await geminiCreate({
     model: "gemini-2.0-flash-lite",
     messages: [
       {
