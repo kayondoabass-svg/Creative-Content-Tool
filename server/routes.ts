@@ -36,14 +36,14 @@ const openai = new OpenAI({
 // Patch openai.chat.completions.create to auto-retry on 429 rate limit errors
 const _origCreate = openai.chat.completions.create.bind(openai.chat.completions);
 (openai.chat.completions as any).create = async (...args: any[]) => {
-  for (let attempt = 0; attempt <= 3; attempt++) {
+  for (let attempt = 0; attempt <= 2; attempt++) {
     try {
       return await _origCreate(...args);
     } catch (err: any) {
       const is429 = err?.status === 429 || String(err?.message).includes("429");
-      if (is429 && attempt < 3) {
-        const wait = 5000 * (attempt + 1);
-        console.log(`[Gemini] 429 rate limit — retrying in ${wait}ms (attempt ${attempt + 1}/3)`);
+      if (is429 && attempt < 2) {
+        const wait = 2000 * (attempt + 1);
+        console.log(`[Gemini] 429 rate limit — retrying in ${wait}ms (attempt ${attempt + 1}/2)`);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
