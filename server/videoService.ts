@@ -66,28 +66,24 @@ async function generateNarrationAudio(
   tempDir: string,
   voice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer' = 'nova'
 ): Promise<string[]> {
-  const audioFiles: string[] = [];
-  
-  for (let i = 0; i < frames.length; i++) {
-    const frame = frames[i];
-    const narrationText = frame.dialogue || frame.description;
-    
-    if (narrationText) {
+  // Generate all frames in parallel — cuts wait time from N×T to ~T
+  const results = await Promise.all(
+    frames.map(async (frame, i) => {
+      const narrationText = frame.dialogue || frame.description;
+      if (!narrationText) return '';
       try {
         const audioBuffer = await textToSpeech(narrationText, voice, 'wav');
+        if (!audioBuffer || audioBuffer.length === 0) return '';
         const audioFile = path.join(tempDir, `narration_${String(i).padStart(3, '0')}.wav`);
         await fs.promises.writeFile(audioFile, audioBuffer);
-        audioFiles.push(audioFile);
+        return audioFile;
       } catch (error) {
         console.error(`Failed to generate narration for frame ${i}:`, error);
-        audioFiles.push('');
+        return '';
       }
-    } else {
-      audioFiles.push('');
-    }
-  }
-  
-  return audioFiles;
+    })
+  );
+  return results;
 }
 
 async function getAudioDuration(filePath: string): Promise<number> {
@@ -182,24 +178,15 @@ async function generateSubtitleFile(
 
 async function generateBackgroundMusic(duration: number, tempDir: string): Promise<string> {
   const musicFile = path.join(tempDir, 'background_music.mp3');
-  const fadeOut = Math.max(0, duration - 2);
-
-  // aevalsrc generates a soft C-major chord (C4+E4+G4) as a single lavfi source
-  // No complex filter chain needed — avoids "Invalid argument" errors
-  const expr = '0.08*sin(2*PI*261.63*t)+0.06*sin(2*PI*329.63*t)+0.05*sin(2*PI*392*t)';
-
+  // Simple sine wave — no complex filters, no audioFilter() which fluent-ffmpeg
+  // can mistakenly translate to -filter_complex causing "Invalid argument" errors.
   return new Promise((resolve, reject) => {
     ffmpeg()
-      .input(`aevalsrc=${expr}:s=44100:d=${duration}`)
+      .input(`sine=frequency=261:duration=${Math.ceil(duration)}`)
       .inputOptions(['-f', 'lavfi'])
-      .audioFilter([
-        'volume=0.35',
-        'afade=t=in:st=0:d=1',
-        `afade=t=out:st=${fadeOut}:d=2`,
-        'lowpass=f=1800',
-      ].join(','))
+      .outputOptions(['-af', `volume=0.15,afade=t=out:st=${Math.max(0, duration - 2)}:d=2`])
       .audioCodec('libmp3lame')
-      .audioBitrate('128k')
+      .audioBitrate('64k')
       .output(musicFile)
       .on('end', () => resolve(musicFile))
       .on('error', (err) => reject(err))
