@@ -3232,8 +3232,8 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
     const response = await generateGeminiImage(enhancedPrompt);
 
     const imageData = response.data?.[0];
-    if (!imageData) {
-      throw new Error("Failed to generate image");
+    if (!imageData?.b64_json && !imageData?.url) {
+      throw new Error("Image generation is temporarily unavailable. Please try again in a moment.");
     }
 
     return {

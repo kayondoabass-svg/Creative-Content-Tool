@@ -260,7 +260,9 @@
   }
 }
 
-/* Push reCAPTCHA badge up so it doesn't overlap the chat widget */
+/* Hide reCAPTCHA badge — attribution kept in Terms of Service */
 .grecaptcha-badge {
-  bottom: 80px !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
