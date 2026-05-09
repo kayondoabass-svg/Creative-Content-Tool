@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { chatStorage } from "./storage";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const CHAT_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-preview-04-17", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
+const CHAT_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.0-flash-lite"];
 let _chatModel: string | null = null;
 
 export function registerChatRoutes(app: Express): void {

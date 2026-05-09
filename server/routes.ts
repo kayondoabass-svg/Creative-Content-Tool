@@ -30,13 +30,12 @@ import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from
 // ── Gemini via raw REST fetch — zero external dependencies ──────────────────
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// Ordered list — first model that responds without 404 wins and is cached
+// Confirmed available models for this API key (from /api/list-models)
 const TEXT_MODELS_PRIORITY = [
   "gemini-2.5-flash",
-  "gemini-2.5-flash-preview-04-17",
+  "gemini-2.5-flash-lite",
+  "gemini-3.1-flash-lite",
   "gemini-2.0-flash-lite",
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-latest",
 ];
 let _workingTextModel: string | null = null;
 

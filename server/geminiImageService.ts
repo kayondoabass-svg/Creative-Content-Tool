@@ -3,9 +3,10 @@
  * Returns { data: [{ b64_json }] } so all callers work unchanged.
  */
 
+// Confirmed available image models for this API key
 const IMAGE_MODELS = [
-  "imagen-3.0-generate-001",
-  "gemini-2.0-flash-preview-image-generation",
+  "imagen-4.0-fast-generate-001",
+  "imagen-4.0-generate-001",
 ];
 
 export async function generateGeminiImage(
