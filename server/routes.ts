@@ -1782,6 +1782,21 @@ ${pages.map(p => `  <url>
   });
 
   // Get organization settings
+  // Diagnostic: list available Gemini models for this API key (owner only)
+  app.get("/api/list-models", async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) return res.status(400).json({ error: "GEMINI_API_KEY not set" });
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const data = await resp.json() as any;
+      const names = (data.models || []).map((m: any) => m.name);
+      console.log("[Gemini] Available models:", names.join(", "));
+      res.json({ models: names, workingModel: _workingTextModel });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/settings", async (req, res) => {
     try {
       const settings = await storage.getOrganizationSettings();
