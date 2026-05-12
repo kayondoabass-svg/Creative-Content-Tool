@@ -31,6 +31,7 @@ import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import VerifyEmailPage from "@/pages/verify-email";
 import FileToolsPage from "@/pages/file-tools";
+import StudioPage from "@/pages/studio";
 import GamesPage from "@/pages/games";
 import OwnerDashboard from "@/pages/owner-dashboard";
 import OwnerExpenses from "@/pages/owner-expenses";
@@ -85,6 +86,7 @@ function Router() {
       <Route path="/signup" component={SignupPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/file-tools" component={FileToolsPage} />
+      <Route path="/studio" component={StudioPage} />
       <Route path="/games" component={GamesPage} />
       <Route path="/blog" component={Blog} />
       <Route path="/blog/:slug" component={BlogPost} />

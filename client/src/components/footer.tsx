@@ -68,6 +68,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/studio" className="text-muted-foreground hover:text-foreground transition-colors font-medium text-purple-600 dark:text-purple-400" data-testid="link-teacher-studio">
+                  ✦ Teacher Studio
+                </Link>
+              </li>
+              <li>
                 <Link href="/file-tools" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-file-tools">
                   {t('common.fileTools')}
                 </Link>

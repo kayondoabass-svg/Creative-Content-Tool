@@ -4596,6 +4596,70 @@ export function registerSubscriptionRoutes(app: any) {
     }
   });
 
+  // ============ TEACHER STUDIO ROUTES ============
+
+  app.get("/api/studio/usage", async (req: any, res: any) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+      const [cvRow] = await db.select({ count: count() }).from(featureUsage)
+        .where(and(eq(featureUsage.userId, userId), eq(featureUsage.featureType, "cv_builder"), gte(featureUsage.createdAt, startOfMonth)));
+      const [certRow] = await db.select({ count: count() }).from(featureUsage)
+        .where(and(eq(featureUsage.userId, userId), eq(featureUsage.featureType, "certificate"), gte(featureUsage.createdAt, startOfMonth)));
+      const subscriptionStatus = await paymentService.getSubscriptionStatus(userId);
+      res.json({ cvCount: cvRow?.count ?? 0, certCount: certRow?.count ?? 0, isPremium: subscriptionStatus.isPremium, freeLimit: 1 });
+    } catch (error) { console.error("Studio usage error:", error); res.status(500).json({ error: "Failed to fetch studio usage" }); }
+  });
+
+  app.post("/api/studio/cv", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const userId = req.session?.userId;
+      const { formData, uploadedText, template } = req.body;
+      const subscriptionStatus = await paymentService.getSubscriptionStatus(userId);
+      if (!subscriptionStatus.isPremium) {
+        const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+        const [usage] = await db.select({ count: count() }).from(featureUsage)
+          .where(and(eq(featureUsage.userId, userId), eq(featureUsage.featureType, "cv_builder"), gte(featureUsage.createdAt, startOfMonth)));
+        if ((usage?.count ?? 0) >= 1) return res.status(403).json({ error: "Free limit reached. Upgrade to Premium for unlimited CV generation." });
+      }
+      const inputCtx = uploadedText
+        ? `UPLOADED CV TEXT TO EXTRACT AND ENHANCE:\n${uploadedText}`
+        : `RAW USER INPUT:\nName: ${formData?.fullName || ''}\nEmail: ${formData?.email || ''}\nPhone: ${formData?.phone || ''}\nLocation: ${formData?.location || ''}\nSummary: ${formData?.summary || ''}\nExperience: ${formData?.experience || ''}\nEducation: ${formData?.education || ''}\nSkills: ${formData?.skills || ''}\nLanguages: ${formData?.languages || ''}\nSubjects: ${formData?.subjects || ''}`;
+      const prompt = `You are an expert CV writer for the global education market. ${inputCtx}\n\nCreate a polished teacher CV. Return ONLY valid JSON (no markdown):\n{"personalInfo":{"fullName":"","title":"e.g. Senior Mathematics Teacher","email":"","phone":"","location":"City, Country","linkedin":""},"summary":"3-4 sentence compelling professional summary","experience":[{"title":"","school":"","location":"","period":"","description":"• Point 1\\n• Point 2\\n• Point 3"}],"education":[{"degree":"","institution":"","year":"","honors":""}],"skills":["skill1","skill2","skill3","skill4","skill5","skill6"],"languages":["English (Native)"],"certifications":["cert1"],"subjects":["Subject1"],"gradeLevel":"Primary/Secondary/University"}`;
+      const response = await geminiCreate({ messages: [{ role: "user", content: prompt }], max_tokens: 2000, temperature: 0.7 });
+      const raw = response.choices[0].message.content;
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("Invalid AI response");
+      const cvData = JSON.parse(match[0]);
+      await db.insert(featureUsage).values({ userId, featureType: "cv_builder" });
+      res.json({ cvData, template });
+    } catch (error: any) { console.error("CV generation error:", error); res.status(500).json({ error: error.message || "Failed to generate CV" }); }
+  });
+
+  app.post("/api/studio/certificate", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const userId = req.session?.userId;
+      const { studentName, course, achievement, teacherName, schoolName, date, template } = req.body;
+      const subscriptionStatus = await paymentService.getSubscriptionStatus(userId);
+      if (!subscriptionStatus.isPremium) {
+        const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+        const [usage] = await db.select({ count: count() }).from(featureUsage)
+          .where(and(eq(featureUsage.userId, userId), eq(featureUsage.featureType, "certificate"), gte(featureUsage.createdAt, startOfMonth)));
+        if ((usage?.count ?? 0) >= 1) return res.status(403).json({ error: "Free limit reached. Upgrade to Premium for unlimited certificate generation." });
+      }
+      const prompt = `Write professional certificate wording. Template type: ${template}. Student: ${studentName}. Course: ${course}. Achievement: ${achievement || 'outstanding performance'}. Teacher: ${teacherName}. School: ${schoolName}. Date: ${date}.\n\nReturn ONLY valid JSON:\n{"title":"Certificate title","subtitle":"Short subtitle","body":"2-3 sentence formal body mentioning student name and achievement","signatureTitle":"Title under teacher signature"}`;
+      const response = await geminiCreate({ messages: [{ role: "user", content: prompt }], max_tokens: 400, temperature: 0.6 });
+      const raw = response.choices[0].message.content;
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("Invalid response");
+      const certContent = JSON.parse(match[0]);
+      await db.insert(featureUsage).values({ userId, featureType: "certificate" });
+      res.json({ certContent, studentName, teacherName, schoolName, date, template, course });
+    } catch (error: any) { console.error("Certificate error:", error); res.status(500).json({ error: error.message || "Failed to generate certificate" }); }
+  });
+
   app.get("/api/usage/breakdown", async (req: any, res: any) => {
     try {
       const sessionUserId = req.session?.userId;
