@@ -525,20 +525,175 @@ export default function StudioPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <div className="flex-1 flex items-center justify-center">
-          <Card className="max-w-md mx-4 text-center">
-            <CardContent className="pt-8 pb-8">
-              <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h2 className="text-xl font-bold mb-2">Sign in to access Teacher Studio</h2>
-              <p className="text-muted-foreground mb-6">Create professional CVs, certificates, and more — free for all teachers.</p>
-              <div className="flex gap-3 justify-center">
-                <Button asChild><Link href="/login">Sign In</Link></Button>
-                <Button asChild variant="outline"><Link href="/signup">Sign Up Free</Link></Button>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="min-h-screen flex flex-col bg-background">
+        {/* Hero */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-purple-700 to-teal-600 text-white">
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
+          <div className="relative container mx-auto px-4 py-16 text-center">
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium mb-6">
+              <Sparkles className="w-4 h-4" /> Free for all teachers
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Teacher Studio</h1>
+            <p className="text-xl text-white/80 max-w-2xl mx-auto mb-8">
+              Your professional toolkit — build polished CVs, print student certificates, design school logos, and convert files. All powered by AI, all in one place.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button asChild size="lg" className="bg-white text-purple-700 hover:bg-white/90 font-bold text-base px-8 shadow-lg" data-testid="button-studio-signup">
+                <Link href="/signup">Get Started Free <ArrowRight className="w-4 h-4 ml-2" /></Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="border-white/40 text-white hover:bg-white/10 font-semibold text-base px-8" data-testid="button-studio-login">
+                <Link href="/login">Sign In</Link>
+              </Button>
+            </div>
+            <p className="text-white/60 text-sm mt-4">No credit card required &bull; 1 free CV &amp; certificate per month</p>
+          </div>
         </div>
+
+        {/* Features */}
+        <div className="container mx-auto px-4 py-16">
+          <h2 className="text-2xl font-bold text-center mb-2">Everything a teacher needs</h2>
+          <p className="text-muted-foreground text-center mb-10">Four powerful tools, zero design skills required.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                icon: <FileText className="w-7 h-7 text-purple-600" />,
+                bg: "bg-purple-50 dark:bg-purple-950/30",
+                title: "CV Builder",
+                badge: "1 free/month",
+                badgeColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
+                desc: "Pick from 6 professional teacher CV templates. Fill a simple form or upload your old CV — AI writes polished bullet points and formats everything for you.",
+                points: ["Academic Pro, Modern Educator & more", "AI-written summaries & experience bullets", "Print-ready PDF download"],
+              },
+              {
+                icon: <Award className="w-7 h-7 text-amber-600" />,
+                bg: "bg-amber-50 dark:bg-amber-950/30",
+                title: "Certificate Maker",
+                badge: "1 free/month",
+                badgeColor: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+                desc: "Award students in seconds. Choose an Achievement, Excellence, Participation, or Completion certificate. AI writes the wording — you just print.",
+                points: ["4 beautiful templates", "AI-generated personalised wording", "Instant print or PDF download"],
+              },
+              {
+                icon: <Palette className="w-7 h-7 text-teal-600" />,
+                bg: "bg-teal-50 dark:bg-teal-950/30",
+                title: "Logo Designer",
+                badge: "Free",
+                badgeColor: "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
+                desc: "Create a unique logo for your school, class, or department. Describe your style and AI generates a professional logo in seconds — no design skills needed.",
+                points: ["Describe your vision in plain English", "Multiple style options", "Download as PNG/SVG"],
+              },
+              {
+                icon: <FolderOpen className="w-7 h-7 text-blue-600" />,
+                bg: "bg-blue-50 dark:bg-blue-950/30",
+                title: "File Converter",
+                badge: "Free",
+                badgeColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+                desc: "Convert documents between PDF, JPEG, and PNG instantly — right in your browser. No uploads to third-party sites, no waiting, completely private.",
+                points: ["PDF ↔ JPEG ↔ PNG", "Runs entirely in your browser", "Completely private — no uploads"],
+              },
+            ].map((f) => (
+              <Card key={f.title} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="pt-6 pb-6 space-y-3">
+                  <div className={`w-12 h-12 rounded-xl ${f.bg} flex items-center justify-center`}>{f.icon}</div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base">{f.title}</h3>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${f.badgeColor}`}>{f.badge}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                  <ul className="space-y-1">
+                    {f.points.map((pt) => (
+                      <li key={pt} className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                        <span>{pt}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* How it works */}
+        <div className="bg-muted/40 py-16">
+          <div className="container mx-auto px-4">
+            <h2 className="text-2xl font-bold text-center mb-2">How it works</h2>
+            <p className="text-muted-foreground text-center mb-10">Three steps from blank page to finished document.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
+              {[
+                { step: "1", icon: <User className="w-6 h-6 text-purple-600" />, title: "Create your free account", desc: "Sign up in under 30 seconds — just your email and a password. No credit card, no commitments." },
+                { step: "2", icon: <Sparkles className="w-6 h-6 text-teal-600" />, title: "Choose a tool & template", desc: "Pick the CV, certificate, logo, or file converter. Select a template and fill in a short form." },
+                { step: "3", icon: <Download className="w-6 h-6 text-amber-600" />, title: "Download & use", desc: "AI generates your professional document in seconds. Download, print, or share — done." },
+              ].map((s) => (
+                <div key={s.step} className="text-center space-y-3">
+                  <div className="relative inline-flex">
+                    <div className="w-14 h-14 rounded-full bg-white dark:bg-card border-2 border-border shadow flex items-center justify-center">
+                      {s.icon}
+                    </div>
+                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">{s.step}</span>
+                  </div>
+                  <h3 className="font-bold">{s.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Pricing strip */}
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-center mb-8">Simple, fair pricing</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <Card className="border-border">
+                <CardContent className="pt-6 pb-6 text-center space-y-3">
+                  <div className="text-3xl font-black">Free</div>
+                  <div className="text-muted-foreground text-sm">For every teacher</div>
+                  <ul className="space-y-2 text-sm text-left mt-4">
+                    {["1 CV per month", "1 certificate per month", "Logo designer — unlimited", "File converter — unlimited"].map(i => (
+                      <li key={i} className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500 shrink-0" />{i}</li>
+                    ))}
+                  </ul>
+                  <Button asChild className="w-full mt-4 bg-gradient-to-r from-purple-600 to-teal-500" data-testid="button-studio-free-cta">
+                    <Link href="/signup">Start for free</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card className="border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-teal-50 dark:from-purple-950/30 dark:to-teal-950/30">
+                <CardContent className="pt-6 pb-6 text-center space-y-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <Crown className="w-5 h-5 text-amber-500" />
+                    <div className="text-3xl font-black">Premium</div>
+                  </div>
+                  <div className="text-muted-foreground text-sm">From $4.99/week</div>
+                  <ul className="space-y-2 text-sm text-left mt-4">
+                    {["Unlimited CVs every month", "Unlimited certificates", "All BrightBoard AI tools", "HD quality & priority generation"].map(i => (
+                      <li key={i} className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600 shrink-0" />{i}</li>
+                    ))}
+                  </ul>
+                  <Button asChild className="w-full mt-4 bg-gradient-to-r from-purple-600 to-teal-500" data-testid="button-studio-premium-cta">
+                    <Link href="/pricing">See pricing</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+
+        {/* Final CTA */}
+        <div className="bg-gradient-to-r from-purple-600 to-teal-600 py-12 text-white text-center">
+          <h2 className="text-2xl font-bold mb-3">Ready to save hours every week?</h2>
+          <p className="text-white/80 mb-6">Join thousands of teachers who already use BrightBoard to create professional materials in minutes.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button asChild size="lg" className="bg-white text-purple-700 hover:bg-white/90 font-bold" data-testid="button-studio-final-signup">
+              <Link href="/signup">Create free account</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="border-white/40 text-white hover:bg-white/10 font-semibold" data-testid="button-studio-final-login">
+              <Link href="/login">Sign in</Link>
+            </Button>
+          </div>
+        </div>
+
         <Footer />
       </div>
     );

@@ -1197,9 +1197,9 @@ function GeminiCostSection() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <DollarSign className="h-5 w-5 text-green-600" />
-          OpenAI Generation Cost
+          Gemini AI Generation Cost
         </CardTitle>
-        <CardDescription>Estimated AI spend per content generation</CardDescription>
+        <CardDescription>Estimated Gemini 2.5 Flash spend per content generation</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {isLoading ? (

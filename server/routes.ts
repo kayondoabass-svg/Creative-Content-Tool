@@ -167,6 +167,7 @@ Allow: /privacy
 Allow: /terms
 Allow: /refund
 Allow: /affiliate
+Allow: /studio
 Disallow: /api/
 Disallow: /dashboard
 Disallow: /generate
@@ -198,6 +199,7 @@ Sitemap: https://www.brightboardapp.com/sitemap.xml`
       { url: "/blog/vocabulary-visual", priority: "0.8", changefreq: "monthly" },
       { url: "/blog/worksheet-design", priority: "0.8", changefreq: "monthly" },
       { url: "/blog/mind-mapping", priority: "0.8", changefreq: "monthly" },
+      { url: "/studio", priority: "0.9", changefreq: "weekly" },
       { url: "/features", priority: "0.8", changefreq: "monthly" },
       { url: "/how-it-works", priority: "0.8", changefreq: "monthly" },
       { url: "/pricing", priority: "0.7", changefreq: "weekly" },
@@ -338,9 +340,10 @@ ${pages.map(p => `  <url>
         return res.status(400).json({ error: "Email and password are required" });
       }
 
+      // reCAPTCHA is advisory for login — a low score should not lock out real users
       const captcha = await verifyRecaptchaToken(recaptchaToken, "LOGIN");
       if (!captcha.valid) {
-        return res.status(400).json({ error: "reCAPTCHA verification failed. Please try again." });
+        console.warn("[Login] reCAPTCHA advisory (not blocking):", captcha.reason, "score:", captcha.score);
       }
 
       const result = await customAuth.login(email, password);
@@ -3015,11 +3018,13 @@ This should look like it was designed by a world-class branding agency. Make it 
         await paymentService.trackFeatureUsage(userId, type);
 
         // Log costs
-        const costMap: Record<string, number> = { image: 5, text: 2, activity: 2, worksheet: 2, mindmap: 2 };
-        let estimatedCostCents = costMap[type] ?? 2;
+        // Gemini 2.5 Flash pricing: ~$0.15/1M input tokens, ~$0.60/1M output tokens
+        // Image gen (Imagen 4 Fast): ~$0.04/image. All values in cents.
+        const costMap: Record<string, number> = { image: 4, text: 1, activity: 1, worksheet: 1, mindmap: 2 };
+        let estimatedCostCents = costMap[type] ?? 1;
         let costDescription = `${type} generation: "${title?.substring(0, 50) || prompt.substring(0, 50)}..."`;
-        if (type === 'presentation') { const sn = slideCount || 5; estimatedCostCents = sn * 5 + 2; costDescription = `Presentation (${sn} slides): "${title?.substring(0, 50)}..."`; }
-        if (type === 'storyboard') { const fc = ({ "30sec":3,"1min":6,"2min":10,"3min":12,"4min":15,"5min":18,"10min":25,"30min":50 } as any)[videoOptions?.length||"1min"]||6; estimatedCostCents = fc*5+2; costDescription = `Storyboard (${fc} frames): "${title?.substring(0,50)}..."`; }
+        if (type === 'presentation') { const sn = slideCount || 5; estimatedCostCents = sn * 1 + 1; costDescription = `Presentation (${sn} slides): "${title?.substring(0, 50)}..."`; }
+        if (type === 'storyboard') { const fc = ({ "30sec":3,"1min":6,"2min":10,"3min":12,"4min":15,"5min":18,"10min":25,"30min":50 } as any)[videoOptions?.length||"1min"]||6; estimatedCostCents = fc*1+1; costDescription = `Storyboard (${fc} frames): "${title?.substring(0,50)}..."`; }
         if (estimatedCostCents > 0) {
           await logAutomaticExpense("gemini", costDescription, estimatedCostCents, { contentType: type, contentId: saved.id, userId, slideCount, videoOptions });
         }
