@@ -21,7 +21,7 @@ function isAuthenticated(req: any, res: any, next: any) {
 import crypto from "crypto";
 import { verifyRecaptchaToken } from "./recaptcha/verifyRecaptcha";
 import * as customAuth from "./customAuthService";
-import { afroaiSignup, afroaiLogin } from "./afroaiAuthService";
+import { afroaiSignup, afroaiLogin, afroaiVerifySession } from "./afroaiAuthService";
 import { db } from "./db";
 import { users, featureUsage, loginEvents, pageViews, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
@@ -227,28 +227,28 @@ ${pages.map(p => `  <url>
   // Sign up with email/password
   app.post("/api/auth/signup", async (req, res) => {
     try {
-      const { email, password, firstName, lastName, recaptchaToken, ref } = req.body;
+      const { email, password, firstName, lastName, ref } = req.body;
       
       if (!email || !password || !firstName || !lastName) {
         return res.status(400).json({ error: "All fields are required" });
       }
-      
       if (password.length < 8) {
         return res.status(400).json({ error: "Password must be at least 8 characters" });
       }
 
-      const captcha = await verifyRecaptchaToken(recaptchaToken, "signup");
-      if (!captcha.valid) {
-        return res.status(400).json({ error: "reCAPTCHA verification failed. Please try again." });
+      // ── Step 1: Register with AfroAI (primary auth provider) ──────────────
+      const afroaiResult = await afroaiSignup(email, password);
+      if (afroaiResult.error) {
+        console.warn("[Signup] AfroAI signup issue (continuing):", afroaiResult.error);
       }
 
-      const result = await customAuth.signUp(email, password, firstName, lastName, recaptchaToken);
-      
+      // ── Step 2: Create BrightBoard account (profile + subscription data) ──
+      const result = await customAuth.signUp(email, password, firstName, lastName);
       if (!result.success) {
         return res.status(400).json({ error: result.message });
       }
 
-      // Track referral if ref code provided
+      // ── Step 3: Track referral if provided ─────────────────────────────────
       if (ref && result.userId) {
         try {
           const affiliate = await db.select().from(affiliates).where(eq(affiliates.referralCode, ref)).limit(1);
@@ -261,18 +261,15 @@ ${pages.map(p => `  <url>
         }
       }
 
-      // Auto-login: create session immediately so users can start using the app
+      // ── Step 4: Auto-login with AfroAI token ───────────────────────────────
       if (result.userId) {
         try {
           const newUser = await customAuth.getUserById(result.userId);
           if (newUser) {
             (req as any).session.userId = newUser.id;
             (req as any).session.user = newUser;
+            if (afroaiResult.token) (req as any).session.afroaiToken = afroaiResult.token;
             db.insert(loginEvents).values({ userId: newUser.id }).catch(() => {});
-            // Register with AfroAI auth (non-blocking)
-            afroaiSignup(email, password).then(afroai => {
-              if (afroai.token) (req as any).session.afroaiToken = afroai.token;
-            }).catch(() => {});
             return res.json({ message: result.message, userId: result.userId, user: newUser });
           }
         } catch (sessionErr) {
@@ -334,37 +331,99 @@ ${pages.map(p => `  <url>
   // Login with email/password
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password, recaptchaToken } = req.body;
+      const { email, password } = req.body;
       
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password are required" });
       }
 
-      // reCAPTCHA is advisory for login — a low score should not lock out real users
-      const captcha = await verifyRecaptchaToken(recaptchaToken, "LOGIN");
-      if (!captcha.valid) {
-        console.warn("[Login] reCAPTCHA advisory (not blocking):", captcha.reason, "score:", captcha.score);
+      // ── Step 1: Verify credentials with AfroAI (primary auth) ─────────────
+      const afroaiResult = await afroaiLogin(email, password);
+
+      let afroaiToken: string | undefined;
+
+      if (afroaiResult.token) {
+        // AfroAI confirmed the credentials — password is correct
+        afroaiToken = afroaiResult.token;
+        console.log("[Login] AfroAI verified credentials for:", email);
+      } else if (
+        afroaiResult.error &&
+        (afroaiResult.error.toLowerCase().includes("wrong") ||
+         afroaiResult.error.toLowerCase().includes("invalid") ||
+         afroaiResult.error.toLowerCase().includes("not found"))
+      ) {
+        // AfroAI explicitly rejected — wrong password or no AfroAI account
+        // Fall through to BrightBoard bcrypt check (handles users who
+        // registered before AfroAI was integrated)
+        console.warn("[Login] AfroAI rejected credentials, trying local auth:", afroaiResult.error);
+        const local = await customAuth.login(email, password);
+        if (!local.success) {
+          return res.status(400).json({ error: local.message });
+        }
+        (req as any).session.userId = local.user.id;
+        (req as any).session.user = local.user;
+        db.insert(loginEvents).values({ userId: local.user.id }).catch(() => {});
+        // Register this user with AfroAI now for future logins
+        afroaiSignup(email, password).then(r => {
+          if (r.token) (req as any).session.afroaiToken = r.token;
+        }).catch(() => {});
+        return res.json({ user: local.user });
+      } else {
+        // AfroAI is unreachable — fall back to BrightBoard bcrypt
+        console.warn("[Login] AfroAI unavailable, using local auth:", afroaiResult.error);
+        const local = await customAuth.login(email, password);
+        if (!local.success) {
+          return res.status(400).json({ error: local.message });
+        }
+        (req as any).session.userId = local.user.id;
+        (req as any).session.user = local.user;
+        db.insert(loginEvents).values({ userId: local.user.id }).catch(() => {});
+        return res.json({ user: local.user });
       }
 
-      const result = await customAuth.login(email, password);
-      
-      if (!result.success) {
-        return res.status(400).json({ error: result.message });
+      // ── Step 2: AfroAI verified — load BrightBoard profile ────────────────
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email.toLowerCase()))
+        .limit(1);
+
+      if (!user) {
+        return res.status(400).json({ error: "Account not found. Please sign up first." });
       }
-      
-      // Store user in session
-      (req as any).session.userId = result.user.id;
-      (req as any).session.user = result.user;
 
-      // Log login event for analytics (fire-and-forget)
-      db.insert(loginEvents).values({ userId: result.user.id }).catch(() => {});
+      if (!user.emailVerified) {
+        return res.status(400).json({ error: "Please verify your email first" });
+      }
 
-      // Authenticate with AfroAI and store token in session (non-blocking)
-      afroaiLogin(email, password).then(afroai => {
-        if (afroai.token) (req as any).session.afroaiToken = afroai.token;
-      }).catch(() => {});
+      // ── Step 3: Auto-fix owner status ──────────────────────────────────────
+      const OWNER_EMAIL = "kayondoabass@gmail.com";
+      const isOwnerEmail = email.toLowerCase() === OWNER_EMAIL;
+      if (isOwnerEmail && (!user.isOwner || user.subscriptionTier !== "yearly")) {
+        await db.update(users).set({ isOwner: true, subscriptionTier: "yearly", subscriptionStatus: "active", lastActiveAt: new Date() }).where(eq(users.id, user.id));
+        user.isOwner = true; user.subscriptionTier = "yearly"; user.subscriptionStatus = "active";
+      } else {
+        await db.update(users).set({ lastActiveAt: new Date() }).where(eq(users.id, user.id));
+      }
 
-      res.json({ user: result.user });
+      // ── Step 4: Create session ─────────────────────────────────────────────
+      (req as any).session.userId = user.id;
+      (req as any).session.user = user;
+      (req as any).session.afroaiToken = afroaiToken;
+      db.insert(loginEvents).values({ userId: user.id }).catch(() => {});
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profileImageUrl: user.profileImageUrl,
+          subscriptionTier: user.subscriptionTier,
+          subscriptionStatus: user.subscriptionStatus,
+          isOwner: user.isOwner,
+        },
+      });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ error: "Failed to login" });
@@ -393,24 +452,28 @@ ${pages.map(p => `  <url>
     try {
       const session = (req as any).session;
       const userId = session?.userId;
-      
-      // Debug log for troubleshooting CEO access
-      if (req.query.debug === "ceo") {
-        console.log("[Auth/Me Debug] Session keys:", Object.keys(session || {}));
-        console.log("[Auth/Me Debug] userId:", userId);
-        console.log("[Auth/Me Debug] session.user:", session?.user?.email);
-      }
-      
+      const afroaiToken = session?.afroaiToken;
+
       if (!userId) {
         return res.json({ user: null });
       }
-      
+
+      // ── Verify AfroAI session token if present ─────────────────────────────
+      if (afroaiToken) {
+        const afroaiCheck = await afroaiVerifySession(afroaiToken);
+        if (!afroaiCheck.valid) {
+          // Token expired or revoked — force re-login
+          console.warn("[Auth/Me] AfroAI token invalid, clearing session for user:", userId);
+          (req as any).session.destroy(() => {});
+          return res.json({ user: null });
+        }
+      }
+
       const user = await customAuth.getUserById(userId);
-      
       if (!user) {
         return res.json({ user: null });
       }
-      
+
       res.json({ user });
     } catch (error) {
       console.error("Get current user error:", error);
@@ -421,17 +484,10 @@ ${pages.map(p => `  <url>
   // Request password reset
   app.post("/api/auth/forgot-password", async (req, res) => {
     try {
-      const { email, recaptchaToken } = req.body;
-      
+      const { email } = req.body;
       if (!email) {
         return res.status(400).json({ error: "Email is required" });
       }
-
-      const captcha = await verifyRecaptchaToken(recaptchaToken, "FORGOT_PASSWORD");
-      if (!captcha.valid) {
-        return res.status(400).json({ error: "reCAPTCHA verification failed. Please try again." });
-      }
-
       const result = await customAuth.requestPasswordReset(email);
       res.json({ message: result.message });
     } catch (error) {
