@@ -196,8 +196,12 @@ export async function login(
       .where(eq(users.email, email.toLowerCase()))
       .limit(1);
 
-    if (!user || !user.passwordHash) {
+    if (!user) {
       return { success: false, message: "Invalid email or password" };
+    }
+
+    if (!user.passwordHash) {
+      return { success: false, message: "This account was created with Google or another social login. Please use the 'Continue with Google' button to sign in, or use Forgot Password to set a password." };
     }
 
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);

@@ -352,9 +352,14 @@ ${pages.map(p => `  <url>
          afroaiResult.error.toLowerCase().includes("invalid") ||
          afroaiResult.error.toLowerCase().includes("not found"))
       ) {
-        // AfroAI explicitly rejected — wrong password or no AfroAI account
-        // Fall through to BrightBoard bcrypt check (handles users who
-        // registered before AfroAI was integrated)
+        // AfroAI explicitly rejected — wrong password or no AfroAI account yet.
+        // Check if the user exists in BrightBoard with no password (Google user)
+        // before attempting bcrypt, so we can give a clear error message.
+        const [existingUser] = await db.select({ id: users.id, passwordHash: users.passwordHash })
+          .from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+        if (existingUser && !existingUser.passwordHash) {
+          return res.status(400).json({ error: "This account was created with Google. Please use the 'Continue with Google' button, or use Forgot Password to set a password." });
+        }
         console.warn("[Login] AfroAI rejected credentials, trying local auth:", afroaiResult.error);
         const local = await customAuth.login(email, password);
         if (!local.success) {
