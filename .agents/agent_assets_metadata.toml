@@ -1,0 +1,25 @@
+uploads = []
+
+[[generated]]
+id = "eJ9qlb1Q-OqlxPUjLPnxx"
+uri = "file://attached_assets/generated_images/ad_wow_moment_v1.png"
+type = "image"
+title = "teacher wow moment classroom ad v1"
+
+[[generated]]
+id = "W1CbOr45L3WRBHgpnNCY8"
+uri = "file://attached_assets/generated_images/ad_wow_moment_v2.png"
+type = "image"
+title = "teacher students tablet glow ad v2"
+
+[[outputs]]
+id = "w1-eltKaRUUqRwGSDEenZ"
+uri = "file://attached_assets/generated_images/ad_wow_moment_v1.png"
+type = "image"
+title = "Option A — \"The Wow Moment\" (Teacher holds colourful worksheet, students excited)"
+
+[[outputs]]
+id = "uN2OK-Z9C1Zzof1ZJI1fX"
+uri = "file://attached_assets/generated_images/ad_wow_moment_v2.png"
+type = "image"
+title = "Option B — \"The Screen Glow\" (Teacher & children around glowing tablet)"
