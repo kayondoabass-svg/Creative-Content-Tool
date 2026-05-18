@@ -23,3 +23,9 @@ id = "uN2OK-Z9C1Zzof1ZJI1fX"
 uri = "file://attached_assets/generated_images/ad_wow_moment_v2.png"
 type = "image"
 title = "Option B — \"The Screen Glow\" (Teacher & children around glowing tablet)"
+
+[[outputs]]
+id = "q_dtdxMmGce9iI6Sxvr-2"
+uri = "file://attached_assets/generated_images/ad_option_b_text.png"
+type = "image"
+title = "Option B with Text — Social Media Ad Version"
