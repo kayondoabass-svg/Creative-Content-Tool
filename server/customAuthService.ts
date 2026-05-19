@@ -91,7 +91,10 @@ export async function signUp(
     });
 
     // Send verification email
-    await sendVerificationEmail(email, code);
+    const emailSent = await sendVerificationEmail(email, code);
+    if (!emailSent) {
+      return { success: false, message: "Account created but we could not send a verification email. Please contact support@brightboardapp.com." };
+    }
 
     return {
       success: true,
@@ -176,7 +179,10 @@ export async function resendVerificationCode(
       expiresAt,
     });
 
-    await sendVerificationEmail(email, code);
+    const emailSent = await sendVerificationEmail(email, code);
+    if (!emailSent) {
+      return { success: false, message: "Could not send verification email. Please contact support@brightboardapp.com." };
+    }
 
     return { success: true, message: "Verification code sent" };
   } catch (error) {
@@ -286,12 +292,16 @@ export async function requestPasswordReset(
       expiresAt,
     });
 
-    await sendPasswordResetEmail(email, code);
+    const emailSent = await sendPasswordResetEmail(email, code);
+
+    if (!emailSent) {
+      return { success: false, message: "Could not send reset email. Please try again or contact support@brightboardapp.com." };
+    }
 
     return { success: true, message: "If an account exists, a reset code will be sent" };
   } catch (error) {
     console.error("Password reset request error:", error);
-    return { success: false, message: "Failed to send reset code" };
+    return { success: false, message: "Could not send reset email. Please try again or contact support@brightboardapp.com." };
   }
 }
 

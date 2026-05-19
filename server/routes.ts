@@ -507,6 +507,9 @@ ${pages.map(p => `  <url>
         return res.status(400).json({ error: "Email is required" });
       }
       const result = await customAuth.requestPasswordReset(email);
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
       res.json({ message: result.message });
     } catch (error) {
       console.error("Forgot password error:", error);
