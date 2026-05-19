@@ -168,6 +168,8 @@ Allow: /terms
 Allow: /refund
 Allow: /affiliate
 Allow: /studio
+Allow: /resources
+Allow: /teaching-tips
 Disallow: /api/
 Disallow: /dashboard
 Disallow: /generate
@@ -199,7 +201,18 @@ Sitemap: https://www.brightboardapp.com/sitemap.xml`
       { url: "/blog/vocabulary-visual", priority: "0.8", changefreq: "monthly" },
       { url: "/blog/worksheet-design", priority: "0.8", changefreq: "monthly" },
       { url: "/blog/mind-mapping", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/stem-africa", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/storytelling-education", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/differentiated-instruction", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/classroom-culture", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/assessment-learning", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/teacher-self-care", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/project-based-learning", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/early-childhood", priority: "0.8", changefreq: "monthly" },
+      { url: "/blog/parent-teacher", priority: "0.8", changefreq: "monthly" },
       { url: "/studio", priority: "0.9", changefreq: "weekly" },
+      { url: "/resources", priority: "0.9", changefreq: "monthly" },
+      { url: "/teaching-tips", priority: "0.8", changefreq: "monthly" },
       { url: "/features", priority: "0.8", changefreq: "monthly" },
       { url: "/how-it-works", priority: "0.8", changefreq: "monthly" },
       { url: "/pricing", priority: "0.7", changefreq: "weekly" },

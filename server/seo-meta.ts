@@ -99,6 +99,60 @@ const BLOG_ARTICLES: Record<string, RouteMeta> = {
     description: "Mind maps match how the brain organises knowledge. Learn how to use them for brainstorming, note-taking, revision, and concept introduction in any subject.",
     ogType: "article",
   },
+  "stem-africa": {
+    title: "STEM Education in Africa | BrightBoard Blog",
+    h1: "STEM Education in Africa: Why Science and Technology Must Come First",
+    description: "Africa's tech economy is growing fast. Discover practical strategies for teaching STEM without a laboratory and making science relevant to African students.",
+    ogType: "article",
+  },
+  "storytelling-education": {
+    title: "Storytelling in Education | BrightBoard Blog",
+    h1: "The Art of Storytelling in Education: Making Every Lesson Memorable",
+    description: "The brain is wired for narrative. Learn five storytelling techniques that work in any subject, and how to build a story library that transforms your teaching.",
+    ogType: "article",
+  },
+  "differentiated-instruction": {
+    title: "Differentiated Instruction Guide | BrightBoard Blog",
+    h1: "Differentiated Instruction: A Practical Guide for Busy Teachers",
+    description: "Meet every learner where they are without tripling your workload. Practical tiered activities, choice boards, and flexible grouping strategies for real classrooms.",
+    ogType: "article",
+  },
+  "classroom-culture": {
+    title: "Building Positive Classroom Culture | BrightBoard Blog",
+    h1: "Building a Positive Classroom Culture: From Chaos to Community",
+    description: "The most effective classroom management is about belonging, not control. How to build and sustain a classroom community where students want to learn.",
+    ogType: "article",
+  },
+  "assessment-learning": {
+    title: "Assessment for Learning | BrightBoard Blog",
+    h1: "Assessment for Learning: Moving Beyond Tests and Grades",
+    description: "Formative assessment is the most powerful improvement tool in education. Learn exit tickets, think-pair-share, and feedback techniques that move learning forward.",
+    ogType: "article",
+  },
+  "teacher-self-care": {
+    title: "Teacher Self-Care and Burnout Prevention | BrightBoard Blog",
+    h1: "Teacher Self-Care: The Professional Case for Looking After Yourself",
+    description: "Teacher burnout hurts students. The professional case for sustainable teaching practice, work-life balance, and using AI tools to reclaim your evenings.",
+    ogType: "article",
+  },
+  "project-based-learning": {
+    title: "Project-Based Learning Guide | BrightBoard Blog",
+    h1: "Project-Based Learning: A Complete Classroom Guide",
+    description: "PBL develops real-world skills while covering curriculum content. A complete guide to designing driving questions, managing group work, and assessing PBL.",
+    ogType: "article",
+  },
+  "early-childhood": {
+    title: "Early Childhood Education | BrightBoard Blog",
+    h1: "Early Childhood Education: Building the Foundations That Last a Lifetime",
+    description: "What happens in the first eight years shapes learning for life. The science of brain development, play-based learning, and stimulating early childhood environments.",
+    ogType: "article",
+  },
+  "parent-teacher": {
+    title: "Parent-Teacher Communication | BrightBoard Blog",
+    h1: "Parent-Teacher Communication: Building Partnerships That Help Students Thrive",
+    description: "When parents and teachers work together, students perform better. Practical strategies for proactive communication, parent engagement, and bridging cultural gaps.",
+    ogType: "article",
+  },
 };
 
 const STATIC_ROUTES: Record<string, RouteMeta> = {
@@ -156,6 +210,21 @@ const STATIC_ROUTES: Record<string, RouteMeta> = {
     title: "Refund Policy | BrightBoard",
     h1: "Refund Policy",
     description: "BrightBoard's Refund Policy. Learn about our refund process for Premium subscriptions and content generation services.",
+  },
+  "/resources": {
+    title: "Free Teaching Resources | BrightBoard",
+    h1: "Free Teaching Resources for Educators",
+    description: "Free lesson plan templates, worksheet guides, game formats, assessment tools, and classroom management resources for teachers. Download and use immediately.",
+  },
+  "/teaching-tips": {
+    title: "30 Teaching Tips Every Educator Should Know | BrightBoard",
+    h1: "30 Research-Backed Teaching Tips",
+    description: "30 practical teaching tips covering engagement, assessment, feedback, classroom management, and teacher wellbeing — each with the research behind it.",
+  },
+  "/studio": {
+    title: "Teacher Studio | AI Content Creator for Teachers | BrightBoard",
+    h1: "Teacher Studio — AI-Powered Content for Every Lesson",
+    description: "Create worksheets, presentations, games, mind maps, and video storyboards with AI. Teacher Studio by BrightBoard gives every teacher a professional content creation suite.",
   },
 };
 
@@ -222,6 +291,9 @@ const INTERNAL_LINKS_FOOTER = `
       <a href="${BASE}/pricing" style="color:#7c3aed;text-decoration:none">Pricing</a>
       <a href="${BASE}/about" style="color:#7c3aed;text-decoration:none">About</a>
       <a href="${BASE}/blog" style="color:#7c3aed;text-decoration:none">Blog</a>
+      <a href="${BASE}/resources" style="color:#7c3aed;text-decoration:none">Free Resources</a>
+      <a href="${BASE}/teaching-tips" style="color:#7c3aed;text-decoration:none">Teaching Tips</a>
+      <a href="${BASE}/studio" style="color:#7c3aed;text-decoration:none">Teacher Studio</a>
       <a href="${BASE}/contact" style="color:#7c3aed;text-decoration:none">Contact</a>
       <a href="${BASE}/affiliate" style="color:#7c3aed;text-decoration:none">Affiliate Program</a>
       <a href="${BASE}/privacy" style="color:#7c3aed;text-decoration:none">Privacy Policy</a>

@@ -42,6 +42,8 @@ import BlogPost from "@/pages/blog-post";
 import HowItWorks from "@/pages/how-it-works";
 import Features from "@/pages/features";
 import AdsLanding from "@/pages/ads-landing";
+import Resources from "@/pages/resources";
+import TeachingTips from "@/pages/teaching-tips";
 import type { OrganizationSettings } from "@shared/schema";
 
 function PageTracker() {
@@ -92,6 +94,8 @@ function Router() {
       <Route path="/blog/:slug" component={BlogPost} />
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/features" component={Features} />
+      <Route path="/resources" component={Resources} />
+      <Route path="/teaching-tips" component={TeachingTips} />
       
       {/* Owner pages - owner only */}
       <Route path="/owner-dashboard" component={OwnerDashboard} />

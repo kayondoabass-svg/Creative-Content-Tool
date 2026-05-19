@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, BookOpen, Clock, Brain, Target, Palette, Gamepad2, Users, ClipboardList, Network, Image, FileSpreadsheet, ArrowRight, Sparkles, GraduationCap } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock, Brain, Target, Palette, Gamepad2, Users, ClipboardList, Network, Image, FileSpreadsheet, ArrowRight, Sparkles, GraduationCap, Heart } from "lucide-react";
 import { Link } from "wouter";
 import { Footer } from "@/components/footer";
 import { useEffect } from "react";
@@ -96,6 +96,87 @@ const articles = [
     title: "The Power of Mind Mapping in Education: A Research-Based Guide",
     excerpt: "Mind maps are one of the most versatile and effective tools in education — useful for brainstorming, note-taking, revision, and concept introduction. Here is what cognitive science says about why they work and how to use them effectively.",
     readTime: "10 min read",
+  },
+  {
+    id: "stem-africa",
+    icon: GraduationCap,
+    color: "from-green-600 to-teal-600",
+    category: "Education Policy",
+    title: "STEM Education in Africa: Why Science and Technology Must Come First",
+    excerpt: "Africa's fastest-growing economies are being shaped by technology, engineering, and innovation. Yet STEM education in many schools remains underfunded and under-resourced. Here is what teachers can do right now — with or without a laboratory.",
+    readTime: "9 min read",
+  },
+  {
+    id: "storytelling-education",
+    icon: BookOpen,
+    color: "from-fuchsia-500 to-pink-500",
+    category: "Teaching Strategies",
+    title: "The Art of Storytelling in Education: Making Every Lesson Memorable",
+    excerpt: "Humans have learned through stories for 100,000 years. The brain is wired for narrative in a way it is simply not wired for bullet points. Here is how to use storytelling to make any lesson in any subject dramatically more memorable.",
+    readTime: "8 min read",
+  },
+  {
+    id: "differentiated-instruction",
+    icon: Users,
+    color: "from-sky-500 to-blue-500",
+    category: "Teaching Strategies",
+    title: "Differentiated Instruction: A Practical Guide for Busy Teachers",
+    excerpt: "Every class contains students at wildly different points in their learning journey. Differentiated instruction means meeting each of them where they are — without working three times as hard. Here is how to do it practically and sustainably.",
+    readTime: "9 min read",
+  },
+  {
+    id: "classroom-culture",
+    icon: Heart,
+    color: "from-rose-500 to-red-500",
+    category: "Classroom Management",
+    title: "Building a Positive Classroom Culture: From Chaos to Community",
+    excerpt: "The most effective classroom management is not about control — it is about building a community where students want to behave well because they belong. Here is how to create that culture deliberately and sustain it through the pressures of a school year.",
+    readTime: "8 min read",
+  },
+  {
+    id: "assessment-learning",
+    icon: ClipboardList,
+    color: "from-orange-500 to-red-500",
+    category: "Assessment",
+    title: "Assessment for Learning: Moving Beyond Tests and Grades",
+    excerpt: "The most powerful assessment tool is not a test — it is a well-timed question. Assessment for learning means using information about what students know to improve teaching in real time, rather than to rank students after the fact.",
+    readTime: "8 min read",
+  },
+  {
+    id: "teacher-self-care",
+    icon: Sparkles,
+    color: "from-amber-500 to-yellow-500",
+    category: "Teacher Wellbeing",
+    title: "Teacher Self-Care: The Professional Case for Looking After Yourself",
+    excerpt: "Teacher burnout is not a personal failure — it is a systemic problem with serious consequences for students. Here is why self-care is a professional responsibility, not a luxury, and what sustainable teaching practice actually looks like.",
+    readTime: "7 min read",
+  },
+  {
+    id: "project-based-learning",
+    icon: Target,
+    color: "from-violet-600 to-purple-600",
+    category: "Teaching Strategies",
+    title: "Project-Based Learning: A Complete Classroom Guide",
+    excerpt: "Project-based learning develops the real-world skills students will actually need — collaboration, problem-solving, communication, and self-management — while covering curriculum content. Here is how to design and deliver it effectively.",
+    readTime: "10 min read",
+  },
+  {
+    id: "early-childhood",
+    icon: Image,
+    color: "from-lime-500 to-green-500",
+    category: "Early Years",
+    title: "Early Childhood Education: Building the Foundations That Last a Lifetime",
+    excerpt: "The research is unequivocal: what happens in the first eight years of a child's education shapes their academic trajectory, emotional wellbeing, and life outcomes more than any other period. Here is what every early years teacher needs to know.",
+    readTime: "8 min read",
+  },
+  {
+    id: "parent-teacher",
+    icon: Users,
+    color: "from-cyan-500 to-teal-500",
+    category: "School Community",
+    title: "Parent-Teacher Communication: Building Partnerships That Help Students Thrive",
+    excerpt: "The most effective school communities treat parents as partners, not recipients of information. When teachers and parents work together, students perform better, attend more reliably, and develop stronger social skills.",
+    readTime: "7 min read",
   },
 ];
 
