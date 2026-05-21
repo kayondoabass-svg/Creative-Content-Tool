@@ -73,6 +73,16 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/resources" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-resources">
+                  Free Resources
+                </Link>
+              </li>
+              <li>
+                <Link href="/teaching-tips" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-teaching-tips">
+                  Teaching Tips
+                </Link>
+              </li>
+              <li>
                 <Link href="/file-tools" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-file-tools">
                   {t('common.fileTools')}
                 </Link>
@@ -157,28 +167,48 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/blog/visual-learning" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-visual">
-                  Visual Learning Science
+                <Link href="/blog/stem-africa" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-stem">
+                  STEM Education in Africa
                 </Link>
               </li>
               <li>
-                <Link href="/blog/gamification" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-games">
-                  Gamification Guide
+                <Link href="/blog/differentiated-instruction" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-diff">
+                  Differentiated Instruction
                 </Link>
               </li>
               <li>
-                <Link href="/blog/time-saving" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-time">
-                  Save 5+ Hours Per Week
+                <Link href="/blog/classroom-culture" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-culture">
+                  Positive Classroom Culture
                 </Link>
               </li>
               <li>
-                <Link href="/blog/lesson-planning" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-planning">
-                  AI Lesson Planning
+                <Link href="/blog/project-based-learning" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-pbl">
+                  Project-Based Learning
                 </Link>
               </li>
               <li>
-                <Link href="/blog/mind-mapping" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-mindmap">
-                  Mind Mapping Guide
+                <Link href="/blog/storytelling-education" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-story">
+                  Storytelling in Education
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog/teacher-self-care" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-selfcare">
+                  Teacher Self-Care
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog/assessment-learning" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-assessment">
+                  Assessment for Learning
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog/early-childhood" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-early">
+                  Early Childhood Education
+                </Link>
+              </li>
+              <li>
+                <Link href="/blog/parent-teacher" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog-parents">
+                  Parent-Teacher Communication
                 </Link>
               </li>
             </ul>

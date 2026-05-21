@@ -114,7 +114,7 @@ const BLOG_ARTICLES: Record<string, RouteMeta> = {
   "differentiated-instruction": {
     title: "Differentiated Instruction Guide | BrightBoard Blog",
     h1: "Differentiated Instruction: A Practical Guide for Busy Teachers",
-    description: "Meet every learner where they are without tripling your workload. Practical tiered activities, choice boards, and flexible grouping strategies for real classrooms.",
+    description: "Meet every learner where they are without tripling your workload. Practical tiered activities, choice boards, and flexible grouping strategies.",
     ogType: "article",
   },
   "classroom-culture": {
@@ -126,7 +126,7 @@ const BLOG_ARTICLES: Record<string, RouteMeta> = {
   "assessment-learning": {
     title: "Assessment for Learning | BrightBoard Blog",
     h1: "Assessment for Learning: Moving Beyond Tests and Grades",
-    description: "Formative assessment is the most powerful improvement tool in education. Learn exit tickets, think-pair-share, and feedback techniques that move learning forward.",
+    description: "Formative assessment is the most powerful improvement tool. Learn exit tickets, think-pair-share, and feedback techniques that move learning forward.",
     ogType: "article",
   },
   "teacher-self-care": {
@@ -224,7 +224,7 @@ const STATIC_ROUTES: Record<string, RouteMeta> = {
   "/studio": {
     title: "Teacher Studio | AI Content Creator for Teachers | BrightBoard",
     h1: "Teacher Studio — AI-Powered Content for Every Lesson",
-    description: "Create worksheets, presentations, games, mind maps, and video storyboards with AI. Teacher Studio by BrightBoard gives every teacher a professional content creation suite.",
+    description: "Create worksheets, presentations, games, mind maps, and storyboards with AI. Teacher Studio by BrightBoard gives every teacher a professional content suite.",
   },
 };
 
