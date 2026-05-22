@@ -220,7 +220,7 @@ function HeaderWithLogo() {
         <img 
           src="/favicon.png" 
           alt="BrightBoard" 
-          className="h-10 w-10 rounded-lg object-cover"
+          className="h-10 w-10 rounded-lg object-contain"
           data-testid="img-brightboard-logo"
         />
         <div>
