@@ -47,45 +47,37 @@ async function logEmailExpense(emailType: string, recipient: string): Promise<vo
   }
 }
 
-export async function sendVerificationEmail(email: string, code: string): Promise<boolean> {
+export async function sendVerificationEmail(email: string, code: string, verifyUrl?: string): Promise<boolean> {
   try {
+    const buttonBlock = verifyUrl ? `
+      <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:16px;margin-bottom:16px;">
+        Verify Email &amp; Sign In
+      </a>
+      <p style="color:#6b7280;font-size:13px;margin:16px 0 0 0;">
+        Or paste this link in your browser: <br>
+        <span style="color:#7c3aed;word-break:break-all;font-size:11px;">${verifyUrl}</span>
+      </p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Backup code if the button doesn't work: <strong style="color:#1f2937;">${code}</strong></p>
+    ` : `
+      <div style="background:linear-gradient(135deg,#7c3aed,#06b6d4);border-radius:8px;padding:24px;text-align:center;margin-bottom:24px;">
+        <span style="font-size:32px;font-weight:bold;color:white;letter-spacing:8px;">${code}</span>
+      </div>
+    `;
+
     const result = await sendEmail(
       email,
       'Verify your BrightBoard account',
-      `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 40px 20px;">
-          <div style="max-width: 480px; margin: 0 auto; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="text-align: center; margin-bottom: 32px;">
-              <h1 style="color: #7c3aed; margin: 0; font-size: 28px;">BrightBoard</h1>
-              <p style="color: #6b7280; margin: 8px 0 0 0;">AI Content for Teachers</p>
-            </div>
-            
-            <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px;">Verify your email</h2>
-            <p style="color: #4b5563; line-height: 1.6; margin: 0 0 24px 0;">
-              Enter this verification code to complete your BrightBoard account setup:
-            </p>
-            
-            <div style="background: linear-gradient(135deg, #7c3aed, #06b6d4); border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
-              <span style="font-size: 32px; font-weight: bold; color: white; letter-spacing: 8px;">${code}</span>
-            </div>
-            
-            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
-              This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.
-            </p>
-          </div>
-          
-          <p style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 24px;">
-            &copy; ${new Date().getFullYear()} BrightBoard. All rights reserved.
-          </p>
-        </body>
-        </html>
-      `
+      `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;margin:0;padding:40px 20px;">
+        <div style="max-width:480px;margin:0 auto;background:white;border-radius:12px;padding:40px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+          <h1 style="color:#7c3aed;margin:0;font-size:28px;">BrightBoard</h1>
+          <p style="color:#6b7280;margin:8px 0 24px 0;">AI Content for Teachers</p>
+          <h2 style="color:#1f2937;margin:0 0 16px 0;font-size:20px;">Welcome! Verify your email</h2>
+          <p style="color:#4b5563;line-height:1.6;margin:0 0 24px 0;">Click the button below to verify your account and sign in.</p>
+          ${buttonBlock}
+          <p style="color:#6b7280;font-size:13px;margin-top:24px;">This link expires in 10 minutes.</p>
+        </div>
+        <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:24px;">&copy; ${new Date().getFullYear()} BrightBoard</p>
+      </body></html>`
     );
     console.log('Verification email sent:', result);
     await logEmailExpense("Verification", email);

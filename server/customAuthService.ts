@@ -79,19 +79,21 @@ export async function signUp(
       })
       .returning();
 
-    // Generate and send verification code
+    // Generate and send verification code + magic-link token
     const code = generateVerificationCode();
+    const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
 
     await db.insert(verificationCodes).values({
       email: email.toLowerCase(),
       code,
+      token,
       type: "email_verification",
       expiresAt,
     });
 
-    // Send verification email
-    const emailSent = await sendVerificationEmail(email, code);
+    const verifyUrl = `https://brightboardapp.com/api/auth/verify-email?token=${token}`;
+    const emailSent = await sendVerificationEmail(email, code, verifyUrl);
     if (!emailSent) {
       return { success: false, message: "Account created but we could not send a verification email. Please contact support@brightboardapp.com." };
     }
@@ -168,18 +170,21 @@ export async function resendVerificationCode(
       return { success: false, message: "Email is already verified" };
     }
 
-    // Generate new code
+    // Generate new code + magic-link token
     const code = generateVerificationCode();
+    const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000);
 
     await db.insert(verificationCodes).values({
       email: email.toLowerCase(),
       code,
+      token,
       type: "email_verification",
       expiresAt,
     });
 
-    const emailSent = await sendVerificationEmail(email, code);
+    const verifyUrl = `https://brightboardapp.com/api/auth/verify-email?token=${token}`;
+    const emailSent = await sendVerificationEmail(email, code, verifyUrl);
     if (!emailSent) {
       return { success: false, message: "Could not send verification email. Please contact support@brightboardapp.com." };
     }
@@ -264,6 +269,27 @@ export async function login(
   } catch (error) {
     console.error("Login error:", error);
     return { success: false, message: "Login failed" };
+  }
+}
+
+export async function verifyEmailByToken(token: string): Promise<{ success: boolean; userId?: string; message: string }> {
+  try {
+    const [vc] = await db.select().from(verificationCodes).where(and(
+      eq(verificationCodes.token, token),
+      eq(verificationCodes.type, "email_verification"),
+      gt(verificationCodes.expiresAt, new Date()),
+    )).limit(1);
+    if (!vc) return { success: false, message: "Link is invalid or expired" };
+
+    const [user] = await db.select().from(users).where(eq(users.email, vc.email)).limit(1);
+    if (!user) return { success: false, message: "Account not found" };
+
+    await db.update(users).set({ emailVerified: true }).where(eq(users.id, user.id));
+    await db.delete(verificationCodes).where(eq(verificationCodes.id, vc.id));
+    return { success: true, userId: user.id, message: "Email verified" };
+  } catch (error) {
+    console.error("verifyEmailByToken error:", error);
+    return { success: false, message: "Verification failed" };
   }
 }
 

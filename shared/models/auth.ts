@@ -63,6 +63,7 @@ export const verificationCodes = pgTable("verification_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").notNull(),
   code: varchar("code").notNull(),
+  token: varchar("token", { length: 64 }), // for magic-link verification
   type: varchar("type").notNull(), // 'email_verification' or 'password_reset'
   expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),

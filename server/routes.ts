@@ -297,6 +297,22 @@ ${pages.map(p => `  <url>
     }
   });
 
+  // Magic-link email verification — clicked from email, auto-verifies + signs in + redirects
+  app.get("/api/auth/verify-email", async (req, res) => {
+    const token = String(req.query.token || "");
+    if (!token) return res.redirect("/login?verify_error=missing_token");
+
+    const result = await customAuth.verifyEmailByToken(token);
+    if (!result.success || !result.userId) {
+      return res.redirect(`/login?verify_error=${encodeURIComponent(result.message)}`);
+    }
+
+    (req.session as any).userId = result.userId;
+    req.session.save(() => {
+      res.redirect("/?verified=1");
+    });
+  });
+
   // Verify email with code
   app.post("/api/auth/verify-email", async (req, res) => {
     try {
