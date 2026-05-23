@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { 
   Sparkles, Image, FileText, Presentation, Video, FileSpreadsheet, 
   ChevronLeft, ChevronRight, Shield, Clock, CreditCard, Users, 
-  FileCheck, Play, Star, Gamepad2, Globe, Zap, Network, Film,
+  FileCheck, Play, Star, Gamepad2, Globe, Zap,
   GraduationCap, School, Award, Lightbulb, Mail, CheckCircle, 
   RefreshCw, X, ArrowRight, Download, Smartphone, Monitor, Apple
 } from "lucide-react";
@@ -53,7 +53,6 @@ const sampleContentData = [
 export default function LandingPage() {
   const { t } = useTranslation();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [activeFeature, setActiveFeature] = useState(0);
   const [isReturningVisitor, setIsReturningVisitor] = useState(false);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [newsletterEmail, setNewsletterEmail] = useState("");
@@ -388,7 +387,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* How It Works — Interactive Feature Showcase */}
+        {/* Demo Video Section */}
         <section id="demo" className="container mx-auto px-4 py-16">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold mb-4">{t('landing.demoTitle')}</h2>
@@ -397,73 +396,26 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="max-w-5xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-6 items-stretch">
-              {/* Feature selector */}
-              <div className="flex flex-col gap-3">
-                {[
-                  { icon: Image, color: "from-pink-500 to-rose-500", label: "AI Educational Images", desc: "Describe any concept — get a beautiful, classroom-ready illustration in seconds." },
-                  { icon: Presentation, color: "from-violet-500 to-purple-600", label: "Slide Presentations", desc: "Full slide decks with speaker notes, transitions, and tap-to-reveal quiz mode." },
-                  { icon: FileText, color: "from-blue-500 to-cyan-500", label: "Printable Worksheets", desc: "Auto-generated with fill-in-the-blank, matching, and short-answer sections." },
-                  { icon: Gamepad2, color: "from-green-500 to-teal-500", label: "Interactive Games", desc: "12 playable game types including Lucky Spinner, Memory Match, and Mystery Box." },
-                  { icon: Network, color: "from-orange-500 to-amber-500", label: "Visual Mind Maps", desc: "Radial mind maps with AI-generated node images — perfect for concept introduction." },
-                  { icon: Film, color: "from-indigo-500 to-blue-600", label: "Video Storyboards", desc: "Frame-by-frame story plans with AI narration scripts and background music cues." },
-                ].map((f, i) => {
-                  const Icon = f.icon;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setActiveFeature(i)}
-                      data-testid={`feature-tab-${i}`}
-                      className={`flex items-center gap-3 p-3 rounded-xl text-left transition-all border ${
-                        activeFeature === i
-                          ? "border-primary bg-primary/10 shadow-sm"
-                          : "border-transparent hover:border-border hover:bg-muted/50"
-                      }`}
-                    >
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${f.color} flex items-center justify-center flex-shrink-0`}>
-                        <Icon className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm">{f.label}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{f.desc}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="max-w-4xl mx-auto rounded-2xl overflow-hidden border-2 border-primary/20 shadow-2xl bg-black">
+            <video
+              controls
+              preload="metadata"
+              className="w-full"
+              data-testid="demo-video"
+              poster=""
+            >
+              <source src="/demo-video.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
 
-              {/* Feature preview panel */}
-              <div className="rounded-2xl overflow-hidden border-2 border-primary/20 shadow-2xl bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col justify-between min-h-[400px]">
-                {[
-                  { icon: Image, color: "from-pink-500 to-rose-500", label: "AI Educational Images", desc: "Describe any concept — get a beautiful, classroom-ready illustration in seconds. No design skills needed. Works for any subject and any age group.", badges: ["Instant", "DALL-E 3", "No watermark on Premium"] },
-                  { icon: Presentation, color: "from-violet-500 to-purple-600", label: "Slide Presentations", desc: "Generate complete slide decks with speaker notes in one click. Up to 20 slides on Premium. Includes slideshow mode, PowerPoint export, and tap-to-reveal quiz animations.", badges: ["Up to 20 slides", "PPT export", "Tap-to-reveal quiz"] },
-                  { icon: FileText, color: "from-blue-500 to-cyan-500", label: "Printable Worksheets", desc: "AI builds structured worksheets with fill-in-the-blank, matching, short-answer, and multiple-choice sections. Formatted for A4 and Letter printing.", badges: ["A4 ready", "PDF export", "Multiple formats"] },
-                  { icon: Gamepad2, color: "from-green-500 to-teal-500", label: "Interactive Games", desc: "12 playable game types your students can play directly in the browser — Lucky Spinner, Memory Match, Mystery Box, True/False, Odd One Out, and more.", badges: ["12 game types", "Play in browser", "No install"] },
-                  { icon: Network, color: "from-orange-500 to-amber-500", label: "Visual Mind Maps", desc: "AI-generated radial mind maps with node images. Three layout styles: Radial, Sketch, and Infographic. 3–8 branches, customizable image style.", badges: ["AI node images", "3 layout styles", "SVG export"] },
-                  { icon: Film, color: "from-indigo-500 to-blue-600", label: "Video Storyboards", desc: "Plan animated video lessons with frame-by-frame storyboards. AI narration scripts, background music suggestions, and multi-language subtitle options.", badges: ["Frame-by-frame", "AI narration", "Multi-language"] },
-                ].filter((_, i) => i === activeFeature).map((f) => {
-                  const Icon = f.icon;
-                  return (
-                    <div key={f.label} className="flex flex-col h-full p-8">
-                      <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-6 shadow-lg`}>
-                        <Icon className="w-8 h-8 text-white" />
-                      </div>
-                      <h3 className="text-xl font-bold text-white mb-3">{f.label}</h3>
-                      <p className="text-white/70 text-sm leading-relaxed mb-6 flex-1">{f.desc}</p>
-                      <div className="flex flex-wrap gap-2 mb-6">
-                        {f.badges.map(b => (
-                          <span key={b} className="bg-white/10 text-white/80 text-xs px-3 py-1 rounded-full border border-white/20">{b}</span>
-                        ))}
-                      </div>
-                      <Button asChild className="w-full" data-testid="button-try-feature">
-                        <Link href="/signup">Try it free →</Link>
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          <div className="text-center mt-6">
+            <Button asChild size="lg" data-testid="button-get-started-demo">
+              <Link href="/signup">
+                <Sparkles className="w-5 h-5 mr-2" />
+                Get Started Free
+              </Link>
+            </Button>
           </div>
         </section>
 
