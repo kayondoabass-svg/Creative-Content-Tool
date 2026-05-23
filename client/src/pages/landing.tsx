@@ -399,10 +399,13 @@ export default function LandingPage() {
           <div className="max-w-4xl mx-auto rounded-2xl overflow-hidden border-2 border-primary/20 shadow-2xl bg-black">
             <video
               controls
-              preload="metadata"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
               className="w-full"
               data-testid="demo-video"
-              poster=""
             >
               <source src="/demo-video.mp4" type="video/mp4" />
               Your browser does not support the video tag.

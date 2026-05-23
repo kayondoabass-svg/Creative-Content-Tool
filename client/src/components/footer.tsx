@@ -16,9 +16,9 @@ export function Footer() {
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <img 
-                src="/favicon.png" 
+                src="/logo.png" 
                 alt="BrightBoard" 
-                className="w-8 h-8 rounded-lg object-cover"
+                className="w-10 h-10 rounded-lg object-contain bg-white"
               />
               <span className="font-bold text-xl bg-gradient-to-r from-purple-600 to-teal-500 bg-clip-text text-transparent">
                 BrightBoard
