@@ -163,9 +163,9 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img 
-              src="/favicon.png" 
+              src="/logo.png" 
               alt={t('common.appName')} 
-              className="w-10 h-10 rounded-xl object-contain"
+              className="h-12 w-12 rounded-lg object-contain bg-white"
             />
             <span className="font-bold text-xl">{t('common.appName')}</span>
           </div>
