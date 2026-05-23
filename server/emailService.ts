@@ -3,32 +3,30 @@ import { db } from './db';
 import { expenses } from '@shared/schema';
 
 const AFROAI_API_URL = "https://afroaigroup.com/api/email-api/send";
-const NOREPLY_SENDER = "BrightBoard <noreply@brightboardapp.com>";
-const SUPPORT_SENDER = "BrightBoard <support@brightboardapp.com>";
+const NOREPLY_SENDER = process.env.AFROAI_EMAIL_FROM || "BrightBoard <noreply@brightboardapp.com>";
+const SUPPORT_SENDER = process.env.AFROAI_EMAIL_FROM || "BrightBoard <support@brightboardapp.com>";
 
-async function sendEmail(to: string, subject: string, html: string, from: string = NOREPLY_SENDER, replyTo?: string): Promise<{ success: boolean; messageId?: string }> {
+async function sendEmail(to: string, subject: string, html: string, from: string = NOREPLY_SENDER, replyTo?: string, text?: string): Promise<{ success: boolean; messageId?: string }> {
   const apiKey = process.env.AFROAI_EMAIL_API_KEY;
   if (!apiKey) {
     throw new Error("AFROAI_EMAIL_API_KEY is not set");
   }
 
   const body: any = { from, to, subject, html };
+  if (text) body.text = text;
   if (replyTo) body.replyTo = replyTo;
 
-  const response = await fetch(AFROAI_API_URL, {
-    method: "POST",
+  const res = await fetch(AFROAI_API_URL, {
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   });
 
-  const data = await response.json() as any;
-
-  if (!response.ok) {
-    throw new Error(`AfroAI email error: ${response.status} ${JSON.stringify(data)}`);
-  }
+  if (!res.ok) throw new Error(`Email send failed: ${await res.text()}`);
+  const data = await res.json() as any;
 
   return { success: true, messageId: data.messageId };
 }
