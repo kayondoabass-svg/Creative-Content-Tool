@@ -292,16 +292,17 @@ export async function requestPasswordReset(
       expiresAt,
     });
 
-    const emailSent = await sendPasswordResetEmail(email, code);
+    const emailResult = await sendPasswordResetEmail(email, code);
 
-    if (!emailSent) {
-      return { success: false, message: "Could not send reset email. Please try again or contact support@brightboardapp.com." };
+    if (!emailResult.ok) {
+      console.error("Password reset email failed:", emailResult.reason);
+      return { success: false, message: `Email delivery failed: ${emailResult.reason}` };
     }
 
     return { success: true, message: "If an account exists, a reset code will be sent" };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Password reset request error:", error);
-    return { success: false, message: "Could not send reset email. Please try again or contact support@brightboardapp.com." };
+    return { success: false, message: `Could not send reset email: ${error?.message || error}` };
   }
 }
 

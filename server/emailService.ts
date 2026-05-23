@@ -96,9 +96,9 @@ export async function sendVerificationEmail(email: string, code: string): Promis
   }
 }
 
-export async function sendPasswordResetEmail(email: string, code: string): Promise<boolean> {
+export async function sendPasswordResetEmail(email: string, code: string): Promise<{ ok: boolean; reason?: string }> {
   try {
-    const result = await sendEmail(
+    await sendEmail(
       email,
       'Reset your BrightBoard password',
       `
@@ -136,12 +136,11 @@ export async function sendPasswordResetEmail(email: string, code: string): Promi
         </html>
       `
     );
-    console.log('Password reset email sent:', result);
     await logEmailExpense("Password Reset", email);
-    return true;
-  } catch (error) {
-    console.error('Error sending password reset email:', error);
-    return false;
+    return { ok: true };
+  } catch (error: any) {
+    console.error('sendPasswordResetEmail failed:', error?.message || error);
+    return { ok: false, reason: error?.message || 'Unknown email error' };
   }
 }
 
