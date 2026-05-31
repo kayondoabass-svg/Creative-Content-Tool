@@ -266,9 +266,9 @@ function AppShell() {
 
   if (isAuthenticated) {
     return (
-      <div className="flex flex-col h-screen w-full bg-background">
+      <div className="flex flex-col h-screen w-full bg-background overflow-hidden">
         <HeaderWithLogo />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto min-h-0">
           <PageTracker />
           <Router />
         </main>
