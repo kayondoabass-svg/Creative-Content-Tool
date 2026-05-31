@@ -146,29 +146,30 @@ export default function FlashcardsPage() {
             {activeSet.words.map((word, i) => (
               <div
                 key={word}
-                className={`rounded-2xl overflow-hidden shadow-md border border-white/60 bg-gradient-to-br ${CARD_BG[i % CARD_BG.length]} flex flex-col`}
+                className={`rounded-2xl overflow-hidden shadow-md border border-white/10 bg-gradient-to-br ${CARD_BG[i % CARD_BG.length]} flex flex-col`}
                 style={{ aspectRatio: "3/4" }}
                 data-testid={`card-flashcard-${i}`}
               >
-                <div className="flex-1 flex items-center justify-center p-3">
+                <div className="flex-1 relative min-h-0">
                   <img
                     src={`/flashcard-images/${activeSet.id}/${word.toLowerCase()}.png`}
                     alt={word}
-                    className="max-h-full max-w-full object-contain rounded-xl"
+                    className="absolute inset-0 w-full h-full object-contain p-5"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).style.display = "none";
                       const parent = e.currentTarget.parentElement;
                       if (parent && !parent.querySelector(".emoji-fallback")) {
                         const span = document.createElement("span");
-                        span.className = "emoji-fallback text-5xl";
+                        span.className = "emoji-fallback text-7xl absolute inset-0 flex items-center justify-center";
+                        span.style.display = "flex";
                         span.textContent = activeSet.emoji;
                         parent.appendChild(span);
                       }
                     }}
                   />
                 </div>
-                <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm py-3 px-2 text-center">
-                  <p className="font-bold text-lg capitalize text-gray-800 dark:text-gray-100">{word}</p>
+                <div className="bg-black/25 backdrop-blur-sm py-3 px-2 text-center">
+                  <p className="font-bold text-lg capitalize text-white drop-shadow">{word}</p>
                 </div>
               </div>
             ))}
