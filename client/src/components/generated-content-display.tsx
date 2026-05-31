@@ -526,7 +526,7 @@ export function GeneratedContentDisplay({
               </Button>
             </>
           ) : type === "worksheet" ? (
-            <WorksheetDownloadButtons content={content} toast={toast} />
+            <WorksheetDownloadButtons content={content} toast={toast} isPremium={isPremium} />
           ) : type === "activity" ? (
             <>
               <Button 
@@ -1194,7 +1194,7 @@ function StoryboardContent({ content }: { content: string }) {
 }
 
 // Worksheet download buttons component
-function WorksheetDownloadButtons({ content, toast }: { content: string; toast: any }) {
+function WorksheetDownloadButtons({ content, toast, isPremium }: { content: string; toast: any; isPremium?: boolean }) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -1303,10 +1303,6 @@ function WorksheetDownloadButtons({ content, toast }: { content: string; toast: 
         {downloading === "jpeg" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <ImageIcon className="h-4 w-4 mr-1.5" />}
         JPEG
       </Button>
-      <Button variant="outline" size="sm" onClick={downloadAsText} disabled={!!downloading} data-testid="button-download-txt">
-        <Download className="h-4 w-4 mr-1.5" />
-        Text
-      </Button>
       <Button variant="outline" size="sm" onClick={copyToClipboard} disabled={copied} data-testid="button-copy-worksheet">
         {copied ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
         {copied ? "Copied!" : "Copy Text"}
@@ -1317,21 +1313,52 @@ function WorksheetDownloadButtons({ content, toast }: { content: string; toast: 
 
 // Worksheet content display
 function WorksheetContent({ content }: { content: string }) {
+  const { isPremium } = useSubscription();
+  const [showLogo, setShowLogo] = useState(true);
+
   try {
     const data = JSON.parse(content);
     const sections = data.sections || [];
     const isBlackWhite = data.colorMode === "blackWhite";
+    const hasImages = sections.some((s: any) => s.imageUrl);
     
     return (
       <div className="space-y-4" data-testid="worksheet-content">
-        <div className="text-center border-b pb-4">
+        {/* Header with logo */}
+        <div className="text-center border-b pb-4 relative">
           <h2 className="text-2xl font-bold">{data.title}</h2>
-          <p className="text-muted-foreground mt-1">{data.instructions}</p>
-          <div className="flex gap-2 justify-center mt-2">
+          {data.instructions && (
+            <p className="text-muted-foreground mt-1 text-sm">{data.instructions}</p>
+          )}
+          <div className="flex gap-2 justify-center mt-2 flex-wrap">
             <Badge variant={isBlackWhite ? "outline" : "default"} data-testid="badge-color-mode">
               {isBlackWhite ? "Black & White" : "Colored"}
             </Badge>
+            {hasImages && (
+              <Badge variant="secondary" className="gap-1">
+                <ImageIcon className="h-3 w-3" /> With Images
+              </Badge>
+            )}
           </div>
+          {/* BrightBoard Logo Badge */}
+          {showLogo && (
+            <div className="flex items-center gap-1 justify-center mt-2" data-testid="logo-badge-worksheet">
+              <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-full px-2.5 py-0.5">
+                <img src="/logo.png" alt="BrightBoard" className="w-4 h-4 rounded" />
+                <span className="text-purple-700 dark:text-purple-300 text-[10px] font-semibold">brightboardapp.com</span>
+              </div>
+            </div>
+          )}
+          {/* Premium logo toggle */}
+          {isPremium && (
+            <button
+              onClick={() => setShowLogo(v => !v)}
+              className="absolute top-0 right-0 text-[10px] text-muted-foreground hover:text-foreground underline"
+              data-testid="button-toggle-logo"
+            >
+              {showLogo ? "Hide logo" : "Show logo"}
+            </button>
+          )}
         </div>
         
         <div className="space-y-6">
@@ -1341,53 +1368,66 @@ function WorksheetContent({ content }: { content: string }) {
               className={`p-4 ${isBlackWhite ? "bg-white border-2 border-black" : "bg-gradient-to-r from-muted/50 to-muted/20"}`}
               data-testid={`worksheet-section-${idx}`}
             >
-              {section.title && (
-                <h3 className={`font-semibold mb-3 ${isBlackWhite ? "text-black" : ""}`}>
-                  {section.title}
-                </h3>
-              )}
-              
-              <div className="space-y-2">
-                {section.content?.map((item: string, i: number) => (
-                  <div 
-                    key={i} 
-                    className={`p-2 rounded ${isBlackWhite ? "border border-black" : "bg-background/50"}`}
-                  >
-                    {section.type === "fillBlank" ? (
-                      <p className="font-medium">
-                        {i + 1}. {item.replace(/_+/g, (match: string) => `_${"_".repeat(Math.max(10, match.length))}_`)}
-                      </p>
-                    ) : section.type === "multipleChoice" ? (
-                      <div>
-                        <p className="font-medium">{i + 1}. {item}</p>
+              <div className={`flex gap-3 ${section.imageUrl ? "items-start" : ""}`}>
+                {/* Section image (paid feature) */}
+                {section.imageUrl && (
+                  <img
+                    src={section.imageUrl}
+                    alt={section.title || "Illustration"}
+                    className="w-24 h-24 object-cover rounded-lg border flex-shrink-0"
+                    data-testid={`worksheet-section-image-${idx}`}
+                  />
+                )}
+                <div className="flex-1">
+                  {section.title && (
+                    <h3 className={`font-semibold mb-3 ${isBlackWhite ? "text-black" : ""}`}>
+                      {section.title}
+                    </h3>
+                  )}
+                  
+                  <div className="space-y-2">
+                    {section.content?.map((item: string, i: number) => (
+                      <div 
+                        key={i} 
+                        className={`p-2 rounded ${isBlackWhite ? "border border-black" : "bg-background/50"}`}
+                      >
+                        {section.type === "fillBlank" ? (
+                          <p className="font-medium">
+                            {i + 1}. {item.replace(/_+/g, (match: string) => `_${"_".repeat(Math.max(10, match.length))}_`)}
+                          </p>
+                        ) : section.type === "multipleChoice" ? (
+                          <div>
+                            <p className="font-medium">{i + 1}. {item}</p>
+                          </div>
+                        ) : section.type === "writingPrompt" ? (
+                          <div>
+                            <p className="font-medium">{item}</p>
+                            <div className={`mt-2 h-24 rounded ${isBlackWhite ? "border-2 border-dashed border-black" : "border-2 border-dashed border-muted-foreground/30"}`} />
+                          </div>
+                        ) : section.type === "drawing" ? (
+                          <div>
+                            <p className="font-medium text-sm mb-2">{item}</p>
+                            <div className={`h-32 rounded ${isBlackWhite ? "border-2 border-black" : "border-2 border-dashed border-muted-foreground/30 bg-muted/20"}`} />
+                          </div>
+                        ) : (
+                          <p>{i + 1}. {item}</p>
+                        )}
                       </div>
-                    ) : section.type === "writingPrompt" ? (
-                      <div>
-                        <p className="font-medium">{item}</p>
-                        <div className={`mt-2 h-24 rounded ${isBlackWhite ? "border-2 border-dashed border-black" : "border-2 border-dashed border-muted-foreground/30"}`} />
-                      </div>
-                    ) : section.type === "drawing" ? (
-                      <div>
-                        <p className="font-medium text-sm mb-2">{item}</p>
-                        <div className={`h-32 rounded ${isBlackWhite ? "border-2 border-black" : "border-2 border-dashed border-muted-foreground/30 bg-muted/20"}`} />
-                      </div>
-                    ) : (
-                      <p>{i + 1}. {item}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-              
-              {section.answers && section.answers.length > 0 && (
-                <details className="mt-3">
-                  <summary className="text-sm text-muted-foreground cursor-pointer">Answer Key</summary>
-                  <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
-                    {section.answers.map((answer: string, i: number) => (
-                      <p key={i}>{i + 1}. {answer}</p>
                     ))}
                   </div>
-                </details>
-              )}
+
+                  {section.answers && section.answers.length > 0 && (
+                    <details className="mt-3">
+                      <summary className="text-sm text-muted-foreground cursor-pointer">Answer Key</summary>
+                      <div className="mt-2 p-2 bg-muted/50 rounded text-sm">
+                        {section.answers.map((answer: string, i: number) => (
+                          <p key={i}>{i + 1}. {answer}</p>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </div>
             </Card>
           ))}
         </div>

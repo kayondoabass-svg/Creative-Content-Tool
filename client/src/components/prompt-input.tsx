@@ -16,7 +16,7 @@ import type { ContentType } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; keyPoints?: string[]; documentContext?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; keyPoints?: string[]; documentContext?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string; includeImages?: boolean }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }) => void;
   isGenerating: boolean;
   defaultGameType?: string | null;
   externalPrompt?: string | null;
@@ -191,6 +191,7 @@ const formSchema = z.object({
   presentationTransitionDelay: z.string().optional(),
   presentationTapToReveal: z.boolean().optional(),
   worksheetColorMode: z.string().optional(),
+  worksheetIncludeImages: z.boolean().optional(),
   // Mindmap options
   mindmapBranchCount: z.string().optional(),
   mindmapLayoutStyle: z.string().optional(),
@@ -280,6 +281,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       presentationTransitionDelay: "0",
       presentationTapToReveal: false,
       worksheetColorMode: "colored",
+      worksheetIncludeImages: false,
       // Mindmap options
       mindmapBranchCount: "5",
       mindmapLayoutStyle: "radial",
@@ -489,6 +491,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     } : undefined;
     const worksheetOptions = selectedType === "worksheet" ? {
       colorMode: values.worksheetColorMode,
+      includeImages: values.worksheetIncludeImages,
     } : undefined;
     const imageOptions = selectedType === "image" ? {
       style: values.imageStyle,
@@ -1517,33 +1520,77 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
           )}
 
           {selectedType === "worksheet" && (
-            <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <FormField
-                control={form.control}
-                name="worksheetColorMode"
-                render={({ field }) => (
-                  <FormItem className="flex items-center gap-2">
-                    <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">{t('home.colorMode')}:</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-[140px]" data-testid="select-worksheet-color">
-                          <SelectValue placeholder={t('home.colorMode')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {worksheetColorModes.map((mode) => (
-                          <SelectItem key={mode.value} value={mode.value}>
-                            {t(mode.key)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('home.worksheetColorHint')}
-              </p>
+            <div className="space-y-2">
+              {/* Free-tier image reminder */}
+              {!isPremium && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-sm" data-testid="banner-worksheet-images">
+                  <Crown className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-amber-800 dark:text-amber-200">
+                    <strong>Free tier:</strong> Worksheets are text-only.{" "}
+                    <a href="/pricing" className="underline font-medium">Upgrade to Premium</a>{" "}
+                    to add real AI illustrations to each section.
+                  </p>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <FormField
+                  control={form.control}
+                  name="worksheetColorMode"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-2">
+                      <FormLabel className="text-sm text-muted-foreground whitespace-nowrap mb-0">{t('home.colorMode')}:</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-[140px]" data-testid="select-worksheet-color">
+                            <SelectValue placeholder={t('home.colorMode')} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {worksheetColorModes.map((mode) => (
+                            <SelectItem key={mode.value} value={mode.value}>
+                              {t(mode.key)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+                {/* Include Images toggle — paid only */}
+                <FormField
+                  control={form.control}
+                  name="worksheetIncludeImages"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-2 mb-0">
+                      <button
+                        type="button"
+                        disabled={!isPremium}
+                        onClick={() => isPremium && field.onChange(!field.value)}
+                        data-testid="toggle-worksheet-images"
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                          field.value && isPremium
+                            ? "bg-primary"
+                            : "bg-muted-foreground/30"
+                        } ${!isPremium ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${field.value && isPremium ? "translate-x-4" : "translate-x-0.5"}`} />
+                      </button>
+                      <FormLabel className="text-sm whitespace-nowrap mb-0 flex items-center gap-1 cursor-default">
+                        {isPremium ? (
+                          <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <Crown className="h-3.5 w-3.5 text-yellow-500" />
+                        )}
+                        Include Images
+                        {!isPremium && <span className="text-[10px] text-yellow-600 dark:text-yellow-400 font-medium">(Premium)</span>}
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+                <p className="text-xs text-muted-foreground w-full">
+                  {t('home.worksheetColorHint')}
+                </p>
+              </div>
             </div>
           )}
 

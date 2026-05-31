@@ -2618,11 +2618,42 @@ This should look like it was designed by a world-class branding agency. Make it 
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       
-      let page = pdfDoc.addPage([612, 792]); // US Letter size
-      const { width, height } = page.getSize();
+      const PAGE_W = 612, PAGE_H = 792;
       const margin = 50;
-      let yPosition = height - margin;
       const lineHeight = 16;
+      const FOOTER_H = 22; // space reserved at bottom for logo
+      const maxY = PAGE_H - margin;
+      const minY = margin + FOOTER_H;
+
+      const addLogo = (p: any) => {
+        const logoText = "BrightBoard  •  brightboardapp.com";
+        p.drawText(logoText, {
+          x: margin,
+          y: minY - 14,
+          size: 8,
+          font,
+          color: rgb(0.49, 0.23, 0.93), // brand purple
+          opacity: 0.7,
+        });
+        p.drawLine({
+          start: { x: margin, y: minY - 2 },
+          end: { x: PAGE_W - margin, y: minY - 2 },
+          thickness: 0.4,
+          color: rgb(0.49, 0.23, 0.93),
+          opacity: 0.3,
+        });
+      };
+
+      let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      let yPosition = maxY;
+
+      const checkPage = () => {
+        if (yPosition < minY + 30) {
+          addLogo(page);
+          page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+          yPosition = maxY;
+        }
+      };
       
       // Title
       page.drawText(data.title || "Worksheet", {
@@ -2634,14 +2665,11 @@ This should look like it was designed by a world-class branding agency. Make it 
       });
       yPosition -= 30;
       
-      // Instructions
+      // Instructions (once, concise)
       if (data.instructions) {
-        const instructionLines = wrapText(data.instructions, font, 11, width - margin * 2);
+        const instructionLines = wrapText(data.instructions, font, 11, PAGE_W - margin * 2);
         for (const line of instructionLines) {
-          if (yPosition < margin + 50) {
-            page = pdfDoc.addPage([612, 792]);
-            yPosition = height - margin;
-          }
+          checkPage();
           page.drawText(line, {
             x: margin,
             y: yPosition,
@@ -2656,11 +2684,23 @@ This should look like it was designed by a world-class branding agency. Make it 
       
       // Sections
       for (const section of data.sections || []) {
-        if (yPosition < margin + 100) {
-          page = pdfDoc.addPage([612, 792]);
-          yPosition = height - margin;
-        }
+        checkPage();
         
+        // Section image (if present)
+        if (section.imageUrl) {
+          try {
+            const imgData = section.imageUrl.replace(/^data:image\/\w+;base64,/, "");
+            const imgBytes = Buffer.from(imgData, "base64");
+            let embeddedImg: any;
+            try { embeddedImg = await pdfDoc.embedPng(imgBytes); } catch { embeddedImg = await pdfDoc.embedJpg(imgBytes); }
+            const imgW = Math.min(120, PAGE_W - margin * 2);
+            const imgH = (embeddedImg.height / embeddedImg.width) * imgW;
+            checkPage();
+            if (yPosition - imgH < minY + 30) { addLogo(page); page = pdfDoc.addPage([PAGE_W, PAGE_H]); yPosition = maxY; }
+            page.drawImage(embeddedImg, { x: PAGE_W - margin - imgW, y: yPosition - imgH, width: imgW, height: imgH });
+          } catch { /* skip image on error */ }
+        }
+
         // Section title
         if (section.title) {
           page.drawText(section.title, {
@@ -2675,44 +2715,37 @@ This should look like it was designed by a world-class branding agency. Make it 
         
         // Content items
         for (let i = 0; i < (section.content || []).length; i++) {
-          if (yPosition < margin + 30) {
-            page = pdfDoc.addPage([612, 792]);
-            yPosition = height - margin;
-          }
-          
+          checkPage();
           const item = section.content[i];
           const numberedItem = `${i + 1}. ${item}`;
-          const itemLines = wrapText(numberedItem, font, 11, width - margin * 2 - 10);
+          const itemLines = wrapText(numberedItem, font, 11, PAGE_W - margin * 2 - 10);
           
           for (const line of itemLines) {
-            page.drawText(line, {
-              x: margin + 10,
-              y: yPosition,
-              size: 11,
-              font,
-            });
+            checkPage();
+            page.drawText(line, { x: margin + 10, y: yPosition, size: 11, font });
             yPosition -= lineHeight;
           }
           
-          // Add writing lines for writing prompts
           if (section.type === "writingPrompt" || section.type === "drawing") {
             for (let j = 0; j < 3; j++) {
               yPosition -= 5;
+              checkPage();
               page.drawLine({
                 start: { x: margin + 10, y: yPosition },
-                end: { x: width - margin, y: yPosition },
+                end: { x: PAGE_W - margin, y: yPosition },
                 thickness: 0.5,
                 color: rgb(0.7, 0.7, 0.7),
               });
               yPosition -= lineHeight;
             }
           }
-          
           yPosition -= 4;
         }
-        
         yPosition -= 10;
       }
+
+      // Logo on last page
+      addLogo(page);
       
       const pdfBytes = await pdfDoc.save();
       const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
@@ -3065,7 +3098,13 @@ This should look like it was designed by a world-class branding agency. Make it 
           }
           case "worksheet": {
             onProgress("Designing your worksheet...", 35);
-            const worksheetResult = await generateWorksheet(prompt, gradeLevel, subject, worksheetOptions);
+            // Block image generation for free users
+            const safeWorksheetOptions = {
+              ...worksheetOptions,
+              includeImages: isPremium ? (worksheetOptions?.includeImages ?? false) : false,
+            };
+            if (safeWorksheetOptions.includeImages) onProgress("Generating worksheet with images...", 45);
+            const worksheetResult = await generateWorksheet(prompt, gradeLevel, subject, safeWorksheetOptions);
             generatedContent = JSON.stringify(worksheetResult);
             title = worksheetResult.title;
             break;
@@ -4069,11 +4108,16 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
 async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: string, options?: WorksheetOptions) {
   const context = buildContext(gradeLevel, subject);
   const colorMode = options?.colorMode || "colored";
+  const includeImages = options?.includeImages === true;
   
   const colorInstructions = colorMode === "blackWhite" 
     ? "Design for black and white printing. Use clear borders, no background colors, high contrast elements."
     : "Use colorful, engaging design with colored backgrounds, borders, and visual elements.";
-  
+
+  const imageField = includeImages
+    ? `"imagePrompt": "A clear, child-friendly DALL-E illustration prompt for this section (no text or labels in the image). For drawing/writingPrompt sections use an empty string." (include for every section)`
+    : "";
+
   const response = await geminiCreate({
     model: "gemini-2.0-flash-lite",
     messages: [
@@ -4083,24 +4127,27 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
         
         ${colorInstructions}
         
-        CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Number sequences must list EVERY number with no gaps — pay special attention to 40+ (40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, etc.). Every decade must be complete. All answers in the answer key must be correct.
+        CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Number sequences must list EVERY number with no gaps. All answers in the answer key must be correct.
+        
+        IMPORTANT: Keep student-facing "instructions" concise (1-2 sentences max). Do NOT repeat the instructions inside section content.
         
         Return a JSON object with this exact structure:
         {
           "title": "Worksheet Title",
-          "instructions": "Clear instructions for students",
+          "instructions": "Short 1-2 sentence instruction for students",
           "colorMode": "${colorMode}",
           "sections": [
             {
               "type": "header|questions|fillBlank|matching|multipleChoice|writingPrompt|drawing",
               "title": "Section Title (optional)",
               "content": ["Question or prompt 1", "Question or prompt 2", ...],
-              "answers": ["Answer 1", "Answer 2", ...] (optional, for teacher's key)
+              "answers": ["Answer 1", "Answer 2", ...],
+              ${imageField}
             }
           ]
         }
         
-        Include a variety of section types for an engaging worksheet. Create 4-8 sections with 3-6 items each.
+        Include a variety of section types. Create 4-8 sections with 3-6 items each.
         For multipleChoice, format each content item as: "Question? A) option B) option C) option D) option"
         For matching, use "Left item -> Right item" format in answers.
         For fillBlank, use underscores like "The ___ is blue" in content.`
@@ -4116,6 +4163,27 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
 
   const jsonContent = response.choices[0]?.message?.content || "{}";
   const worksheetData = JSON.parse(jsonContent);
+
+  // Generate images for sections that have imagePrompts (paid feature)
+  if (includeImages && Array.isArray(worksheetData.sections)) {
+    let imageCount = 0;
+    for (const section of worksheetData.sections) {
+      if (imageCount >= 5) break; // cap at 5 images per worksheet
+      if (!section.imagePrompt || section.type === "drawing" || section.type === "writingPrompt") continue;
+      try {
+        const imgResult = await generateGeminiImage(
+          `Educational illustration for children: ${section.imagePrompt}. Colourful, cartoon style, no text, no labels, no words in the image.`
+        );
+        const b64 = imgResult.data?.[0]?.b64_json;
+        if (b64) {
+          section.imageUrl = `data:image/png;base64,${b64}`;
+          imageCount++;
+        }
+      } catch (e) {
+        console.error("Worksheet image gen error:", e);
+      }
+    }
+  }
   
   return worksheetData;
 }

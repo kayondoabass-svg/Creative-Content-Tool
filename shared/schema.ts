@@ -59,6 +59,7 @@ export type PresentationOptions = z.infer<typeof presentationOptionsSchema>;
 // Worksheet options schema
 export const worksheetOptionsSchema = z.object({
   colorMode: z.enum(["colored", "blackWhite"]).optional(),
+  includeImages: z.boolean().optional(),
 });
 
 export type WorksheetOptions = z.infer<typeof worksheetOptionsSchema>;
