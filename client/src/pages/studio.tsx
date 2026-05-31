@@ -19,7 +19,7 @@ import {
   FileText, Award, Palette, FolderOpen, Crown, Sparkles, Upload, Download,
   ChevronRight, ChevronLeft, Check, Loader2, User, Mail, Phone, MapPin,
   Briefcase, GraduationCap, Star, Globe, BookOpen, ArrowRight, Printer,
-  RefreshCw, Lock, Zap, ClipboardList, Plus, X,
+  RefreshCw, Lock, Zap, ClipboardList, Plus, X, Pencil, CheckCircle,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -476,7 +476,7 @@ export default function StudioPage() {
   // ── Report Cards state ────────────────────────────────────────────────────
   const [rcStep, setRcStep] = useState<RcStep>("setup");
   const [rcCategories, setRcCategories] = useState<string[]>(["Behavior & Conduct", "Listening Skills", "Speaking & Communication", "Reading", "Writing", "Class Participation"]);
-  const [rcRatingScale] = useState<string[]>(["Excellent", "Above Average", "Average", "Below Average", "Needs Improvement"]);
+  const [rcRatingScale, setRcRatingScale] = useState<string[]>(["Excellent", "Above Average", "Average", "Below Average", "Needs Improvement"]);
   const [rcSchoolInfo, setRcSchoolInfo] = useState({ schoolName: "", className: "", teacherName: "", period: "" });
   const [rcStudents, setRcStudents] = useState<RcStudent[]>([{ id: "s0", name: "", photo: undefined, ratings: {} }]);
   const [rcComments, setRcComments] = useState<Record<string, string>>({});
@@ -485,6 +485,18 @@ export default function StudioPage() {
   const [rcTemplateUploaded, setRcTemplateUploaded] = useState(false);
   const [rcWordCount, setRcWordCount] = useState<40 | 50 | 60>(50);
   const rcTemplateRef = useRef<HTMLInputElement>(null);
+  // Upload path state
+  const [rcMode, setRcMode] = useState<"scratch" | "upload" | null>(null);
+  const [rcUploadStep, setRcUploadStep] = useState<"upload" | "students" | "ratings" | "comments" | "preview">("upload");
+  const [rcExtracted, setRcExtracted] = useState<{
+    schoolName: string; className: string; teacherName: string; period: string;
+    categories: string[]; ratingScale: string[]; fieldMap: any;
+  } | null>(null);
+  const [rcTemplatePdfBase64, setRcTemplatePdfBase64] = useState<string>("");
+  const [rcBulkText, setRcBulkText] = useState("");
+  const [rcPreviewIdx, setRcPreviewIdx] = useState(0);
+  const [rcPreviewEdit, setRcPreviewEdit] = useState(false);
+  const rcUploadTemplateRef = useRef<HTMLInputElement>(null);
   // ─────────────────────────────────────────────────────────────────────────
 
   const { data: usageData } = useQuery<{ cvCount: number; certCount: number; isPremium: boolean; freeLimit: number }>({
@@ -562,10 +574,16 @@ export default function StudioPage() {
 
   const rcCommentsMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/studio/generate-report-comments", { students: rcStudents.filter(s => s.name.trim()), categories: rcCategories, ratingScale: rcRatingScale, schoolInfo: rcSchoolInfo, wordCount: rcWordCount });
+      const schoolInfo = rcMode === "upload" && rcExtracted
+        ? { schoolName: rcExtracted.schoolName, className: rcExtracted.className, teacherName: rcExtracted.teacherName, period: rcExtracted.period }
+        : rcSchoolInfo;
+      const res = await apiRequest("POST", "/api/studio/generate-report-comments", { students: rcStudents.filter(s => s.name.trim()), categories: rcCategories, ratingScale: rcRatingScale, schoolInfo, wordCount: rcWordCount });
       return res.json();
     },
-    onSuccess: (data) => { setRcComments(data.comments || {}); setRcStep("comments"); },
+    onSuccess: (data) => {
+      setRcComments(data.comments || {});
+      if (rcMode === "upload") { setRcUploadStep("comments"); } else { setRcStep("comments"); }
+    },
     onError: () => toast({ title: "Error generating comments", variant: "destructive" }),
   });
 
@@ -577,6 +595,53 @@ export default function StudioPage() {
     onSuccess: (data) => {
       const a = document.createElement("a"); a.href = data.file; a.download = data.fileName; a.click();
       toast({ title: "PDF downloaded!", description: `${rcStudents.filter(s => s.name.trim()).length} student reports generated.` });
+    },
+    onError: () => toast({ title: "Failed to generate PDF", variant: "destructive" }),
+  });
+
+  const handleRcUploadTemplateFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRcTemplateLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const dataUrl = ev.target?.result as string;
+        const b64 = dataUrl.split(",")[1];
+        setRcTemplatePdfBase64(b64);
+        const res = await apiRequest("POST", "/api/studio/detect-template-fields", { fileData: b64, mimeType: file.type });
+        const data = await res.json();
+        const cats = data.categories?.length ? data.categories.slice(0, 15) : ["Behavior & Conduct", "Listening Skills", "Speaking & Communication", "Reading", "Writing", "Class Participation"];
+        const scale = data.ratingScale?.length ? data.ratingScale : ["Excellent", "Above Average", "Average", "Below Average", "Needs Improvement"];
+        setRcCategories(cats);
+        setRcRatingScale(scale);
+        setRcExtracted({
+          schoolName: data.schoolName || "", className: data.className || "",
+          teacherName: data.teacherName || "", period: data.period || "",
+          categories: cats, ratingScale: scale,
+          fieldMap: { nameField: data.nameField || null, commentField: data.commentField || null, ratings: data.ratings || [] },
+        });
+        toast({ title: "Template read!", description: `${cats.length} categories and rating scale detected.` });
+      } catch {
+        toast({ title: "Couldn't read template", description: "Please try again.", variant: "destructive" });
+      } finally { setRcTemplateLoading(false); }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const rcFillTemplateMutation = useMutation({
+    mutationFn: async (downloadSingleIdx?: number) => {
+      const allStudents = rcStudents.filter(s => s.name.trim());
+      const toFill = downloadSingleIdx !== undefined ? [allStudents[downloadSingleIdx]] : allStudents;
+      const schoolInfo = rcExtracted ? { schoolName: rcExtracted.schoolName, className: rcExtracted.className, teacherName: rcExtracted.teacherName, period: rcExtracted.period } : rcSchoolInfo;
+      const res = await apiRequest("POST", "/api/studio/fill-template-pdf", { templatePdfBase64: rcTemplatePdfBase64, students: toFill, fieldMap: rcExtracted?.fieldMap, comments: rcComments, schoolInfo });
+      return { result: await res.json(), singleName: downloadSingleIdx !== undefined ? toFill[0]?.name : null };
+    },
+    onSuccess: ({ result, singleName }) => {
+      const a = document.createElement("a"); a.href = result.file;
+      a.download = singleName ? `${singleName}_Report.pdf` : (result.fileName || "ReportCards.pdf");
+      a.click();
+      toast({ title: "PDF downloaded!", description: singleName ? `${singleName}'s report card saved.` : `${rcStudents.filter(s => s.name.trim()).length} report cards downloaded.` });
     },
     onError: () => toast({ title: "Failed to generate PDF", variant: "destructive" }),
   });
@@ -1189,12 +1254,44 @@ export default function StudioPage() {
         {/* ── Report Cards ── */}
         {activeTab === "reports" && (
           <div className="max-w-4xl mx-auto">
-            {/* Step indicator */}
-            <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2">
-              {(["setup","students","ratings","comments","download"] as RcStep[]).map((step, i, arr) => {
-                const labels: Record<RcStep,string> = { setup:"Setup", students:"Students", ratings:"Ratings", comments:"Comments", download:"Done" };
-                const done = arr.indexOf(rcStep) > i;
-                const active = rcStep === step;
+            {/* ── Mode Picker ── */}
+            {rcMode === null && (
+              <div className="space-y-8 py-4">
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold mb-2">Report Cards</h2>
+                  <p className="text-muted-foreground">Choose how you want to create your report cards</p>
+                </div>
+                <div className="grid md:grid-cols-2 gap-5">
+                  <button onClick={() => setRcMode("scratch")} data-testid="button-rc-mode-scratch"
+                    className="rounded-2xl border-2 border-border hover:border-purple-400 bg-card p-7 text-left transition-all hover:shadow-lg group">
+                    <FileText className="w-9 h-9 text-purple-500 mb-4" />
+                    <h3 className="font-bold text-xl mb-2">Build from scratch</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">Design your own categories, rating scale and school details. BrightBoard generates a polished branded PDF.</p>
+                    <div className="mt-4 flex items-center gap-1.5 text-purple-600 text-sm font-medium">Get started <ChevronRight className="w-4 h-4" /></div>
+                  </button>
+                  <button onClick={() => { setRcMode("upload"); setRcUploadStep("upload"); setRcExtracted(null); setRcTemplatePdfBase64(""); setRcStudents([{ id: "s0", name: "", photo: undefined, ratings: {} }]); setRcComments({}); }} data-testid="button-rc-mode-upload"
+                    className="rounded-2xl border-2 border-teal-400 bg-teal-50/40 dark:bg-teal-950/20 hover:shadow-xl p-7 text-left transition-all group relative overflow-hidden">
+                    <div className="absolute top-3 right-3 bg-teal-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">NEW</div>
+                    <Upload className="w-9 h-9 text-teal-500 mb-4" />
+                    <h3 className="font-bold text-xl mb-2">Upload your school's template</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">Upload your school's existing PDF. AI reads the layout — add students and ratings, we fill it while preserving all logos and branding.</p>
+                    <div className="mt-4 flex items-center gap-1.5 text-teal-600 text-sm font-medium">Upload template <ChevronRight className="w-4 h-4" /></div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Scratch path ── */}
+            {rcMode === "scratch" && (<>
+              <button onClick={() => setRcMode(null)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-5 transition-colors" data-testid="button-rc-back-to-picker">
+                <ChevronLeft className="w-4 h-4" /> Back to options
+              </button>
+              {/* Step indicator */}
+              <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2">
+                {(["setup","students","ratings","comments","download"] as RcStep[]).map((step, i, arr) => {
+                  const labels: Record<RcStep,string> = { setup:"Setup", students:"Students", ratings:"Ratings", comments:"Comments", download:"Done" };
+                  const done = arr.indexOf(rcStep) > i;
+                  const active = rcStep === step;
                 return (
                   <div key={step} className="flex items-center gap-1.5 shrink-0">
                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${active ? "bg-purple-600 text-white" : done ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" : "bg-muted text-muted-foreground"}`}>
@@ -1444,6 +1541,376 @@ export default function StudioPage() {
                     Start New Report
                   </Button>
                 </div>
+              </div>
+            )}
+            </>)}
+
+            {/* ── Upload path ── */}
+            {rcMode === "upload" && (
+              <div className="space-y-6">
+                <input ref={rcUploadTemplateRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleRcUploadTemplateFile} data-testid="input-rc-upload-template-file" />
+
+                {/* Upload step indicator */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                  {(["upload","students","ratings","comments","preview"] as const).map((step, i, arr) => {
+                    const labels = { upload:"Upload", students:"Students", ratings:"Ratings", comments:"Comments", preview:"Preview" };
+                    const order = ["upload","students","ratings","comments","preview"];
+                    const done = order.indexOf(rcUploadStep) > i;
+                    const active = rcUploadStep === step;
+                    return (
+                      <div key={step} className="flex items-center gap-1.5 shrink-0">
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${active ? "bg-teal-600 text-white" : done ? "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300" : "bg-muted text-muted-foreground"}`}>
+                          {done ? <Check className="w-3 h-3" /> : <span className="w-3.5 h-3.5 rounded-full border border-current flex items-center justify-center text-[10px]">{i+1}</span>}
+                          {labels[step]}
+                        </div>
+                        {i < arr.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Step 1: Upload & Verify */}
+                {rcUploadStep === "upload" && (
+                  <div className="space-y-5">
+                    <div><h2 className="text-2xl font-bold mb-1">Upload Your School's Template</h2><p className="text-muted-foreground text-sm">Upload your school's report card PDF — AI reads the layout, categories and rating scale. Your logos and branding are fully preserved in the output.</p></div>
+                    {!rcExtracted ? (
+                      <div onClick={() => !rcTemplateLoading && rcUploadTemplateRef.current?.click()}
+                        className={`rounded-2xl border-2 border-dashed p-16 text-center cursor-pointer transition-all ${rcTemplateLoading ? "border-teal-300 bg-teal-50/20 dark:bg-teal-950/10" : "border-teal-300 bg-teal-50/30 dark:bg-teal-950/10 hover:border-teal-500 hover:bg-teal-50/50 dark:hover:bg-teal-950/20"}`}>
+                        {rcTemplateLoading
+                          ? <><Loader2 className="w-10 h-10 animate-spin text-teal-500 mx-auto mb-3" /><p className="font-semibold text-lg mb-1">Reading template…</p><p className="text-sm text-muted-foreground">AI is detecting categories, fields and layout</p></>
+                          : <><Upload className="w-10 h-10 text-teal-400 mx-auto mb-3" /><p className="font-semibold text-lg mb-1">Drop your school's PDF here</p><p className="text-sm text-muted-foreground">or click to browse · PDF or image file</p><p className="text-xs text-muted-foreground mt-1">All original logos and branding will be preserved in the output</p></>
+                        }
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                          <CheckCircle className="w-5 h-5" /><span className="font-semibold">Template read successfully</span>
+                          <button onClick={() => { setRcExtracted(null); setRcTemplatePdfBase64(""); }} className="ml-auto text-xs text-muted-foreground underline hover:text-foreground" data-testid="button-rc-upload-different">Upload different file</button>
+                        </div>
+                        <Card><CardContent className="pt-4 grid sm:grid-cols-2 gap-3">
+                          {([["schoolName","School Name"],["className","Class / Grade"],["teacherName","Teacher Name"],["period","Academic Period"]] as const).map(([k, label]) => (
+                            <div key={k}><Label className="text-xs mb-1 block text-muted-foreground">{label}</Label>
+                              <Input value={rcExtracted[k]} data-testid={`input-rc-up-${k}`} onChange={e => setRcExtracted(p => p ? { ...p, [k]: e.target.value } : p)} />
+                            </div>
+                          ))}
+                        </CardContent></Card>
+                        <Card><CardContent className="pt-4 space-y-3">
+                          <div>
+                            <Label className="text-sm font-semibold mb-2 block">Categories detected <span className="font-normal text-muted-foreground text-xs">(edit if needed)</span></Label>
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              {rcExtracted.categories.map((cat, i) => (
+                                <span key={i} className="inline-flex items-center gap-1 bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200 rounded-full px-2.5 py-0.5 text-xs font-medium">
+                                  {cat}<button onClick={() => setRcExtracted(p => p ? { ...p, categories: p.categories.filter((_,j) => j !== i) } : p)}><X className="w-3 h-3" /></button>
+                                </span>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <Input id="rc-up-new-cat" placeholder="Add category…" className="h-8 text-sm" data-testid="input-rc-up-new-cat" />
+                              <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => {
+                                const inp = document.getElementById("rc-up-new-cat") as HTMLInputElement;
+                                const v = inp?.value.trim();
+                                if (v) { setRcExtracted(p => p ? { ...p, categories: [...p.categories, v] } : p); setRcCategories(p => [...p, v]); inp.value = ""; }
+                              }}><Plus className="w-3.5 h-3.5" /></Button>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs text-muted-foreground font-medium">Rating scale:</span>
+                            {rcExtracted.ratingScale.map(r => <span key={r} className="bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">{r}</span>)}
+                          </div>
+                        </CardContent></Card>
+                        <div className="flex justify-end">
+                          <Button onClick={() => { setRcCategories(rcExtracted.categories); setRcRatingScale(rcExtracted.ratingScale); setRcUploadStep("students"); }} className="gap-2 bg-teal-600 hover:bg-teal-700" data-testid="button-rc-up-to-students">
+                            Continue to Students <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 2: Add Students */}
+                {rcUploadStep === "students" && (
+                  <div className="space-y-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div><h2 className="text-2xl font-bold mb-1">Add Your Students</h2><p className="text-muted-foreground text-sm">Paste your whole class list at once — one name per line. Works for 40+ students.</p></div>
+                      <Button variant="outline" size="sm" className="shrink-0 gap-1" onClick={() => setRcUploadStep("upload")}><ChevronLeft className="w-4 h-4" />Back</Button>
+                    </div>
+                    <Card><CardContent className="pt-4 space-y-3">
+                      <div>
+                        <Label className="text-sm font-medium mb-2 block">Paste all names at once <span className="font-normal text-muted-foreground">(one name per line)</span></Label>
+                        <Textarea placeholder={"Miu\nChôm\nMin\nSon\nSam\n..."} className="min-h-[160px] font-mono text-sm resize-none" value={rcBulkText} onChange={e => setRcBulkText(e.target.value)} data-testid="textarea-rc-bulk-names" />
+                        <div className="flex items-center justify-between mt-1.5">
+                          <p className="text-xs text-muted-foreground">{rcBulkText.split("\n").filter(l => l.trim()).length} names detected</p>
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" data-testid="button-rc-parse-names" onClick={() => {
+                            const names = rcBulkText.split("\n").map(l => l.trim()).filter(Boolean);
+                            if (names.length > 0) setRcStudents(names.map((name, i) => ({ id: `s${Date.now()}${i}`, name, photo: undefined, ratings: {} })));
+                          }}>
+                            <RefreshCw className="w-3 h-3" /> Parse names
+                          </Button>
+                        </div>
+                      </div>
+                      {rcStudents.filter(s => s.name.trim()).length > 0 && (
+                        <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
+                          <Label className="text-xs text-muted-foreground">Edit names if needed:</Label>
+                          {rcStudents.map((student, idx) => (
+                            <div key={student.id} className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground w-5 text-right shrink-0">{idx+1}</span>
+                              <Input className="flex-1 h-8 text-sm" value={student.name} data-testid={`input-rc-up-student-${idx}`}
+                                onChange={e => setRcStudents(p => p.map((s, i) => i === idx ? { ...s, name: e.target.value } : s))} />
+                              <button onClick={() => removeRcStudent(idx)} className="text-muted-foreground hover:text-destructive p-1 shrink-0" data-testid={`button-rc-up-remove-${idx}`}><X className="w-3.5 h-3.5" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <Button variant="outline" size="sm" className="w-full gap-1.5 h-8" onClick={addRcStudent} disabled={rcStudents.length >= 60} data-testid="button-rc-up-add-student">
+                        <Plus className="w-3.5 h-3.5" /> Add individual student
+                      </Button>
+                    </CardContent></Card>
+                    <div className="flex justify-end">
+                      <Button onClick={() => { setRcCurrentStudentIdx(0); setRcUploadStep("ratings"); }} disabled={rcStudents.filter(s => s.name.trim()).length === 0} className="gap-2 bg-teal-600 hover:bg-teal-700" data-testid="button-rc-up-to-ratings">
+                        Continue to Ratings <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Ratings (upload path) */}
+                {rcUploadStep === "ratings" && (() => {
+                  const named = rcStudents.filter(s => s.name.trim());
+                  const cur = named[rcCurrentStudentIdx];
+                  return (
+                    <div className="space-y-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div><h2 className="text-2xl font-bold mb-1">Rate Each Student</h2><p className="text-muted-foreground text-sm">Click a rating for each category. Green dots = fully rated.</p></div>
+                        <Button variant="outline" size="sm" className="shrink-0 gap-1" onClick={() => setRcUploadStep("students")}><ChevronLeft className="w-4 h-4" />Back</Button>
+                      </div>
+                      <div className="flex items-center justify-between bg-muted/50 rounded-xl p-3 border">
+                        <Button size="sm" variant="ghost" onClick={() => setRcCurrentStudentIdx(i => Math.max(0,i-1))} disabled={rcCurrentStudentIdx===0} data-testid="button-rc-up-prev"><ChevronLeft className="w-4 h-4" /></Button>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center"><User className="w-5 h-5 text-teal-500" /></div>
+                          <div><div className="font-semibold text-sm">{cur?.name}</div><div className="text-xs text-muted-foreground">Student {rcCurrentStudentIdx+1} of {named.length}</div></div>
+                          <div className="flex gap-1 ml-2 flex-wrap max-w-[120px]">
+                            {named.map((s, i) => (
+                              <button key={s.id} onClick={() => setRcCurrentStudentIdx(i)} data-testid={`button-rc-up-dot-${i}`}
+                                className={`h-2 rounded-full transition-all ${i===rcCurrentStudentIdx ? "bg-teal-600 w-4" : rcCategories.every(c => s.ratings[c]) ? "bg-green-400 w-2" : "bg-muted-foreground/30 w-2"}`} />
+                            ))}
+                          </div>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => setRcCurrentStudentIdx(i => Math.min(named.length-1,i+1))} disabled={rcCurrentStudentIdx===named.length-1} data-testid="button-rc-up-next"><ChevronRight className="w-4 h-4" /></Button>
+                      </div>
+                      {cur && (
+                        <Card><CardContent className="pt-4 space-y-4">
+                          {rcCategories.map(cat => (
+                            <div key={cat} className="space-y-1.5">
+                              <Label className="text-sm font-medium">{cat}</Label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {rcRatingScale.map(rating => (
+                                  <button key={rating} onClick={() => setRcRating(cur.id, cat, rating)} data-testid={`button-rc-up-rating-${cat.substring(0,4)}-${rating.substring(0,3)}`}
+                                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${cur.ratings[cat]===rating ? "bg-teal-600 text-white border-teal-600 shadow-sm" : "bg-background text-muted-foreground border-border hover:border-teal-400 hover:text-teal-600"}`}>
+                                    {rating}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent></Card>
+                      )}
+                      <div className="flex items-center justify-between flex-wrap gap-3">
+                        <p className="text-sm text-muted-foreground">{named.filter(s => rcCategories.every(c => s.ratings[c])).length}/{named.length} students fully rated</p>
+                        {rcCurrentStudentIdx < named.length - 1
+                          ? <Button onClick={() => setRcCurrentStudentIdx(i => i+1)} className="gap-2 bg-teal-600 hover:bg-teal-700" data-testid="button-rc-up-next-student">Next Student <ChevronRight className="w-4 h-4" /></Button>
+                          : <div className="flex items-center gap-3 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground font-medium">Comment length:</span>
+                                <div className="flex gap-1">
+                                  {([40, 50, 60] as const).map(n => (
+                                    <button key={n} onClick={() => setRcWordCount(n)} data-testid={`button-rc-up-wc-${n}`}
+                                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${rcWordCount===n ? "bg-teal-600 text-white border-teal-600" : "bg-background text-muted-foreground border-border hover:border-teal-400"}`}>
+                                      {n}w
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <Button onClick={() => rcCommentsMutation.mutate()} disabled={rcCommentsMutation.isPending} className="gap-2 bg-teal-600 hover:bg-teal-700" data-testid="button-rc-up-gen-comments">
+                                {rcCommentsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                {rcCommentsMutation.isPending ? "Writing comments…" : "Generate AI Comments"}
+                              </Button>
+                            </div>
+                        }
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Step 4: Review Comments (upload path) */}
+                {rcUploadStep === "comments" && (
+                  <div className="space-y-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div><h2 className="text-2xl font-bold mb-1">Review AI Comments</h2><p className="text-muted-foreground text-sm">Edit any comment inline. Regenerate one or all at once.</p></div>
+                      <Button variant="outline" size="sm" className="shrink-0 gap-1" onClick={() => setRcUploadStep("ratings")}><ChevronLeft className="w-4 h-4" />Back</Button>
+                    </div>
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                      {rcStudents.filter(s => s.name.trim()).map((student, idx) => {
+                        const wc = (rcComments[student.id] || "").split(/\s+/).filter(Boolean).length;
+                        const ok = wc >= rcWordCount - 3;
+                        return (
+                          <Card key={student.id}><CardContent className="pt-3 pb-3">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center shrink-0"><User className="w-3.5 h-3.5 text-teal-500" /></div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-sm">{student.name}</div>
+                                <div className={`text-xs ${ok ? "text-green-600 dark:text-green-400" : "text-amber-500"}`}>{wc} / {rcWordCount} words {ok ? "✓" : "(too short)"}</div>
+                              </div>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 shrink-0" data-testid={`button-rc-up-regen-${idx}`}
+                                onClick={async () => {
+                                  try {
+                                    const res = await apiRequest("POST", "/api/studio/generate-report-comments", {
+                                      students: [student], categories: rcCategories, ratingScale: rcRatingScale,
+                                      schoolInfo: { schoolName: rcExtracted?.schoolName || "", className: rcExtracted?.className || "" },
+                                      wordCount: rcWordCount,
+                                    });
+                                    const data = await res.json();
+                                    if (data.comments?.[student.id]) setRcComments(p => ({ ...p, [student.id]: data.comments[student.id] }));
+                                  } catch { toast({ title: "Regenerate failed", variant: "destructive" }); }
+                                }}>
+                                <RefreshCw className="w-3 h-3" /> Redo
+                              </Button>
+                            </div>
+                            <Textarea className="text-sm min-h-[72px] resize-none" value={rcComments[student.id] || ""} onChange={e => setRcComments(p => ({ ...p, [student.id]: e.target.value }))} placeholder="Comment will appear here…" data-testid={`textarea-rc-up-comment-${student.id}`} />
+                          </CardContent></Card>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center justify-between flex-wrap gap-3 pt-2 border-t">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground font-medium">Words:</span>
+                          <div className="flex gap-1">
+                            {([40, 50, 60] as const).map(n => (
+                              <button key={n} onClick={() => setRcWordCount(n)} data-testid={`button-rc-up-wc2-${n}`}
+                                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${rcWordCount===n ? "bg-teal-600 text-white border-teal-600" : "bg-background text-muted-foreground border-border hover:border-teal-400"}`}>
+                                {n}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <Button variant="outline" onClick={() => rcCommentsMutation.mutate()} disabled={rcCommentsMutation.isPending} className="gap-2 h-8 text-sm" data-testid="button-rc-up-regen-all">
+                          {rcCommentsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                          {rcCommentsMutation.isPending ? "Writing…" : "Regenerate all"}
+                        </Button>
+                      </div>
+                      <Button onClick={() => { setRcPreviewIdx(0); setRcPreviewEdit(false); setRcUploadStep("preview"); }} className="gap-2 bg-teal-600 hover:bg-teal-700" data-testid="button-rc-up-to-preview">
+                        Preview Report Cards <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 5: Preview + Download */}
+                {rcUploadStep === "preview" && (() => {
+                  const named = rcStudents.filter(s => s.name.trim());
+                  const student = named[rcPreviewIdx];
+                  if (!student) return null;
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div><h2 className="text-2xl font-bold mb-1">Preview &amp; Download</h2><p className="text-muted-foreground text-sm">Review each student's card. Edit anything, then download.</p></div>
+                        <Button variant="outline" size="sm" className="shrink-0 gap-1" onClick={() => setRcUploadStep("comments")}><ChevronLeft className="w-4 h-4" />Back</Button>
+                      </div>
+                      {/* Student navigation */}
+                      <div className="flex items-center justify-between bg-muted/50 rounded-xl p-3 border">
+                        <Button size="sm" variant="ghost" onClick={() => { setRcPreviewIdx(i => Math.max(0,i-1)); setRcPreviewEdit(false); }} disabled={rcPreviewIdx===0} data-testid="button-rc-preview-prev"><ChevronLeft className="w-4 h-4" /></Button>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm">{student.name}</span>
+                          <span className="text-xs text-muted-foreground">({rcPreviewIdx+1} of {named.length})</span>
+                          <div className="flex gap-1 ml-2 flex-wrap max-w-[100px]">
+                            {named.map((_, i) => (
+                              <button key={i} onClick={() => { setRcPreviewIdx(i); setRcPreviewEdit(false); }}
+                                className={`h-1.5 rounded-full transition-all ${i===rcPreviewIdx ? "bg-teal-600 w-4" : "bg-muted-foreground/30 w-1.5"}`} />
+                            ))}
+                          </div>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => { setRcPreviewIdx(i => Math.min(named.length-1,i+1)); setRcPreviewEdit(false); }} disabled={rcPreviewIdx===named.length-1} data-testid="button-rc-preview-next"><ChevronRight className="w-4 h-4" /></Button>
+                      </div>
+                      {/* Preview card */}
+                      <div className="rounded-2xl border-2 bg-white dark:bg-gray-950 shadow-sm overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-700 to-teal-600 px-6 py-4 text-white">
+                          <div className="font-bold text-lg uppercase tracking-wide">{rcExtracted?.schoolName || "Report Card"}</div>
+                          <div className="text-sm opacity-80 mt-0.5">{[rcExtracted?.className, rcExtracted?.teacherName, rcExtracted?.period].filter(Boolean).join("  ·  ")}</div>
+                        </div>
+                        <div className="p-6 space-y-5 font-sans">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-semibold text-muted-foreground w-20 shrink-0">Student:</span>
+                            {rcPreviewEdit
+                              ? <Input className="flex-1 h-8 text-sm font-semibold" value={student.name} data-testid="input-rc-preview-name"
+                                  onChange={e => setRcStudents(p => p.map(s => s.id===student.id ? {...s, name: e.target.value} : s))} />
+                              : <span className="font-semibold">{student.name}</span>}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-muted-foreground mb-2">Evaluation</div>
+                            <div className="rounded-lg border overflow-hidden">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="bg-muted/50">
+                                    <th className="text-left py-2 px-3 font-semibold text-xs">Category</th>
+                                    {rcRatingScale.map(r => <th key={r} className="px-2 py-2 text-center font-semibold text-xs">{r.split(" ").map(w => w[0]).join("")}</th>)}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rcCategories.map((cat, ci) => (
+                                    <tr key={cat} className={ci%2===0 ? "bg-white dark:bg-gray-950" : "bg-muted/20"}>
+                                      <td className="py-2 px-3 text-xs">{cat}</td>
+                                      {rcRatingScale.map(r => (
+                                        <td key={r} className="text-center py-2">
+                                          {rcPreviewEdit
+                                            ? <button onClick={() => setRcRating(student.id, cat, r)}
+                                                className={`w-5 h-5 rounded-sm border transition-all ${student.ratings[cat]===r ? "bg-teal-600 border-teal-600" : "border-gray-300 hover:border-teal-400"}`}>
+                                                {student.ratings[cat]===r && <Check className="w-3 h-3 text-white mx-auto" />}
+                                              </button>
+                                            : student.ratings[cat]===r ? <div className="w-4 h-4 rounded-sm bg-teal-600 mx-auto flex items-center justify-center"><Check className="w-2.5 h-2.5 text-white" /></div> : null
+                                          }
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground">Key: {rcRatingScale.map(r => `${r.split(" ").map(w=>w[0]).join("")}=${r}`).join("  ·  ")}</div>
+                          <div>
+                            <div className="text-sm font-semibold text-muted-foreground mb-1.5">Teacher's Comment</div>
+                            {rcPreviewEdit
+                              ? <Textarea className="text-sm min-h-[80px] resize-none" value={rcComments[student.id] || ""} data-testid="textarea-rc-preview-comment"
+                                  onChange={e => setRcComments(p => ({...p, [student.id]: e.target.value}))} />
+                              : <p className="text-sm leading-relaxed bg-muted/30 rounded-lg px-3 py-2.5 min-h-[48px]">{rcComments[student.id] || <span className="text-muted-foreground italic">No comment added</span>}</p>
+                            }
+                          </div>
+                          <div className="flex justify-between pt-3 border-t text-xs text-muted-foreground">
+                            <span>Teacher: ___________________</span>
+                            <span>Parent / Guardian: ___________________</span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground/40 text-center">Generated by BrightBoard · brightboardapp.com</div>
+                        </div>
+                      </div>
+                      {/* Actions */}
+                      <div className="flex items-center justify-between flex-wrap gap-3">
+                        <Button variant="outline" onClick={() => setRcPreviewEdit(e => !e)} className="gap-2" data-testid="button-rc-preview-edit">
+                          {rcPreviewEdit ? <><Check className="w-4 h-4" />Done editing</> : <><Pencil className="w-4 h-4" />Edit this card</>}
+                        </Button>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button variant="outline" onClick={() => rcFillTemplateMutation.mutate(rcPreviewIdx)} disabled={rcFillTemplateMutation.isPending || !rcTemplatePdfBase64} className="gap-2 text-sm" data-testid="button-rc-preview-dl-one">
+                            {rcFillTemplateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} This card only
+                          </Button>
+                          <Button onClick={() => rcFillTemplateMutation.mutate(undefined)} disabled={rcFillTemplateMutation.isPending || !rcTemplatePdfBase64} className="gap-2 bg-teal-600 hover:bg-teal-700" data-testid="button-rc-preview-dl-all">
+                            {rcFillTemplateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            Download all {named.length} reports
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>

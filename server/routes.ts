@@ -5300,6 +5300,56 @@ export function registerSubscriptionRoutes(app: any) {
   });
 
   // Generate AI comments for all students in parallel batches
+  app.post("/api/studio/detect-template-fields", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const { fileData, mimeType } = req.body;
+      const prompt = `Analyze this school report card template carefully. Return ONLY valid JSON (no markdown, no code fences).
+Identify the positions of blank/fillable fields as percentages of the page width and height (x%=distance from left edge, y%=distance from TOP edge):
+
+{
+  "schoolName": "...",
+  "className": "...",
+  "teacherName": "...",
+  "period": "...",
+  "categories": ["..."],
+  "ratingScale": ["..."],
+  "nameField": {"x": 20, "y": 22},
+  "commentField": {"x": 7, "y": 72, "w": 86},
+  "ratings": [
+    {
+      "category": "Behavior & Conduct",
+      "positions": {
+        "Excellent": {"x": 45, "y": 35},
+        "Above Average": {"x": 55, "y": 35},
+        "Average": {"x": 65, "y": 35},
+        "Below Average": {"x": 75, "y": 35},
+        "Needs Improvement": {"x": 85, "y": 35}
+      }
+    }
+  ]
+}
+
+Rules:
+- schoolName/className/teacherName/period: extract from visible printed text, else use ""
+- categories: array of evaluation/subject category labels exactly as written
+- ratingScale: rating labels from best to worst (e.g. Excellent, E, AA, Outstanding)
+- nameField: x,y percentage position of the student name blank line (where name is written)
+- commentField: x,y percentage position of the top-left of the teacher remarks/comment box, w=width%
+- ratings: for EACH category row, the x,y percentage of each rating checkbox, circle, or column cell
+- y=0% means TOP of page, y=100% means BOTTOM of page
+- If you cannot confidently detect a specific position, omit that field entirely — do not guess wildly`;
+
+      const userContent: any = [
+        { type: "image_url", image_url: { url: `data:${mimeType};base64,${fileData}` } },
+        { type: "text", text: prompt }
+      ];
+      const response = await geminiCreate({ messages: [{ role: "user", content: userContent }], response_format: { type: "json_object" }, max_tokens: 1800 });
+      const raw = response.choices[0]?.message?.content || "{}";
+      const match = raw.match(/\{[\s\S]*\}/);
+      res.json(match ? JSON.parse(match[0]) : {});
+    } catch (err) { console.error("detect-template-fields:", err); res.status(500).json({ error: "Failed to detect template fields" }); }
+  });
+
   app.post("/api/studio/generate-report-comments", isAuthenticated, async (req: any, res: any) => {
     try {
       const { students, categories, ratingScale, schoolInfo, wordCount = 50 } = req.body;
@@ -5310,9 +5360,24 @@ export function registerSubscriptionRoutes(app: any) {
       for (let i = 0; i < students.length; i += BATCH) {
         await Promise.all(students.slice(i, i + BATCH).map(async (student: any) => {
           const ratings = (categories as string[]).map((c: string) => `- ${c}: ${student.ratings?.[c] || "Average"}`).join("\n");
-          const prompt = `Generate a personalized report card comment for the following student.\n\nStudent Name: ${student.name}\nSchool: ${schoolInfo?.schoolName || "school"}\nClass: ${schoolInfo?.className || ""}\n\nEvaluation Data:\n${ratings}\n\nRequirements:\n1. Write approximately ${wc} words (complete sentences only — never cut off).\n2. Start by acknowledging the student's overall presence or effort in class.\n3. Mention at least one specific strength based on their highest-rated category.\n4. If any category is Below Average or Needs Improvement, include one gentle, actionable suggestion.\n5. End on an encouraging and positive note for the next term.\n6. Use the student's name naturally in the comment.\n7. Plain text only — no JSON, no bullet points, no formatting.`;
-          const r = await geminiCreate({ messages: [{ role: "system", content: systemInstruction }, { role: "user", content: prompt }], max_tokens: 500, temperature: 0.3 });
-          const text = r.choices[0]?.message?.content?.trim() || "";
+          const prompt = `Write a personalised report card comment for this student.\n\nStudent Name: ${student.name}\nSchool: ${schoolInfo?.schoolName || "school"}\nClass: ${schoolInfo?.className || ""}\n\nEvaluation Data:\n${ratings}\n\nSTRICT REQUIREMENTS — follow every rule exactly:\n1. WORD COUNT: Write EXACTLY ${wc} words. Count every single word. Your comment must contain between ${wc - 2} and ${wc + 3} words. NEVER write fewer than ${wc - 3} words. This is the most important rule.\n2. Complete sentences only — never cut off mid-sentence.\n3. Start with the student's first name.\n4. Mention at least one specific strength from their highest-rated category.\n5. If any category is Below Average or Needs Improvement, include one gentle, constructive suggestion.\n6. End encouragingly.\n7. Plain text only — no bullet points, no formatting.`;
+          const r = await geminiCreate({ messages: [{ role: "system", content: systemInstruction }, { role: "user", content: prompt }], max_tokens: 600, temperature: 0.3 });
+          let text = r.choices[0]?.message?.content?.trim() || "";
+          const actualWc = text.split(/\s+/).filter(Boolean).length;
+          if (actualWc < wc - 5 && text.length > 10) {
+            try {
+              const retry = await geminiCreate({
+                messages: [
+                  { role: "system", content: systemInstruction },
+                  { role: "user", content: prompt },
+                  { role: "assistant", content: text },
+                  { role: "user", content: `That comment is only ${actualWc} words. You need EXACTLY ${wc} words. Rewrite the entire comment with more specific classroom observations about ${student.name} to reach ${wc} words. Count every word carefully.` }
+                ],
+                max_tokens: 700, temperature: 0.3
+              });
+              text = retry.choices[0]?.message?.content?.trim() || text;
+            } catch {}
+          }
           comments[student.id] = text || `${student.name} has demonstrated consistent effort this term and continues to grow across all areas of learning.`;
         }));
       }
@@ -5457,6 +5522,95 @@ export function registerSubscriptionRoutes(app: any) {
       const safeName = safePdf(schoolInfo?.schoolName || "Report-Cards").replace(/[^a-z0-9\-]/gi, "_");
       res.json({ file: `data:application/pdf;base64,${Buffer.from(pdfBytes).toString("base64")}`, fileName: `${safeName}_${new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }).replace(" ", "_")}.pdf` });
     } catch (err) { console.error("generate-report-pdf:", err); res.status(500).json({ error: "Failed to generate PDF" }); }
+  });
+
+  // Fill the school's own PDF template with student data, preserving all logos and branding
+  app.post("/api/studio/fill-template-pdf", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const { templatePdfBase64, students, fieldMap, comments, schoolInfo } = req.body;
+      if (!templatePdfBase64 || !students?.length) return res.status(400).json({ error: "Missing template or students" });
+
+      const safePdfFill = (str: string, max = 999): string => {
+        if (!str) return "";
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\u2013|\u2014/g, "-").replace(/\u2026/g, "...").replace(/[^\x00-\xff]/g, "?").substring(0, max);
+      };
+
+      const templateBytes = Buffer.from(templatePdfBase64, "base64");
+      // Get page size from template
+      const metaDoc = await PDFDocument.load(templateBytes);
+      const { width: pageW, height: pageH } = metaDoc.getPage(0).getSize();
+
+      // Convert percentage position → PDF coordinates (PDF y=0 is bottom, percentages y=0 is top)
+      const toX = (xPct: number) => Math.max(0, (xPct / 100) * pageW);
+      const toY = (yPct: number) => Math.max(0, pageH - (yPct / 100) * pageH);
+
+      // Default field positions if AI didn't detect them
+      const nameField = fieldMap?.nameField || { x: 20, y: 21 };
+      const commentField = fieldMap?.commentField || { x: 7, y: 72, w: 86 };
+      const ratingsMap: any[] = fieldMap?.ratings || [];
+
+      const mergedDoc = await PDFDocument.create();
+
+      for (const student of (students as any[])) {
+        if (!student.name?.trim()) continue;
+        // Load a fresh copy of the template for each student so branding is fully preserved
+        const studentDoc = await PDFDocument.load(templateBytes);
+        const page = studentDoc.getPage(0);
+        const stdFont = await studentDoc.embedFont(StandardFonts.Helvetica);
+        const stdBoldFont = await studentDoc.embedFont(StandardFonts.HelveticaBold);
+
+        // Overlay student name
+        try {
+          page.drawText(safePdfFill(student.name, 50), {
+            x: toX(nameField.x), y: toY(nameField.y),
+            size: 12, font: stdBoldFont, color: rgb(0.05, 0.05, 0.05),
+          });
+        } catch {}
+
+        // Overlay rating marks (small filled square at detected checkbox position)
+        for (const catMap of ratingsMap) {
+          const selected = student.ratings?.[catMap.category];
+          if (selected && catMap.positions?.[selected]) {
+            const pos = catMap.positions[selected];
+            try {
+              page.drawRectangle({
+                x: toX(pos.x) - 4, y: toY(pos.y) - 4,
+                width: 8, height: 8, color: rgb(0.18, 0.08, 0.55),
+              });
+            } catch {}
+          }
+        }
+
+        // Overlay comment text
+        const comment = comments?.[student.id] || "";
+        if (comment) {
+          const cfX = toX(commentField.x);
+          const cfY = toY(commentField.y);
+          const cfW = (commentField.w / 100) * pageW - 4;
+          const lines = wrapText(safePdfFill(comment, 2000), stdFont, 9.5, cfW);
+          for (let li = 0; li < lines.length; li++) {
+            const ly = cfY - li * 13;
+            if (ly < 15) break;
+            try { page.drawText(lines[li], { x: cfX, y: ly, size: 9.5, font: stdFont, color: rgb(0.07, 0.07, 0.07) }); } catch {}
+          }
+        }
+
+        // Subtle BrightBoard watermark
+        try { page.drawText("brightboardapp.com", { x: pageW - 118, y: 11, size: 6, font: stdFont, color: rgb(0.49, 0.23, 0.93), opacity: 0.28 }); } catch {}
+
+        // Copy this student's filled page into the merged output
+        const [copiedPage] = await mergedDoc.copyPages(studentDoc, [0]);
+        mergedDoc.addPage(copiedPage);
+      }
+
+      const pdfBytes = await mergedDoc.save();
+      const safeName = safePdfFill(schoolInfo?.schoolName || "Reports").replace(/[^a-z0-9\-]/gi, "_");
+      const fileName = (students as any[]).length === 1
+        ? `${safePdfFill((students as any[])[0].name, 30).replace(/\s+/g, "_")}_Report.pdf`
+        : `${safeName}_Report_Cards.pdf`;
+
+      res.json({ file: `data:application/pdf;base64,${Buffer.from(pdfBytes).toString("base64")}`, fileName });
+    } catch (err) { console.error("fill-template-pdf:", err); res.status(500).json({ error: "Failed to fill template PDF" }); }
   });
 
   // ───────────────────────────────────────────────────────────────────────────
