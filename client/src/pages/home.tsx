@@ -250,7 +250,7 @@ export default function Home() {
     <div className="flex flex-col min-h-full bg-background">
       <div className="flex flex-1">
       {/* Main Content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-w-0">
         <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
 
           {/* Email verification banner */}
@@ -376,8 +376,8 @@ export default function Home() {
       </div>
 
       {/* History Sidebar */}
-      <div className="w-72 border-l bg-card/50 hidden lg:block">
-        <div className="p-4 border-b">
+      <div className="w-72 border-l bg-card/50 hidden lg:flex flex-col sticky top-0 h-[calc(100vh-57px)] overflow-hidden">
+        <div className="p-4 border-b shrink-0">
           <h2 className="font-semibold text-sm">{t("home.recentCreations")}</h2>
         </div>
         <HistorySidebar
