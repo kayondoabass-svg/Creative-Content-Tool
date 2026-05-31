@@ -70,7 +70,7 @@ export function GeneratedContentDisplay({
   };
 
   const getPresentationData = () => {
-    if (type !== "presentation") return { slides: [], title: "", transition: undefined, transitionDelay: undefined, tapToReveal: undefined };
+    if (type !== "presentation") return { slides: [], title: "", transition: undefined, transitionDelay: undefined, tapToReveal: undefined, layout: undefined, gameType: undefined };
     try {
       const data = JSON.parse(content);
       return {
@@ -79,9 +79,11 @@ export function GeneratedContentDisplay({
         transition: data.transition,
         transitionDelay: data.transitionDelay,
         tapToReveal: !!data.tapToReveal,
+        layout: data.layout,
+        gameType: data.gameType,
       };
     } catch {
-      return { slides: [], title: "", transition: undefined, transitionDelay: undefined, tapToReveal: undefined };
+      return { slides: [], title: "", transition: undefined, transitionDelay: undefined, tapToReveal: undefined, layout: undefined, gameType: undefined };
     }
   };
 
@@ -291,6 +293,137 @@ export function GeneratedContentDisplay({
         const pptSlide = pptx.addSlide();
         const hasImage = !!(slide.image || (slide.images && slide.images.length > 0));
         const hasContent = visibleBullets.length > 0;
+
+        // ── Game slide PPTX rendering ─────────────────────────────────────
+        const slideType = (slide as any).slideType as string | undefined;
+        const gd = (slide as any).gameData;
+        if (data.layout === "game" && slideType) {
+          const CX = 0.4, CW = 9.2;
+
+          if (slideType === "jeopardyBoard") {
+            pptSlide.background = { color: "003399" };
+            pptSlide.addText(slide.title || "JEOPARDY!", {
+              x: CX, y: 0.15, w: CW, h: 0.7,
+              fontSize: 36, bold: true, color: "FFD700", align: "center",
+            });
+            const cats = (gd?.categories || []).slice(0, 4);
+            const colW = CW / cats.length;
+            cats.forEach((cat: any, ci: number) => {
+              pptSlide.addText(cat.name.toUpperCase(), {
+                x: CX + ci * colW, y: 1.0, w: colW - 0.05, h: 0.6,
+                fontSize: 13, bold: true, color: "FFFFFF", align: "center",
+                fill: { color: "0044BB" },
+              });
+              [100, 200, 300, 400, 500].forEach((pts, ri) => {
+                pptSlide.addText(`${pts}`, {
+                  x: CX + ci * colW, y: 1.7 + ri * 0.75, w: colW - 0.05, h: 0.68,
+                  fontSize: 28, bold: true, color: "FFD700", align: "center",
+                  fill: { color: "0033AA" },
+                });
+              });
+            });
+          } else if (slideType === "jeopardyClue") {
+            pptSlide.background = { color: "003399" };
+            pptSlide.addText(`${gd?.category || ""} — ${gd?.points || ""} pts`, {
+              x: CX, y: 0.2, w: CW, h: 0.45, fontSize: 16, color: "AACCFF", align: "center",
+            });
+            pptSlide.addText(gd?.clue || slide.title, {
+              x: CX, y: 1.0, w: CW, h: 2.4,
+              fontSize: 28, bold: true, color: "FFFFFF", align: "center", valign: "middle", wrap: true,
+            });
+            pptSlide.addText(`✅ ${gd?.answer || ""}`, {
+              x: CX, y: 3.6, w: CW, h: 0.7,
+              fontSize: 20, bold: true, color: "FFD700", align: "center",
+              fill: { color: "002288" },
+            });
+          } else if (slideType === "quizQuestion") {
+            pptSlide.addText(gd?.question || slide.title, {
+              x: CX, y: 0.2, w: CW, h: 1.0,
+              fontSize: 22, bold: true, color: "1a1a2e", align: "center", wrap: true,
+            });
+            const boxColors = ["3B82F6", "22C55E", "F97316", "EF4444"];
+            const labels = ["A", "B", "C", "D"];
+            const opts = gd?.options || {};
+            const vals = [opts.a || "", opts.b || "", opts.c || "", opts.d || ""];
+            const correct = (gd?.correct || "a").toLowerCase();
+            const optKeys = ["a", "b", "c", "d"];
+            vals.forEach((val: string, i: number) => {
+              const col = i % 2, row = Math.floor(i / 2);
+              const bx = CX + col * (CW / 2 + 0.05);
+              const by = 1.35 + row * 1.1;
+              const isCorrect = optKeys[i] === correct;
+              pptSlide.addText([
+                { text: `${labels[i]}  `, options: { bold: true, fontSize: 20, color: "FFFFFF" } },
+                { text: val, options: { fontSize: 16, color: "FFFFFF" } },
+                ...(isCorrect ? [{ text: " ✅", options: { fontSize: 16, color: "FFFFFF" } }] : []),
+              ], {
+                x: bx, y: by, w: CW / 2 - 0.1, h: 0.95,
+                fill: { color: isCorrect ? "16A34A" : boxColors[i] },
+                valign: "middle", inset: 0.15,
+              });
+            });
+            if (gd?.explanation) {
+              pptSlide.addText(gd.explanation, {
+                x: CX, y: 3.65, w: CW, h: 0.5,
+                fontSize: 13, color: "555555", italic: true, align: "center", wrap: true,
+              });
+            }
+          } else if (slideType === "trueFalse") {
+            pptSlide.background = { color: "1E293B" };
+            pptSlide.addText(gd?.statement || slide.title, {
+              x: CX, y: 0.5, w: CW, h: 2.0,
+              fontSize: 26, bold: true, color: "FFFFFF", align: "center", valign: "middle", wrap: true,
+            });
+            const isTrue = !!gd?.answer;
+            pptSlide.addText("✅  TRUE", {
+              x: CX, y: 2.7, w: CW / 2 - 0.15, h: 0.85,
+              fontSize: 24, bold: true, color: "FFFFFF", align: "center",
+              fill: { color: isTrue ? "16A34A" : "4B5563" },
+            });
+            pptSlide.addText("❌  FALSE", {
+              x: CX + CW / 2 + 0.05, y: 2.7, w: CW / 2 - 0.1, h: 0.85,
+              fontSize: 24, bold: true, color: "FFFFFF", align: "center",
+              fill: { color: !isTrue ? "DC2626" : "4B5563" },
+            });
+            if (gd?.explanation) {
+              pptSlide.addText(gd.explanation, {
+                x: CX, y: 3.7, w: CW, h: 0.5,
+                fontSize: 13, color: "94A3B8", italic: true, align: "center", wrap: true,
+              });
+            }
+          } else if (slideType === "memoryPair") {
+            pptSlide.addText(gd?.word || slide.title, {
+              x: CX, y: 0.5, w: CW / 2 - 0.15, h: 3.5,
+              fontSize: 36, bold: true, color: "FFFFFF", align: "center", valign: "middle",
+              fill: { color: "7C3AED" },
+            });
+            pptSlide.addText(gd?.definition || "", {
+              x: CX + CW / 2 + 0.05, y: 0.5, w: CW / 2 - 0.1, h: 3.5,
+              fontSize: 18, color: "FFFFFF", align: "center", valign: "middle", wrap: true,
+              fill: { color: "0D9488" },
+            });
+          } else {
+            // Default game slide: colored header + bullets
+            pptSlide.background = { color: "F5F3FF" };
+            pptSlide.addText(slide.title || "Slide", {
+              x: CX, y: TITLE_Y, w: CW, h: 0.68, fontSize: 28, bold: true, color: "4C1D95",
+            });
+            if (hasContent) {
+              pptSlide.addText(
+                visibleBullets.map(pt => ({ text: pt, options: { bullet: true, fontSize: 18, color: "333333", breakLine: true } })),
+                { x: CX, y: CONTENT_Y, w: CW, h: CONTENT_H, valign: "top" }
+              );
+            }
+          }
+
+          pptSlide.addText("brightboardapp.com", {
+            x: 6.8, y: 4.98, w: 2.8, h: 0.28,
+            fontSize: 9, color: "aaaaaa", align: "right", italic: true,
+          });
+          if (slide.notes) pptSlide.addNotes(slide.notes);
+          return;
+        }
+        // ── End game slide rendering ──────────────────────────────────────
 
         pptSlide.addText(slide.title || "Slide", {
           x: CONTENT_X, y: TITLE_Y, w: CONTENT_W, h: 0.68,
@@ -566,6 +699,7 @@ export function GeneratedContentDisplay({
             transition={pd.transition}
             transitionDelay={pd.transitionDelay}
             tapToReveal={pd.tapToReveal}
+            gameType={pd.gameType}
           />
         );
       })()}

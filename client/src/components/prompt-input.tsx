@@ -1249,6 +1249,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                   { id: "spinTheWheel",     emoji: "🎡", label: "Word Wheel"    },
                   { id: "oddOneOut",        emoji: "🔍", label: "Odd One Out"   },
                   { id: "memoryMatch",      emoji: "🧠", label: "Memory Match"  },
+                  { id: "hiddenPicture",    emoji: "🎭", label: "Hidden Pic"    },
                 ].map(tpl => (
                   <button
                     key={tpl.id}
@@ -1269,7 +1270,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
               {gameTemplate && (
                 <p className="text-xs text-purple-600 dark:text-purple-400 mt-1.5">
                   ✦ Slides will be structured as a <strong>{
-                    { vocabularyQuiz: "Vocabulary Quiz", jeopardy: "Jeopardy Board", trueOrFalse: "True or False Game", fillInTheBlank: "Fill in the Blank", pictureMatch: "Picture & Word Match", spinTheWheel: "Spin the Wheel", oddOneOut: "Odd One Out", memoryMatch: "Memory Match" }[gameTemplate]
+                    { vocabularyQuiz: "Vocabulary Quiz", jeopardy: "Jeopardy Board", trueOrFalse: "True or False Game", fillInTheBlank: "Fill in the Blank", pictureMatch: "Picture & Word Match", spinTheWheel: "Spin the Wheel", oddOneOut: "Odd One Out", memoryMatch: "Memory Match", hiddenPicture: "Hidden Picture" }[gameTemplate]
                   }</strong> game
                 </p>
               )}

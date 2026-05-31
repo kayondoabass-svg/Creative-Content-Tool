@@ -3237,7 +3237,17 @@ This should look like it was designed by a world-class branding agency. Make it 
 
             let presentationResult: any;
             try {
-              presentationResult = await generatePresentation(prompt, gradeLevel, subject, effectiveSlideCount, presentationOptions, referenceImage);
+              if (presentationOptions?.gameTemplate) {
+                presentationResult = await generateGamePresentation(
+                  prompt,
+                  presentationOptions.gameTemplate,
+                  gradeLevel,
+                  subject,
+                  effectiveSlideCount,
+                );
+              } else {
+                presentationResult = await generatePresentation(prompt, gradeLevel, subject, effectiveSlideCount, presentationOptions, referenceImage);
+              }
             } finally {
               clearInterval(heartbeat);
             }
@@ -3670,6 +3680,263 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
       options: { style, quality, layout },
     };
   }
+}
+
+// ─── GAME PRESENTATION GENERATOR ────────────────────────────────────────────
+
+async function generateGamePresentation(
+  prompt: string,
+  gameType: string,
+  gradeLevel?: string,
+  subject?: string,
+  slideCount?: number,
+): Promise<any> {
+  const ageGroup = gradeLevel || "elementary school";
+  const ctxNote = subject ? `Subject: ${subject}. ` : "";
+  const qCount = Math.min(Math.max(slideCount || 8, 4), 12);
+
+  const promptMap: Record<string, string> = {
+    jeopardy: `Create a Jeopardy classroom game about "${prompt}" for ${ageGroup} students. ${ctxNote}Return JSON:
+{"title":"...","categories":[{"name":"SHORT NAME","clues":[{"points":100,"clue":"...","answer":"What is ...?"},{"points":200,"clue":"...","answer":"..."},{"points":300,"clue":"...","answer":"..."},{"points":400,"clue":"...","answer":"..."},{"points":500,"clue":"...","answer":"..."}]},{"name":"...","clues":[...]},{"name":"...","clues":[...]},{"name":"...","clues":[...]}]}
+4 categories x 5 clues each. Clues increase in difficulty. Category names max 14 chars.`,
+
+    vocabularyQuiz: `Create ${qCount} multiple-choice quiz questions about "${prompt}" for ${ageGroup} students. ${ctxNote}Return JSON:
+{"title":"...","questions":[{"question":"...","a":"...","b":"...","c":"...","d":"...","correct":"a","explanation":"..."}]}
+Vary correct answers (not always 'a'). All options must be plausible.`,
+
+    trueOrFalse: `Create ${qCount} True-or-False questions about "${prompt}" for ${ageGroup} students. ${ctxNote}Return JSON:
+{"title":"...","questions":[{"statement":"...","answer":true,"explanation":"..."}]}
+Mix true and false. Make some tricky or surprising.`,
+
+    memoryMatch: `Create ${qCount} Memory-Match pairs about "${prompt}" for ${ageGroup} students. ${ctxNote}Return JSON:
+{"title":"...","pairs":[{"word":"Key Vocabulary","emoji":"🔬","definition":"Clear 1-2 sentence definition."}]}`,
+
+    fillInTheBlank: `Create ${qCount} Fill-in-the-Blank sentences about "${prompt}" for ${ageGroup} students. ${ctxNote}Return JSON:
+{"title":"...","questions":[{"sentence":"The ___ is important because ...","answer":"word","hint":"optional hint or empty string"}]}`,
+
+    oddOneOut: `Create ${qCount} Odd-One-Out rounds about "${prompt}" for ${ageGroup} students. ${ctxNote}Return JSON:
+{"title":"...","rounds":[{"items":["item1","item2","item3","item4"],"oddIndex":2,"reason":"Why item3 is different"}]}
+oddIndex is 0-3. Items must be clearly related except the odd one.`,
+
+    pictureMatch: `Create ${Math.min(qCount, 8)} word-image pairs for a Picture Match game about "${prompt}" for ${ageGroup} students. ${ctxNote}Return JSON:
+{"title":"...","pairs":[{"word":"Lion","imagePrompt":"A majestic lion in the savanna, cartoon style, no text","fact":"Fun fact about lions."}]}`,
+
+    spinTheWheel: `Create a Spin-the-Wheel vocabulary game about "${prompt}" for ${ageGroup} students. ${ctxNote}Return JSON:
+{"title":"...","categories":[{"name":"Category Name","emoji":"🌍","words":[{"word":"...","definition":"..."},{"word":"...","definition":"..."},{"word":"...","definition":"..."}]}]}
+Create 6 categories with 3 vocabulary words each.`,
+
+    hiddenPicture: `Create a Hidden-Picture game about "${prompt}" for ${ageGroup} students. ${ctxNote}Return JSON:
+{"title":"...","imagePrompt":"Detailed colorful cartoon illustration of [specific scene related to topic], no text, no words, child-friendly","revealText":"It's [what the picture shows]!","questions":[{"question":"...","answer":"..."}]}
+Create exactly 9 questions related to the topic.`,
+  };
+
+  const userPrompt = promptMap[gameType] || promptMap.vocabularyQuiz;
+
+  const response = await geminiCreate({
+    model: "gemini-2.0-flash-lite",
+    messages: [
+      { role: "system", content: "You are an expert teacher creating fun classroom games. Return valid JSON only, no markdown fences." },
+      { role: "user", content: userPrompt },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 5000,
+  });
+
+  const raw = response.choices[0]?.message?.content || "{}";
+  const gameContent = JSON.parse(raw);
+
+  if (gameType === "hiddenPicture" && gameContent.imagePrompt) {
+    try {
+      const imgResult = await generateGeminiImage(
+        `${gameContent.imagePrompt}. Colorful cartoon illustration, child-friendly, no text, no words.`
+      );
+      const b64 = imgResult?.data?.[0]?.b64_json;
+      if (b64) gameContent.imageB64 = `data:image/png;base64,${b64}`;
+    } catch (e) {
+      console.error("Hidden picture image error:", e);
+    }
+  }
+
+  if (gameType === "pictureMatch" && Array.isArray(gameContent.pairs)) {
+    await Promise.all(
+      gameContent.pairs.slice(0, 8).map(async (pair: any) => {
+        try {
+          const imgResult = await generateGeminiImage(
+            `${pair.imagePrompt}. Colorful cartoon, child-friendly, no text, no labels.`
+          );
+          const b64 = imgResult?.data?.[0]?.b64_json;
+          if (b64) pair.image = `data:image/png;base64,${b64}`;
+        } catch { /* skip */ }
+      })
+    );
+  }
+
+  const slides = buildGameSlides(gameContent, gameType);
+
+  return {
+    title: gameContent.title || `${prompt} Game`,
+    layout: "game",
+    gameType,
+    tapToReveal: false,
+    slides,
+  };
+}
+
+function buildGameSlides(data: any, gameType: string): any[] {
+  const slides: any[] = [];
+
+  if (gameType === "jeopardy") {
+    const cats = (data.categories || []).slice(0, 4);
+    slides.push({
+      title: data.title || "Jeopardy!",
+      content: cats.map((c: any) => c.name),
+      slideType: "jeopardyBoard",
+      gameData: { categories: cats },
+      notes: "Game board. Navigate to clue slides.",
+    });
+    cats.forEach((cat: any) => {
+      (cat.clues || []).forEach((clue: any) => {
+        slides.push({
+          title: `${cat.name} — ${clue.points}`,
+          content: [`📋 ${clue.clue}`, `✅ ${clue.answer}`],
+          slideType: "jeopardyClue",
+          gameData: { category: cat.name, points: clue.points, clue: clue.clue, answer: clue.answer },
+          notes: `Answer: ${clue.answer}`,
+        });
+      });
+    });
+  } else if (gameType === "vocabularyQuiz") {
+    (data.questions || []).forEach((q: any, i: number) => {
+      slides.push({
+        title: `Question ${i + 1}`,
+        content: [q.question, `A) ${q.a}`, `B) ${q.b}`, `C) ${q.c}`, `D) ${q.d}`, `✅ ${(q.correct || "a").toUpperCase()}: ${q.explanation}`],
+        slideType: "quizQuestion",
+        gameData: { question: q.question, options: { a: q.a, b: q.b, c: q.c, d: q.d }, correct: q.correct, explanation: q.explanation, num: i + 1 },
+        notes: `Answer: ${(q.correct || "a").toUpperCase()} — ${q.explanation}`,
+      });
+    });
+  } else if (gameType === "trueOrFalse") {
+    (data.questions || []).forEach((q: any, i: number) => {
+      slides.push({
+        title: `Statement ${i + 1}`,
+        content: [q.statement, q.answer ? "✅ TRUE" : "❌ FALSE", q.explanation],
+        slideType: "trueFalse",
+        gameData: { statement: q.statement, answer: q.answer, explanation: q.explanation, num: i + 1 },
+        notes: `Answer: ${q.answer ? "TRUE" : "FALSE"} — ${q.explanation}`,
+      });
+    });
+  } else if (gameType === "memoryMatch") {
+    const pairs = data.pairs || [];
+    slides.push({
+      title: data.title || "Memory Match",
+      content: pairs.map((p: any) => `${p.emoji || "🃏"} ${p.word}`),
+      slideType: "memoryOverview",
+      gameData: { pairs },
+      notes: "Print and cut for card game. Match each word with its definition.",
+    });
+    pairs.forEach((pair: any, i: number) => {
+      slides.push({
+        title: `Pair ${i + 1}`,
+        content: [pair.word, pair.definition],
+        slideType: "memoryPair",
+        gameData: { word: pair.word, definition: pair.definition, emoji: pair.emoji || "🃏", num: i + 1 },
+        notes: `${pair.word}: ${pair.definition}`,
+      });
+    });
+  } else if (gameType === "fillInTheBlank") {
+    (data.questions || []).forEach((q: any, i: number) => {
+      slides.push({
+        title: `Fill in the Blank #${i + 1}`,
+        content: [q.sentence, ...(q.hint ? [`💡 Hint: ${q.hint}`] : []), `✅ Answer: ${q.answer}`],
+        slideType: "fillBlank",
+        gameData: { sentence: q.sentence, answer: q.answer, hint: q.hint, num: i + 1 },
+        notes: `Answer: ${q.answer}`,
+      });
+    });
+  } else if (gameType === "oddOneOut") {
+    (data.rounds || []).forEach((r: any, i: number) => {
+      slides.push({
+        title: `Round ${i + 1}`,
+        content: (r.items || []).map((item: string, idx: number) => `${idx + 1}. ${item}`).concat([`✅ Odd one: #${(r.oddIndex ?? 0) + 1} — ${r.reason}`]),
+        slideType: "oddOneOut",
+        gameData: { items: r.items || [], oddIndex: r.oddIndex ?? 0, reason: r.reason, num: i + 1 },
+        notes: `Odd one out: ${(r.items || [])[r.oddIndex ?? 0]} — ${r.reason}`,
+      });
+    });
+  } else if (gameType === "pictureMatch") {
+    slides.push({
+      title: data.title || "Picture Match",
+      content: (data.pairs || []).map((p: any) => p.word),
+      slideType: "picMatchOverview",
+      gameData: { pairs: data.pairs || [] },
+      notes: "Match each word with its picture.",
+    });
+    (data.pairs || []).forEach((p: any, i: number) => {
+      slides.push({
+        title: `Match: ${p.word}`,
+        content: [p.word, p.fact || ""],
+        image: p.image || undefined,
+        slideType: "picturePair",
+        gameData: { word: p.word, fact: p.fact, image: p.image, num: i + 1 },
+        notes: p.fact || "",
+      });
+    });
+  } else if (gameType === "spinTheWheel") {
+    const cats = data.categories || [];
+    slides.push({
+      title: data.title || "Spin the Wheel!",
+      content: cats.map((c: any) => `${c.emoji || "🎡"} ${c.name}`),
+      slideType: "wheelOverview",
+      gameData: { categories: cats },
+      notes: "Spin and land on a category. Students must answer a vocabulary question.",
+    });
+    cats.forEach((cat: any) => {
+      const words = cat.words || [];
+      slides.push({
+        title: `${cat.emoji || "🎡"} ${cat.name}`,
+        content: words.map((w: any) => `${w.word}: ${w.definition}`),
+        slideType: "wheelCategory",
+        gameData: { name: cat.name, emoji: cat.emoji, words },
+        notes: `Category: ${cat.name}`,
+      });
+    });
+  } else if (gameType === "hiddenPicture") {
+    const questions = (data.questions || []).slice(0, 9);
+    slides.push({
+      title: data.title || "Hidden Picture!",
+      content: ["Answer the questions to reveal the hidden picture!", `${questions.length} questions to unlock!`],
+      slideType: "hiddenPictureIntro",
+      gameData: { totalQuestions: questions.length, imageB64: data.imageB64, revealText: data.revealText },
+      notes: "Intro slide.",
+    });
+    questions.forEach((q: any, i: number) => {
+      slides.push({
+        title: `Question ${i + 1} of ${questions.length}`,
+        content: [`❓ ${q.question}`, `✅ ${q.answer}`],
+        image: data.imageB64 || undefined,
+        slideType: "hiddenPictureQuestion",
+        gameData: {
+          question: q.question,
+          answer: q.answer,
+          num: i + 1,
+          totalQuestions: questions.length,
+          tilesRevealed: i + 1,
+          imageB64: data.imageB64,
+        },
+        notes: `Answer: ${q.answer}`,
+      });
+    });
+    slides.push({
+      title: "🎉 Picture Revealed!",
+      content: [data.revealText || "Amazing! You revealed the hidden picture!", "Great work answering all the questions!"],
+      image: data.imageB64 || undefined,
+      slideType: "hiddenPictureReveal",
+      gameData: { imageB64: data.imageB64, revealText: data.revealText },
+      notes: "Final reveal.",
+    });
+  }
+
+  return slides;
 }
 
 // Presentation generation
