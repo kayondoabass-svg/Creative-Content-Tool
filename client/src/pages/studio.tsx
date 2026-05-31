@@ -482,6 +482,7 @@ export default function StudioPage() {
   const [rcComments, setRcComments] = useState<Record<string, string>>({});
   const [rcCurrentStudentIdx, setRcCurrentStudentIdx] = useState(0);
   const [rcTemplateLoading, setRcTemplateLoading] = useState(false);
+  const [rcWordCount, setRcWordCount] = useState<40 | 50 | 60>(50);
   const rcTemplateRef = useRef<HTMLInputElement>(null);
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -530,7 +531,14 @@ export default function StudioPage() {
         const res = await apiRequest("POST", "/api/studio/parse-report-template", { fileData: b64, mimeType: file.type });
         const data = await res.json();
         if (data.categories?.length) setRcCategories(data.categories.slice(0, 15));
-        toast({ title: "Template read!", description: `Found ${data.categories?.length || 0} categories.` });
+        setRcSchoolInfo(prev => ({
+          schoolName: data.schoolName || prev.schoolName,
+          className: data.className || prev.className,
+          teacherName: data.teacherName || prev.teacherName,
+          period: data.period || prev.period,
+        }));
+        const filled = [data.schoolName, data.className, data.teacherName, data.period].filter(Boolean).length;
+        toast({ title: "Template read!", description: `Found ${data.categories?.length || 0} categories${filled ? ` and ${filled} school details` : ""} — check and confirm below.` });
       } catch {
         toast({ title: "Couldn't read template", description: "Using default categories.", variant: "destructive" });
       } finally { setRcTemplateLoading(false); }
@@ -552,7 +560,7 @@ export default function StudioPage() {
 
   const rcCommentsMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/studio/generate-report-comments", { students: rcStudents.filter(s => s.name.trim()), categories: rcCategories, ratingScale: rcRatingScale, schoolInfo: rcSchoolInfo });
+      const res = await apiRequest("POST", "/api/studio/generate-report-comments", { students: rcStudents.filter(s => s.name.trim()), categories: rcCategories, ratingScale: rcRatingScale, schoolInfo: rcSchoolInfo, wordCount: rcWordCount });
       return res.json();
     },
     onSuccess: (data) => { setRcComments(data.comments || {}); setRcStep("comments"); },
@@ -1337,13 +1345,26 @@ export default function StudioPage() {
                   )}
                   <div className="flex items-center justify-between flex-wrap gap-3">
                     <p className="text-sm text-muted-foreground">{named.filter(s => rcCategories.every(c => s.ratings[c])).length}/{named.length} students fully rated</p>
-                    <div className="flex gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {rcCurrentStudentIdx >= named.length - 1 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground font-medium">Comment length:</span>
+                          <div className="flex gap-1">
+                            {([40, 50, 60] as const).map(n => (
+                              <button key={n} onClick={() => setRcWordCount(n)} data-testid={`button-rc-wordcount-${n}`}
+                                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${rcWordCount === n ? "bg-purple-600 text-white border-purple-600" : "bg-background text-muted-foreground border-border hover:border-purple-400"}`}>
+                                {n}w
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {rcCurrentStudentIdx < named.length - 1 ? (
                         <Button onClick={() => setRcCurrentStudentIdx(i => i+1)} className="gap-2" data-testid="button-rc-next-action">Next Student <ChevronRight className="w-4 h-4" /></Button>
                       ) : (
                         <Button onClick={() => rcCommentsMutation.mutate()} disabled={rcCommentsMutation.isPending} className="gap-2 bg-purple-600 hover:bg-purple-700" data-testid="button-rc-gen-comments">
                           {rcCommentsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                          Generate AI Comments
+                          {rcCommentsMutation.isPending ? "Writing comments…" : "Generate AI Comments"}
                         </Button>
                       )}
                     </div>
@@ -1370,10 +1391,24 @@ export default function StudioPage() {
                     </CardContent></Card>
                   ))}
                 </div>
-                <div className="flex justify-between gap-3 flex-wrap">
-                  <Button variant="outline" onClick={() => rcCommentsMutation.mutate()} disabled={rcCommentsMutation.isPending} className="gap-2" data-testid="button-rc-regen-comments">
-                    {rcCommentsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Regenerate All Comments
-                  </Button>
+                <div className="flex justify-between gap-3 flex-wrap items-center">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground font-medium">Words:</span>
+                      <div className="flex gap-1">
+                        {([40, 50, 60] as const).map(n => (
+                          <button key={n} onClick={() => setRcWordCount(n)} data-testid={`button-rc-wc2-${n}`}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${rcWordCount === n ? "bg-purple-600 text-white border-purple-600" : "bg-background text-muted-foreground border-border hover:border-purple-400"}`}>
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <Button variant="outline" onClick={() => rcCommentsMutation.mutate()} disabled={rcCommentsMutation.isPending} className="gap-2" data-testid="button-rc-regen-comments">
+                      {rcCommentsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                      {rcCommentsMutation.isPending ? "Writing…" : "Regenerate Comments"}
+                    </Button>
+                  </div>
                   <Button onClick={() => rcPdfMutation.mutate()} disabled={rcPdfMutation.isPending} className="gap-2 bg-purple-600 hover:bg-purple-700" data-testid="button-rc-gen-pdf">
                     {rcPdfMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                     {rcPdfMutation.isPending ? "Generating PDF…" : "Generate & Download PDF"}

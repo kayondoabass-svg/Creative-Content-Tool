@@ -5288,10 +5288,11 @@ export function registerSubscriptionRoutes(app: any) {
   app.post("/api/studio/parse-report-template", isAuthenticated, async (req: any, res: any) => {
     try {
       const { fileData, mimeType } = req.body;
+      const extractPrompt = 'This is a school report card or evaluation form. Extract ALL information you can read from it. Return ONLY valid JSON (no markdown, no code fences):\n{"schoolName":"...","className":"...","teacherName":"...","period":"...","title":"...","categories":["..."],"ratingScale":["..."]}\n- schoolName: the school name if visible, else ""\n- className: class/grade/section name if visible, else ""\n- teacherName: teacher name if visible, else ""\n- period: academic period/term/year if visible, else ""\n- title: report card title\n- categories: array of evaluation categories exactly as written\n- ratingScale: rating labels from best to worst (e.g. Excellent, Above Average, Average, Below Average, Needs Improvement)';
       const userContent: any = fileData
-        ? [{ type: "image_url", image_url: { url: `data:${mimeType};base64,${fileData}` } }, { type: "text", text: 'This is a student report card or evaluation form. Extract its structure. Return ONLY valid JSON (no markdown): {"title":"...","categories":["..."],"ratingScale":["...","...","...","...","..."],"sampleComment":"..."}' }]
-        : 'Return a default student report card structure. JSON only: {"title":"Student Progress Report","categories":["Behavior & Conduct","Listening Skills","Speaking & Communication","Reading","Writing","Mathematics","Class Participation"],"ratingScale":["Excellent","Above Average","Average","Below Average","Needs Improvement"],"sampleComment":"This student has shown great progress this term."}';
-      const response = await geminiCreate({ model: "gemini-2.0-flash-lite", messages: [{ role: "user", content: userContent }], response_format: { type: "json_object" }, max_tokens: 600 });
+        ? [{ type: "image_url", image_url: { url: `data:${mimeType};base64,${fileData}` } }, { type: "text", text: extractPrompt }]
+        : `Return a default kindergarten report card structure. JSON only: {"schoolName":"","className":"","teacherName":"","period":"","title":"Student Progress Report","categories":["Behavior & Conduct","Listening Skills","Speaking & Communication","Reading","Writing","Class Participation"],"ratingScale":["Excellent","Above Average","Average","Below Average","Needs Improvement"]}`;
+      const response = await geminiCreate({ messages: [{ role: "user", content: userContent }], response_format: { type: "json_object" }, max_tokens: 800 });
       const raw = response.choices[0]?.message?.content || "{}";
       const match = raw.match(/\{[\s\S]*\}/);
       res.json(match ? JSON.parse(match[0]) : {});
@@ -5301,14 +5302,18 @@ export function registerSubscriptionRoutes(app: any) {
   // Generate AI comments for all students in parallel batches
   app.post("/api/studio/generate-report-comments", isAuthenticated, async (req: any, res: any) => {
     try {
-      const { students, categories, ratingScale, schoolInfo } = req.body;
+      const { students, categories, ratingScale, schoolInfo, wordCount = 50 } = req.body;
+      const wc = Math.max(30, Math.min(100, Number(wordCount) || 50));
+      const systemInstruction = "You are an expert, empathetic school teacher writing official report card comments. Your tone must be professional, warm, constructive, and encouraging. Always write complete, grammatically correct sentences. Never cut off mid-sentence. Never leave trailing or incomplete phrases. Address specific strengths and areas for improvement based strictly on the provided evaluation data.";
       const comments: Record<string, string> = {};
-      const BATCH = 4;
+      const BATCH = 3;
       for (let i = 0; i < students.length; i += BATCH) {
         await Promise.all(students.slice(i, i + BATCH).map(async (student: any) => {
-          const ratings = (categories as string[]).map((c: string) => `${c}: ${student.ratings?.[c] || "Average"}`).join("; ");
-          const r = await geminiCreate({ model: "gemini-2.0-flash-lite", messages: [{ role: "user", content: `Write a warm 2–3 sentence school report card comment for student "${student.name}". Ratings: ${ratings}. School: ${schoolInfo?.schoolName || ""}, Class: ${schoolInfo?.className || ""}. Use the student's name. Be positive and specific. Plain text only, no JSON.` }], max_tokens: 160 });
-          comments[student.id] = r.choices[0]?.message?.content?.trim() || `${student.name} has shown good progress this term.`;
+          const ratings = (categories as string[]).map((c: string) => `- ${c}: ${student.ratings?.[c] || "Average"}`).join("\n");
+          const prompt = `Generate a personalized report card comment for the following student.\n\nStudent Name: ${student.name}\nSchool: ${schoolInfo?.schoolName || "school"}\nClass: ${schoolInfo?.className || ""}\n\nEvaluation Data:\n${ratings}\n\nRequirements:\n1. Write approximately ${wc} words (complete sentences only — never cut off).\n2. Start by acknowledging the student's overall presence or effort in class.\n3. Mention at least one specific strength based on their highest-rated category.\n4. If any category is Below Average or Needs Improvement, include one gentle, actionable suggestion.\n5. End on an encouraging and positive note for the next term.\n6. Use the student's name naturally in the comment.\n7. Plain text only — no JSON, no bullet points, no formatting.`;
+          const r = await geminiCreate({ messages: [{ role: "system", content: systemInstruction }, { role: "user", content: prompt }], max_tokens: 500, temperature: 0.3 });
+          const text = r.choices[0]?.message?.content?.trim() || "";
+          comments[student.id] = text || `${student.name} has demonstrated consistent effort this term and continues to grow across all areas of learning.`;
         }));
       }
       res.json({ comments });
