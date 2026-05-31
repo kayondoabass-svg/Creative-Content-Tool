@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth } from "./replit_integrations/auth";
+import path from "path";
 
 const app = express();
 const httpServer = createServer(app);
@@ -120,6 +121,9 @@ app.use((req, res, next) => {
     }
   };
   setTimeout(() => { scheduleActivationEmails(); setInterval(scheduleActivationEmails, 4 * 60 * 60 * 1000); }, 10 * 60 * 1000);
+
+  // Serve flashcard images from root public/ in both dev and production
+  app.use("/flashcard-images", express.static(path.join(process.cwd(), "public", "flashcard-images")));
 
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
