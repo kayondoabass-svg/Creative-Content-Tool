@@ -1,7 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Image, Presentation, FileText, Gamepad2, Film, Clock, Trash2, Network } from "lucide-react";
 import type { GeneratedContent, ContentType } from "@shared/schema";
 
@@ -46,7 +45,7 @@ export function HistorySidebar({ history, onSelect, onDelete, selectedId }: Hist
   }
 
   return (
-    <ScrollArea className="h-full">
+    <div className="h-full overflow-y-auto no-scrollbar">
       <div className="p-3 space-y-2">
         {history.map((item) => {
           const Icon = typeIcons[item.type as ContentType] || FileText;
@@ -90,6 +89,6 @@ export function HistorySidebar({ history, onSelect, onDelete, selectedId }: Hist
           );
         })}
       </div>
-    </ScrollArea>
+    </div>
   );
 }

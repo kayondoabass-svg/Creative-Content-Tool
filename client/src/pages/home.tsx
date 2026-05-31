@@ -247,10 +247,9 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-background">
-      <div className="flex flex-1">
-      {/* Main Content */}
-      <div className="flex-1 min-w-0">
+    <div className="flex h-full bg-background">
+      {/* Main Content — this is the single scroll container */}
+      <div className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
 
           {/* Email verification banner */}
@@ -373,23 +372,23 @@ export default function Home() {
             />
           )}
         </div>
+        <Footer />
       </div>
 
       {/* History Sidebar */}
-      <div className="w-72 border-l bg-card/50 hidden lg:flex flex-col sticky top-0 h-[calc(100vh-57px)] overflow-hidden">
+      <div className="w-72 border-l bg-card/50 hidden lg:flex flex-col h-full overflow-hidden">
         <div className="p-4 border-b shrink-0">
           <h2 className="font-semibold text-sm">{t("home.recentCreations")}</h2>
         </div>
-        <HistorySidebar
-          history={history}
-          onSelect={handleSelectHistory}
-          onDelete={handleDelete}
-          selectedId={selectedHistoryItem?.id}
-        />
+        <div className="flex-1 min-h-0">
+          <HistorySidebar
+            history={history}
+            onSelect={handleSelectHistory}
+            onDelete={handleDelete}
+            selectedId={selectedHistoryItem?.id}
+          />
+        </div>
       </div>
-      </div>
-      {/* Footer - same as homepage */}
-      <Footer />
     </div>
   );
 }
