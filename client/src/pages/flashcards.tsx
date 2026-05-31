@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/footer";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Download, ArrowLeft, Sparkles } from "lucide-react";
+import { Loader2, Download, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
@@ -35,29 +35,23 @@ const CARD_BG = [
   "from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40",
 ];
 
+type Layout = 1 | 2 | 4;
+type Orientation = "portrait" | "landscape";
+
 export default function FlashcardsPage() {
   const { toast } = useToast();
   const [activeSet, setActiveSet] = useState<typeof SETS[0] | null>(null);
-  const [images, setImages] = useState<Record<string, string>>({});
-
-  const imagesMutation = useMutation({
-    mutationFn: async (words: string[]) => {
-      const res = await apiRequest("POST", "/api/flashcards/images", { words });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      setImages(prev => ({ ...prev, ...(data.images || {}) }));
-      toast({ title: "Images ready!", description: "AI illustrations added to your cards." });
-    },
-    onError: () => toast({ title: "Image generation failed", variant: "destructive" }),
-  });
+  const [layout, setLayout] = useState<Layout>(4);
+  const [orientation, setOrientation] = useState<Orientation>("landscape");
 
   const pdfMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/flashcards/pdf", {
         words: activeSet?.words,
-        images,
+        setId: activeSet?.id,
         setName: activeSet?.label,
+        layout,
+        orientation,
       });
       return res.json();
     },
@@ -73,14 +67,13 @@ export default function FlashcardsPage() {
 
   /* ─── Set detail view ─── */
   if (activeSet) {
-    const hasImages = activeSet.words.some(w => images[w]);
     return (
       <div className="min-h-screen flex flex-col bg-background">
         {/* Header */}
         <div className={`bg-gradient-to-r ${activeSet.bg} text-white py-8`}>
           <div className="container mx-auto px-4">
             <button
-              onClick={() => { setActiveSet(null); setImages({}); }}
+              onClick={() => setActiveSet(null)}
               className="flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4 transition-colors"
               data-testid="button-flashcard-back"
             >
@@ -92,27 +85,57 @@ export default function FlashcardsPage() {
                 <h1 className="text-3xl font-black">{activeSet.label}</h1>
                 <p className="text-white/80 text-sm">{activeSet.words.length} cards · Free to download</p>
               </div>
-              <div className="flex gap-3 flex-wrap">
-                <Button
-                  onClick={() => imagesMutation.mutate(activeSet.words)}
-                  disabled={imagesMutation.isPending}
-                  variant="secondary"
-                  className="gap-2 bg-white/20 hover:bg-white/30 text-white border border-white/30"
-                  data-testid="button-flashcard-gen-images"
-                >
-                  {imagesMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  {imagesMutation.isPending ? "Generating…" : hasImages ? "Redo Images" : "Add AI Images"}
-                </Button>
-                <Button
-                  onClick={() => pdfMutation.mutate()}
-                  disabled={pdfMutation.isPending}
-                  className="gap-2 bg-white text-gray-800 hover:bg-white/90 font-semibold"
-                  data-testid="button-flashcard-download"
-                >
-                  {pdfMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                  {pdfMutation.isPending ? "Making PDF…" : "Download PDF"}
-                </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* PDF options + download */}
+        <div className="bg-white dark:bg-gray-900 border-b shadow-sm sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-3 flex flex-wrap items-center gap-4">
+            {/* Cards per page */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Cards per page:</span>
+              <div className="flex rounded-lg border overflow-hidden">
+                {([1, 2, 4] as Layout[]).map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setLayout(n)}
+                    className={`px-3 py-1.5 text-sm font-semibold transition-colors ${layout === n ? "bg-purple-600 text-white" : "bg-white dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/30"}`}
+                    data-testid={`button-layout-${n}`}
+                  >
+                    {n}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            {/* Orientation */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Page:</span>
+              <div className="flex rounded-lg border overflow-hidden">
+                {(["portrait", "landscape"] as Orientation[]).map(o => (
+                  <button
+                    key={o}
+                    onClick={() => setOrientation(o)}
+                    className={`px-3 py-1.5 text-sm font-semibold transition-colors capitalize ${orientation === o ? "bg-purple-600 text-white" : "bg-white dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/30"}`}
+                    data-testid={`button-orientation-${o}`}
+                  >
+                    {o === "portrait" ? "↕ Portrait" : "↔ Landscape"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="ml-auto">
+              <Button
+                onClick={() => pdfMutation.mutate()}
+                disabled={pdfMutation.isPending}
+                className="gap-2 bg-purple-600 hover:bg-purple-700"
+                data-testid="button-flashcard-download"
+              >
+                {pdfMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {pdfMutation.isPending ? "Making PDF…" : "Download PDF"}
+              </Button>
             </div>
           </div>
         </div>
@@ -120,48 +143,40 @@ export default function FlashcardsPage() {
         {/* Cards grid */}
         <div className="flex-1 container mx-auto px-4 py-10">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {activeSet.words.map((word, i) => {
-              const img = images[word];
-              return (
-                <div
-                  key={word}
-                  className={`rounded-2xl overflow-hidden shadow-md border border-white/60 bg-gradient-to-br ${CARD_BG[i % CARD_BG.length]} flex flex-col`}
-                  style={{ aspectRatio: "3/4" }}
-                  data-testid={`card-flashcard-${i}`}
-                >
-                  <div className="flex-1 flex items-center justify-center p-4">
-                    {img ? (
-                      <img
-                        src={`data:image/png;base64,${img}`}
-                        alt={word}
-                        className="max-h-full max-w-full object-contain rounded-xl"
-                      />
-                    ) : imagesMutation.isPending ? (
-                      <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
-                    ) : (
-                      <span className="text-5xl">{activeSet.emoji}</span>
-                    )}
-                  </div>
-                  <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm py-3 px-2 text-center">
-                    <p className="font-bold text-lg capitalize text-gray-800 dark:text-gray-100">{word}</p>
-                  </div>
+            {activeSet.words.map((word, i) => (
+              <div
+                key={word}
+                className={`rounded-2xl overflow-hidden shadow-md border border-white/60 bg-gradient-to-br ${CARD_BG[i % CARD_BG.length]} flex flex-col`}
+                style={{ aspectRatio: "3/4" }}
+                data-testid={`card-flashcard-${i}`}
+              >
+                <div className="flex-1 flex items-center justify-center p-3">
+                  <img
+                    src={`/flashcard-images/${activeSet.id}/${word.toLowerCase()}.png`}
+                    alt={word}
+                    className="max-h-full max-w-full object-contain rounded-xl"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                      const parent = e.currentTarget.parentElement;
+                      if (parent && !parent.querySelector(".emoji-fallback")) {
+                        const span = document.createElement("span");
+                        span.className = "emoji-fallback text-5xl";
+                        span.textContent = activeSet.emoji;
+                        parent.appendChild(span);
+                      }
+                    }}
+                  />
                 </div>
-              );
-            })}
+                <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm py-3 px-2 text-center">
+                  <p className="font-bold text-lg capitalize text-gray-800 dark:text-gray-100">{word}</p>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {!hasImages && !imagesMutation.isPending && (
-            <div className="text-center mt-10 p-8 bg-muted/50 rounded-2xl border border-dashed max-w-lg mx-auto">
-              <Sparkles className="w-8 h-8 text-purple-400 mx-auto mb-3" />
-              <p className="font-semibold text-lg mb-1">Add AI Illustrations</p>
-              <p className="text-sm text-muted-foreground mb-5">
-                Generate a unique cartoon illustration for every word — great for visual learners and EFL/ESL classrooms.
-              </p>
-              <Button onClick={() => imagesMutation.mutate(activeSet.words)} className="gap-2">
-                <Sparkles className="w-4 h-4" /> Generate {activeSet.words.length} Images (Free)
-              </Button>
-            </div>
-          )}
+          <p className="text-center text-sm text-muted-foreground mt-8">
+            Choose <strong>{layout} cards per page</strong> in <strong>{orientation}</strong> format, then click Download PDF.
+          </p>
         </div>
         <Footer />
       </div>
@@ -188,7 +203,7 @@ export default function FlashcardsPage() {
             Beautiful AI-illustrated flashcards for every classroom. Download as print-ready PDFs — completely free, no login required.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
-            {["14 Topic Sets", "AI Illustrations", "Print-Ready PDF", "EFL / ESL Ready"].map(f => (
+            {["14 Topic Sets", "AI Illustrations", "1 / 2 / 4 Cards per Page", "Portrait & Landscape"].map(f => (
               <span key={f} className="bg-white/15 rounded-full px-4 py-1.5 text-sm">✓ {f}</span>
             ))}
           </div>
@@ -206,7 +221,7 @@ export default function FlashcardsPage() {
           {SETS.map(set => (
             <button
               key={set.id}
-              onClick={() => { setActiveSet(set); setImages({}); }}
+              onClick={() => setActiveSet(set)}
               className="group rounded-2xl overflow-hidden border-2 border-transparent hover:border-purple-400 hover:shadow-xl hover:-translate-y-1 transition-all text-left cursor-pointer"
               data-testid={`button-flashcard-set-${set.id}`}
             >
@@ -224,9 +239,9 @@ export default function FlashcardsPage() {
         {/* Info cards */}
         <div className="mt-16 grid md:grid-cols-3 gap-6">
           {[
-            { emoji: "🆓", title: "Completely Free", desc: "All flashcard sets are free forever. No account, no payment, no catch — use them in any classroom." },
-            { emoji: "🤖", title: "AI Illustrations", desc: "Click 'Add AI Images' to generate unique cartoon illustrations for every card — made by BrightBoard's AI." },
-            { emoji: "🖨️", title: "Print-Ready PDF", desc: "Download a clean A4 PDF with 4 cards per page. Cut, laminate, and use them for years." },
+            { emoji: "🆓", title: "Completely Free", desc: "All 14 flashcard sets are free forever. No account, no payment, no catch — use them in any classroom." },
+            { emoji: "🖼️", title: "AI Illustrations", desc: "Every card has a unique cartoon illustration generated by BrightBoard's AI — perfect for visual learners and ESL classes." },
+            { emoji: "🖨️", title: "Flexible PDF Layouts", desc: "Choose 1, 2, or 4 cards per page in portrait or landscape format. Print, cut, and laminate for years of use." },
           ].map(f => (
             <div key={f.title} className="text-center p-6 rounded-2xl bg-muted/50 border">
               <div className="text-4xl mb-3">{f.emoji}</div>
@@ -236,7 +251,7 @@ export default function FlashcardsPage() {
           ))}
         </div>
 
-        {/* CTA for logged-in teachers */}
+        {/* CTA */}
         <div className="mt-12 text-center p-8 bg-gradient-to-r from-purple-50 to-teal-50 dark:from-purple-950/30 dark:to-teal-950/30 rounded-2xl border">
           <p className="font-bold text-lg mb-2">Want to make your own custom flashcards?</p>
           <p className="text-muted-foreground text-sm mb-4">Use BrightBoard's AI to generate presentations, worksheets, mind maps and more — fully customised for your class.</p>

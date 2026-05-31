@@ -10,6 +10,8 @@ import PptxGenJS from "pptxgenjs";
 import * as paymentService from "./paymentService";
 import { generateVideoFromStoryboard } from "./videoService";
 import { jobQueue } from "./jobQueue";
+import fs from "fs";
+import path from "path";
 
 // Custom authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -904,7 +906,7 @@ ${pages.map(p => `  <url>
   // Generate a printable PDF for a flashcard set (4 cards per A4 landscape page)
   app.post("/api/flashcards/pdf", async (req: any, res: any) => {
     try {
-      const { words, images, setName } = req.body;
+      const { words, setId, setName, layout = 4, orientation = "landscape" } = req.body;
       if (!Array.isArray(words) || words.length === 0) {
         return res.status(400).json({ error: "words array required" });
       }
@@ -913,69 +915,98 @@ ${pages.map(p => `  <url>
       const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       const fontReg = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-      // A4 landscape
-      const PAGE_W = 841.89;
-      const PAGE_H = 595.28;
-      const MARGIN = 24;
-      const CARD_W = (PAGE_W - MARGIN * 3) / 2;
-      const CARD_H = (PAGE_H - MARGIN * 3) / 2;
-      const LABEL_H = 44;
-      const CARDS_PER_PAGE = 4;
+      // A4 dimensions in points
+      const A4_SHORT = 595.28;
+      const A4_LONG  = 841.89;
+      const [PAGE_W, PAGE_H] = orientation === "landscape"
+        ? [A4_LONG, A4_SHORT]
+        : [A4_SHORT, A4_LONG];
 
-      const positions = [
-        [MARGIN, PAGE_H / 2 + MARGIN / 2],
-        [MARGIN * 2 + CARD_W, PAGE_H / 2 + MARGIN / 2],
-        [MARGIN, MARGIN],
-        [MARGIN * 2 + CARD_W, MARGIN],
-      ];
+      const cardsPerPage = Number(layout) || 4;
+      const MARGIN = 28;
+
+      // Grid columns / rows per page
+      let COLS: number, ROWS: number;
+      if (cardsPerPage === 1) {
+        COLS = 1; ROWS = 1;
+      } else if (cardsPerPage === 2) {
+        if (orientation === "landscape") { COLS = 2; ROWS = 1; }
+        else                             { COLS = 1; ROWS = 2; }
+      } else {
+        COLS = 2; ROWS = 2;
+      }
+
+      const CARD_W = (PAGE_W - MARGIN * (COLS + 1)) / COLS;
+      const CARD_H = (PAGE_H - MARGIN * (ROWS + 1)) / ROWS;
+      const LABEL_H = Math.max(36, CARD_H * 0.13);
+
+      // Build grid positions (left→right, top→bottom in PDF coords = bottom→top)
+      const positions: [number, number][] = [];
+      for (let row = ROWS - 1; row >= 0; row--) {
+        for (let col = 0; col < COLS; col++) {
+          positions.push([
+            MARGIN + col * (CARD_W + MARGIN),
+            MARGIN + row * (CARD_H + MARGIN),
+          ]);
+        }
+      }
 
       const cardColors = [
-        { bg: rgb(0.88, 0.92, 1), border: rgb(0.49, 0.62, 0.95), label: rgb(0.25, 0.40, 0.85) },
-        { bg: rgb(0.92, 0.88, 1), border: rgb(0.62, 0.49, 0.95), label: rgb(0.42, 0.23, 0.85) },
-        { bg: rgb(0.88, 1, 0.94), border: rgb(0.39, 0.84, 0.62), label: rgb(0.10, 0.60, 0.35) },
-        { bg: rgb(1, 0.95, 0.88), border: rgb(0.95, 0.73, 0.39), label: rgb(0.80, 0.45, 0.10) },
-        { bg: rgb(1, 0.88, 0.93), border: rgb(0.95, 0.49, 0.67), label: rgb(0.85, 0.20, 0.45) },
-        { bg: rgb(0.88, 0.98, 1), border: rgb(0.39, 0.82, 0.95), label: rgb(0.05, 0.55, 0.75) },
-        { bg: rgb(1, 0.98, 0.88), border: rgb(0.95, 0.88, 0.39), label: rgb(0.65, 0.55, 0.05) },
-        { bg: rgb(1, 0.90, 0.88), border: rgb(0.95, 0.55, 0.49), label: rgb(0.80, 0.25, 0.20) },
+        { bg: rgb(0.88, 0.92, 1),  border: rgb(0.49, 0.62, 0.95), label: rgb(0.25, 0.40, 0.85) },
+        { bg: rgb(0.92, 0.88, 1),  border: rgb(0.62, 0.49, 0.95), label: rgb(0.42, 0.23, 0.85) },
+        { bg: rgb(0.88, 1,    0.94), border: rgb(0.39, 0.84, 0.62), label: rgb(0.10, 0.60, 0.35) },
+        { bg: rgb(1,    0.95, 0.88), border: rgb(0.95, 0.73, 0.39), label: rgb(0.80, 0.45, 0.10) },
+        { bg: rgb(1,    0.88, 0.93), border: rgb(0.95, 0.49, 0.67), label: rgb(0.85, 0.20, 0.45) },
+        { bg: rgb(0.88, 0.98, 1),  border: rgb(0.39, 0.82, 0.95), label: rgb(0.05, 0.55, 0.75) },
+        { bg: rgb(1,    0.98, 0.88), border: rgb(0.95, 0.88, 0.39), label: rgb(0.65, 0.55, 0.05) },
+        { bg: rgb(1,    0.90, 0.88), border: rgb(0.95, 0.55, 0.49), label: rgb(0.80, 0.25, 0.20) },
       ];
 
-      for (let pageStart = 0; pageStart < words.length; pageStart += CARDS_PER_PAGE) {
+      // Pre-load static images from disk (one read per unique word)
+      const imgCache: Record<string, Buffer | null> = {};
+      if (setId) {
+        const imgDir = path.join(process.cwd(), "public", "flashcard-images", setId);
+        for (const word of words) {
+          const key = word.toLowerCase();
+          if (imgCache[key] !== undefined) continue;
+          const filePath = path.join(imgDir, `${key}.png`);
+          try {
+            imgCache[key] = fs.readFileSync(filePath);
+          } catch {
+            imgCache[key] = null;
+          }
+        }
+      }
+
+      for (let pageStart = 0; pageStart < words.length; pageStart += cardsPerPage) {
         const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-        const batch = words.slice(pageStart, pageStart + CARDS_PER_PAGE);
+        const batch = words.slice(pageStart, pageStart + cardsPerPage);
 
         for (let j = 0; j < batch.length; j++) {
           const word = batch[j];
           const [cx, cy] = positions[j];
-          const colorIdx = (pageStart + j) % cardColors.length;
-          const col = cardColors[colorIdx];
+          const col = cardColors[(pageStart + j) % cardColors.length];
 
           // Card background
-          page.drawRectangle({ x: cx, y: cy, width: CARD_W, height: CARD_H, color: col.bg, borderColor: col.border, borderWidth: 2, opacity: 1 });
+          page.drawRectangle({ x: cx, y: cy, width: CARD_W, height: CARD_H, color: col.bg, borderColor: col.border, borderWidth: 2 });
 
-          // Image area
+          // Image
           const imgAreaH = CARD_H - LABEL_H - 16;
-          const imgData = images?.[word];
-          if (imgData) {
+          const imgBuf = imgCache[word.toLowerCase()];
+          if (imgBuf) {
             try {
-              const imgBytes = Buffer.from(imgData, "base64");
-              let embeddedImg;
-              try { embeddedImg = await pdfDoc.embedPng(imgBytes); }
-              catch { embeddedImg = await pdfDoc.embedJpg(imgBytes); }
+              const embedded = await pdfDoc.embedPng(imgBuf);
               const maxW = CARD_W - 24;
               const maxH = imgAreaH - 12;
-              const scale = Math.min(maxW / embeddedImg.width, maxH / embeddedImg.height, 1);
-              const dW = embeddedImg.width * scale;
-              const dH = embeddedImg.height * scale;
-              page.drawImage(embeddedImg, {
+              const scale = Math.min(maxW / embedded.width, maxH / embedded.height, 1);
+              const dW = embedded.width * scale;
+              const dH = embedded.height * scale;
+              page.drawImage(embedded, {
                 x: cx + (CARD_W - dW) / 2,
                 y: cy + LABEL_H + (imgAreaH - dH) / 2 + 8,
                 width: dW, height: dH,
               });
-            } catch { /* skip image */ }
-          } else {
-            // Placeholder: dotted border box
-            page.drawRectangle({ x: cx + 20, y: cy + LABEL_H + 10, width: CARD_W - 40, height: imgAreaH - 10, color: rgb(1, 1, 1), borderColor: col.border, borderWidth: 1, opacity: 0.5 });
+            } catch { /* skip */ }
           }
 
           // Label bar
@@ -983,12 +1014,16 @@ ${pages.map(p => `  <url>
 
           // Word text
           const displayWord = word.charAt(0).toUpperCase() + word.slice(1);
-          const fontSize = displayWord.length > 12 ? 16 : 20;
+          const fontSize = displayWord.length > 12 ? Math.max(14, LABEL_H * 0.38) : Math.max(16, LABEL_H * 0.48);
           const textW = font.widthOfTextAtSize(displayWord, fontSize);
-          page.drawText(displayWord, { x: cx + (CARD_W - textW) / 2, y: cy + (LABEL_H - fontSize) / 2 + 2, size: fontSize, font, color: rgb(1, 1, 1) });
+          page.drawText(displayWord, {
+            x: cx + (CARD_W - textW) / 2,
+            y: cy + (LABEL_H - fontSize) / 2 + 2,
+            size: fontSize, font, color: rgb(1, 1, 1),
+          });
         }
 
-        // Page footer
+        // Footer
         const footerText = `BrightBoard Flashcards${setName ? ` · ${setName}` : ""} · brightboardapp.com`;
         const ftw = fontReg.widthOfTextAtSize(footerText, 7);
         page.drawText(footerText, { x: (PAGE_W - ftw) / 2, y: 6, size: 7, font: fontReg, color: rgb(0.49, 0.23, 0.93), opacity: 0.6 });
@@ -996,9 +1031,10 @@ ${pages.map(p => `  <url>
 
       const pdfBytes = await pdfDoc.save();
       const safeName = (setName || "Flashcards").replace(/[^a-z0-9\- ]/gi, "_");
+      const layoutLabel = `${cardsPerPage}up_${orientation}`;
       res.json({
         file: `data:application/pdf;base64,${Buffer.from(pdfBytes).toString("base64")}`,
-        fileName: `BrightBoard_${safeName}_Flashcards.pdf`,
+        fileName: `BrightBoard_${safeName}_Flashcards_${layoutLabel}.pdf`,
       });
     } catch (err) {
       console.error("flashcards/pdf error:", err);
