@@ -482,6 +482,7 @@ export default function StudioPage() {
   const [rcComments, setRcComments] = useState<Record<string, string>>({});
   const [rcCurrentStudentIdx, setRcCurrentStudentIdx] = useState(0);
   const [rcTemplateLoading, setRcTemplateLoading] = useState(false);
+  const [rcTemplateUploaded, setRcTemplateUploaded] = useState(false);
   const [rcWordCount, setRcWordCount] = useState<40 | 50 | 60>(50);
   const rcTemplateRef = useRef<HTMLInputElement>(null);
   // ─────────────────────────────────────────────────────────────────────────
@@ -537,6 +538,7 @@ export default function StudioPage() {
           teacherName: data.teacherName || prev.teacherName,
           period: data.period || prev.period,
         }));
+        setRcTemplateUploaded(true);
         const filled = [data.schoolName, data.className, data.teacherName, data.period].filter(Boolean).length;
         toast({ title: "Template read!", description: `Found ${data.categories?.length || 0} categories${filled ? ` and ${filled} school details` : ""} — check and confirm below.` });
       } catch {
@@ -1361,6 +1363,17 @@ export default function StudioPage() {
                       )}
                       {rcCurrentStudentIdx < named.length - 1 ? (
                         <Button onClick={() => setRcCurrentStudentIdx(i => i+1)} className="gap-2" data-testid="button-rc-next-action">Next Student <ChevronRight className="w-4 h-4" /></Button>
+                      ) : rcTemplateUploaded ? (
+                        /* Upload route — two options */
+                        <div className="flex flex-col items-end gap-2">
+                          <Button onClick={() => rcPdfMutation.mutate()} disabled={rcPdfMutation.isPending} className="gap-2 bg-purple-600 hover:bg-purple-700" data-testid="button-rc-quick-pdf">
+                            {rcPdfMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            {rcPdfMutation.isPending ? "Generating PDF…" : "Fill & Download PDF"}
+                          </Button>
+                          <button onClick={() => rcCommentsMutation.mutate()} disabled={rcCommentsMutation.isPending} className="text-xs text-muted-foreground hover:text-purple-600 underline underline-offset-2 transition-colors" data-testid="button-rc-add-comments">
+                            {rcCommentsMutation.isPending ? "Writing…" : "Or add AI comments first →"}
+                          </button>
+                        </div>
                       ) : (
                         <Button onClick={() => rcCommentsMutation.mutate()} disabled={rcCommentsMutation.isPending} className="gap-2 bg-purple-600 hover:bg-purple-700" data-testid="button-rc-gen-comments">
                           {rcCommentsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}

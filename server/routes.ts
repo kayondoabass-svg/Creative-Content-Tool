@@ -5324,6 +5324,22 @@ export function registerSubscriptionRoutes(app: any) {
   app.post("/api/studio/generate-report-pdf", isAuthenticated, async (req: any, res: any) => {
     try {
       const { students, categories, ratingScale, schoolInfo, comments } = req.body;
+
+      // pdf-lib's built-in fonts only support Latin-1 (chars 0-255).
+      // Strip/transliterate anything outside that range to prevent crashes.
+      const safePdf = (str: string, max = 999): string => {
+        if (!str) return "";
+        const s = str
+          .normalize("NFD")                          // decompose accented chars: é → e + ́
+          .replace(/[\u0300-\u036f]/g, "")           // strip combining diacritics
+          .replace(/[\u2018\u2019]/g, "'")           // smart quotes
+          .replace(/[\u201c\u201d]/g, '"')
+          .replace(/\u2013|\u2014/g, "-")            // en/em dash
+          .replace(/\u2026/g, "...")                 // ellipsis
+          .replace(/[^\x00-\xff]/g, "?");            // any remaining non-Latin-1
+        return s.substring(0, max);
+      };
+
       const pdfDoc = await PDFDocument.create();
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -5331,109 +5347,114 @@ export function registerSubscriptionRoutes(app: any) {
 
       for (const student of students) {
         if (!student.name?.trim()) continue;
-        const page = pdfDoc.addPage([W, H]);
+        try {
+          const page = pdfDoc.addPage([W, H]);
+          const tableW = W - mg * 2;
 
-        // Purple header bar
-        page.drawRectangle({ x: 0, y: H - 88, width: W, height: 88, color: rgb(0.49, 0.23, 0.93) });
-        page.drawText((schoolInfo?.schoolName || "Student Report Card").substring(0, 56), { x: mg, y: H - 30, size: 15, font: boldFont, color: rgb(1,1,1) });
-        const meta = [schoolInfo?.className, schoolInfo?.teacherName, schoolInfo?.period].filter(Boolean).join("  ·  ");
-        if (meta) page.drawText(meta.substring(0, 72), { x: mg, y: H - 52, size: 9.5, font, color: rgb(0.88, 0.84, 1) });
+          // Purple header bar
+          page.drawRectangle({ x: 0, y: H - 88, width: W, height: 88, color: rgb(0.49, 0.23, 0.93) });
+          page.drawText(safePdf(schoolInfo?.schoolName || "Student Report Card", 56), { x: mg, y: H - 30, size: 15, font: boldFont, color: rgb(1,1,1) });
+          const meta = [schoolInfo?.className, schoolInfo?.teacherName, schoolInfo?.period].filter(Boolean).join("  \xb7  ");
+          if (meta) page.drawText(safePdf(meta, 72), { x: mg, y: H - 52, size: 9.5, font, color: rgb(0.88, 0.84, 1) });
 
-        let y = H - 106;
+          let y = H - 106;
 
-        // Student name + optional photo
-        if (student.photo) {
-          try {
-            const raw = student.photo.replace(/^data:image\/\w+;base64,/, "");
-            const bytes = Buffer.from(raw, "base64");
-            let img: any;
-            try { img = await pdfDoc.embedPng(bytes); } catch { img = await pdfDoc.embedJpg(bytes); }
-            const sz = 52;
-            page.drawImage(img, { x: mg, y: y - sz, width: sz, height: sz });
-            page.drawText(student.name, { x: mg + sz + 10, y: y - 22, size: 17, font: boldFont, color: rgb(0.1, 0.08, 0.22) });
-            y -= sz + 10;
-          } catch {
-            page.drawText(student.name, { x: mg, y, size: 17, font: boldFont, color: rgb(0.1, 0.08, 0.22) });
+          // Student name + optional photo
+          if (student.photo) {
+            try {
+              const raw = student.photo.replace(/^data:image\/\w+;base64,/, "");
+              const bytes = Buffer.from(raw, "base64");
+              let img: any;
+              try { img = await pdfDoc.embedPng(bytes); } catch { img = await pdfDoc.embedJpg(bytes); }
+              const sz = 52;
+              page.drawImage(img, { x: mg, y: y - sz, width: sz, height: sz });
+              page.drawText(safePdf(student.name, 50), { x: mg + sz + 10, y: y - 22, size: 17, font: boldFont, color: rgb(0.1, 0.08, 0.22) });
+              y -= sz + 10;
+            } catch {
+              page.drawText(safePdf(student.name, 50), { x: mg, y, size: 17, font: boldFont, color: rgb(0.1, 0.08, 0.22) });
+              y -= 26;
+            }
+          } else {
+            page.drawText(safePdf(student.name, 50), { x: mg, y, size: 17, font: boldFont, color: rgb(0.1, 0.08, 0.22) });
             y -= 26;
           }
-        } else {
-          page.drawText(student.name, { x: mg, y, size: 17, font: boldFont, color: rgb(0.1, 0.08, 0.22) });
-          y -= 26;
-        }
 
-        y -= 6;
-        page.drawLine({ start: { x: mg, y }, end: { x: W - mg, y }, thickness: 0.4, color: rgb(0.72, 0.66, 0.9) });
-        y -= 14;
+          y -= 6;
+          page.drawLine({ start: { x: mg, y }, end: { x: W - mg, y }, thickness: 0.4, color: rgb(0.72, 0.66, 0.9) });
+          y -= 14;
 
-        // Ratings table
-        const tableW = W - mg * 2;
-        const labelW = Math.min(195, tableW * 0.42);
-        const colW = (tableW - labelW) / Math.max((ratingScale as string[]).length, 1);
-        const ROW_H = 20;
+          // Ratings table
+          const labelW = Math.min(195, tableW * 0.42);
+          const colW = (tableW - labelW) / Math.max((ratingScale as string[]).length, 1);
+          const ROW_H = 20;
 
-        // Column headers
-        page.drawRectangle({ x: mg, y: y - ROW_H + 3, width: tableW, height: ROW_H, color: rgb(0.49, 0.23, 0.93), opacity: 0.1 });
-        page.drawText("Category", { x: mg + 3, y: y - ROW_H + 8, size: 7.5, font: boldFont, color: rgb(0.32, 0.18, 0.52) });
-        (ratingScale as string[]).forEach((r: string, i: number) => {
-          const abbr = r.split(" ").map((w: string) => w.charAt(0)).join("").substring(0, 3);
-          page.drawText(abbr, { x: mg + labelW + colW * i + colW / 2 - 5, y: y - ROW_H + 8, size: 7.5, font: boldFont, color: rgb(0.32, 0.18, 0.52) });
-        });
-        y -= ROW_H;
-
-        // Category rows
-        for (let ci = 0; ci < (categories as string[]).length; ci++) {
-          if (y < 130) break;
-          const cat = categories[ci];
-          const selIdx = (ratingScale as string[]).indexOf(student.ratings?.[cat] || "");
-          if (ci % 2 === 0) page.drawRectangle({ x: mg, y: y - ROW_H + 3, width: tableW, height: ROW_H, color: rgb(0.97, 0.95, 1) });
-          page.drawText(cat.length > 36 ? cat.substring(0, 34) + ".." : cat, { x: mg + 3, y: y - ROW_H + 8, size: 8.5, font });
-          (ratingScale as string[]).forEach((_r: string, i: number) => {
-            const cx = mg + labelW + colW * i + colW / 2;
-            const cy = y - ROW_H + 11;
-            const B = 7;
-            if (i === selIdx) {
-              page.drawRectangle({ x: cx - B/2, y: cy - B/2, width: B, height: B, color: rgb(0.49, 0.23, 0.93) });
-            } else {
-              page.drawRectangle({ x: cx - B/2, y: cy - B/2, width: B, height: B, borderColor: rgb(0.7, 0.7, 0.82), borderWidth: 0.5, color: rgb(1,1,1) });
-            }
+          // Column headers
+          page.drawRectangle({ x: mg, y: y - ROW_H + 3, width: tableW, height: ROW_H, color: rgb(0.49, 0.23, 0.93), opacity: 0.1 });
+          page.drawText("Category", { x: mg + 3, y: y - ROW_H + 8, size: 7.5, font: boldFont, color: rgb(0.32, 0.18, 0.52) });
+          (ratingScale as string[]).forEach((r: string, i: number) => {
+            const abbr = safePdf(r.split(" ").map((w: string) => w.charAt(0)).join("").substring(0, 3));
+            try { page.drawText(abbr, { x: mg + labelW + colW * i + colW / 2 - 5, y: y - ROW_H + 8, size: 7.5, font: boldFont, color: rgb(0.32, 0.18, 0.52) }); } catch {}
           });
           y -= ROW_H;
-        }
-        y -= 10;
 
-        // Rating scale legend
-        const legend = "Key: " + (ratingScale as string[]).map((r: string) => r.split(" ").map((w: string) => w.charAt(0)).join("") + "=" + r).join("  ");
-        if (y > 148) { page.drawText(legend.substring(0, 100), { x: mg, y, size: 6.5, font, color: rgb(0.55, 0.5, 0.68) }); y -= 14; }
-        y -= 4;
-
-        // Teacher's comment
-        const comment = comments?.[student.id];
-        if (comment && y > 130) {
-          page.drawRectangle({ x: mg, y: y - 14, width: tableW, height: 16, color: rgb(0.49, 0.23, 0.93), opacity: 0.08 });
-          page.drawText("Teacher's Comment", { x: mg + 3, y: y - 8, size: 8, font: boldFont, color: rgb(0.32, 0.18, 0.52) });
-          y -= 20;
-          const lines = wrapText(comment, font, 9.5, tableW - 6);
-          for (const line of lines) {
-            if (y < 110) break;
-            page.drawText(line, { x: mg + 3, y, size: 9.5, font, color: rgb(0.12, 0.1, 0.22) });
-            y -= 13;
+          // Category rows
+          for (let ci = 0; ci < (categories as string[]).length; ci++) {
+            if (y < 130) break;
+            const cat = categories[ci];
+            const selIdx = (ratingScale as string[]).indexOf(student.ratings?.[cat] || "");
+            if (ci % 2 === 0) page.drawRectangle({ x: mg, y: y - ROW_H + 3, width: tableW, height: ROW_H, color: rgb(0.97, 0.95, 1) });
+            try { page.drawText(safePdf(cat, 36), { x: mg + 3, y: y - ROW_H + 8, size: 8.5, font }); } catch {}
+            (ratingScale as string[]).forEach((_r: string, i: number) => {
+              const cx = mg + labelW + colW * i + colW / 2;
+              const cy = y - ROW_H + 11;
+              const B = 7;
+              if (i === selIdx) {
+                page.drawRectangle({ x: cx - B/2, y: cy - B/2, width: B, height: B, color: rgb(0.49, 0.23, 0.93) });
+              } else {
+                page.drawRectangle({ x: cx - B/2, y: cy - B/2, width: B, height: B, borderColor: rgb(0.7, 0.7, 0.82), borderWidth: 0.5, color: rgb(1,1,1) });
+              }
+            });
+            y -= ROW_H;
           }
-          y -= 8;
+          y -= 10;
+
+          // Rating scale legend
+          const legend = "Key: " + (ratingScale as string[]).map((r: string) => r.split(" ").map((w: string) => w.charAt(0)).join("") + "=" + r).join("  ");
+          if (y > 148) { try { page.drawText(safePdf(legend, 100), { x: mg, y, size: 6.5, font, color: rgb(0.55, 0.5, 0.68) }); } catch {} y -= 14; }
+          y -= 4;
+
+          // Teacher's comment
+          const comment = comments?.[student.id] || "";
+          if (comment && y > 130) {
+            page.drawRectangle({ x: mg, y: y - 14, width: tableW, height: 16, color: rgb(0.49, 0.23, 0.93), opacity: 0.08 });
+            try { page.drawText("Teacher's Comment", { x: mg + 3, y: y - 8, size: 8, font: boldFont, color: rgb(0.32, 0.18, 0.52) }); } catch {}
+            y -= 20;
+            const safeComment = safePdf(comment, 2000);
+            const lines = wrapText(safeComment, font, 9.5, tableW - 6);
+            for (const line of lines) {
+              if (y < 110) break;
+              try { page.drawText(line, { x: mg + 3, y, size: 9.5, font, color: rgb(0.12, 0.1, 0.22) }); } catch {}
+              y -= 13;
+            }
+            y -= 8;
+          }
+
+          // Signature lines
+          const sigY = Math.max(Math.min(y - 12, 92), 40);
+          page.drawLine({ start: { x: mg, y: sigY }, end: { x: mg + 155, y: sigY }, thickness: 0.4, color: rgb(0.6, 0.6, 0.7) });
+          try { page.drawText("Teacher's Signature", { x: mg, y: sigY - 11, size: 7, font, color: rgb(0.55, 0.5, 0.68) }); } catch {}
+          page.drawLine({ start: { x: W - mg - 155, y: sigY }, end: { x: W - mg, y: sigY }, thickness: 0.4, color: rgb(0.6, 0.6, 0.7) });
+          try { page.drawText("Parent's / Guardian's Signature", { x: W - mg - 155, y: sigY - 11, size: 7, font, color: rgb(0.55, 0.5, 0.68) }); } catch {}
+
+          // BrightBoard footer
+          try { page.drawText("Generated by BrightBoard  \xb7  brightboardapp.com", { x: mg, y: 18, size: 6.5, font, color: rgb(0.49, 0.23, 0.93), opacity: 0.45 }); } catch {}
+        } catch (pageErr) {
+          console.error(`[PDF] Error on page for student ${student.name}:`, pageErr);
         }
-
-        // Signature lines
-        const sigY = Math.min(y - 12, 92);
-        page.drawLine({ start: { x: mg, y: sigY }, end: { x: mg + 155, y: sigY }, thickness: 0.4, color: rgb(0.6, 0.6, 0.7) });
-        page.drawText("Teacher's Signature", { x: mg, y: sigY - 11, size: 7, font, color: rgb(0.55, 0.5, 0.68) });
-        page.drawLine({ start: { x: W - mg - 155, y: sigY }, end: { x: W - mg, y: sigY }, thickness: 0.4, color: rgb(0.6, 0.6, 0.7) });
-        page.drawText("Parent's / Guardian's Signature", { x: W - mg - 155, y: sigY - 11, size: 7, font, color: rgb(0.55, 0.5, 0.68) });
-
-        // BrightBoard footer
-        page.drawText("Generated by BrightBoard  ·  brightboardapp.com", { x: mg, y: 18, size: 6.5, font, color: rgb(0.49, 0.23, 0.93), opacity: 0.45 });
       }
 
       const pdfBytes = await pdfDoc.save();
-      const safeName = (schoolInfo?.schoolName || "Report-Cards").replace(/[^a-z0-9\-]/gi, "_");
+      const safeName = safePdf(schoolInfo?.schoolName || "Report-Cards").replace(/[^a-z0-9\-]/gi, "_");
       res.json({ file: `data:application/pdf;base64,${Buffer.from(pdfBytes).toString("base64")}`, fileName: `${safeName}_${new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }).replace(" ", "_")}.pdf` });
     } catch (err) { console.error("generate-report-pdf:", err); res.status(500).json({ error: "Failed to generate PDF" }); }
   });
