@@ -4826,6 +4826,159 @@ export function registerSubscriptionRoutes(app: any) {
     } catch (error: any) { console.error("Certificate error:", error); res.status(500).json({ error: error.message || "Failed to generate certificate" }); }
   });
 
+  // ─── Report Cards ──────────────────────────────────────────────────────────
+
+  // Parse uploaded report card template via Gemini Vision
+  app.post("/api/studio/parse-report-template", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const { fileData, mimeType } = req.body;
+      const userContent: any = fileData
+        ? [{ type: "image_url", image_url: { url: `data:${mimeType};base64,${fileData}` } }, { type: "text", text: 'This is a student report card or evaluation form. Extract its structure. Return ONLY valid JSON (no markdown): {"title":"...","categories":["..."],"ratingScale":["...","...","...","...","..."],"sampleComment":"..."}' }]
+        : 'Return a default student report card structure. JSON only: {"title":"Student Progress Report","categories":["Behavior & Conduct","Listening Skills","Speaking & Communication","Reading","Writing","Mathematics","Class Participation"],"ratingScale":["Excellent","Above Average","Average","Below Average","Needs Improvement"],"sampleComment":"This student has shown great progress this term."}';
+      const response = await geminiCreate({ model: "gemini-2.0-flash-lite", messages: [{ role: "user", content: userContent }], response_format: { type: "json_object" }, max_tokens: 600 });
+      const raw = response.choices[0]?.message?.content || "{}";
+      const match = raw.match(/\{[\s\S]*\}/);
+      res.json(match ? JSON.parse(match[0]) : {});
+    } catch (err) { console.error("parse-report-template:", err); res.status(500).json({ error: "Failed to parse template" }); }
+  });
+
+  // Generate AI comments for all students in parallel batches
+  app.post("/api/studio/generate-report-comments", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const { students, categories, ratingScale, schoolInfo } = req.body;
+      const comments: Record<string, string> = {};
+      const BATCH = 4;
+      for (let i = 0; i < students.length; i += BATCH) {
+        await Promise.all(students.slice(i, i + BATCH).map(async (student: any) => {
+          const ratings = (categories as string[]).map((c: string) => `${c}: ${student.ratings?.[c] || "Average"}`).join("; ");
+          const r = await geminiCreate({ model: "gemini-2.0-flash-lite", messages: [{ role: "user", content: `Write a warm 2–3 sentence school report card comment for student "${student.name}". Ratings: ${ratings}. School: ${schoolInfo?.schoolName || ""}, Class: ${schoolInfo?.className || ""}. Use the student's name. Be positive and specific. Plain text only, no JSON.` }], max_tokens: 160 });
+          comments[student.id] = r.choices[0]?.message?.content?.trim() || `${student.name} has shown good progress this term.`;
+        }));
+      }
+      res.json({ comments });
+    } catch (err) { console.error("generate-report-comments:", err); res.status(500).json({ error: "Failed to generate comments" }); }
+  });
+
+  // Generate final multi-student PDF — one page per student
+  app.post("/api/studio/generate-report-pdf", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const { students, categories, ratingScale, schoolInfo, comments } = req.body;
+      const pdfDoc = await PDFDocument.create();
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const W = 612, H = 792, mg = 40;
+
+      for (const student of students) {
+        if (!student.name?.trim()) continue;
+        const page = pdfDoc.addPage([W, H]);
+
+        // Purple header bar
+        page.drawRectangle({ x: 0, y: H - 88, width: W, height: 88, color: rgb(0.49, 0.23, 0.93) });
+        page.drawText((schoolInfo?.schoolName || "Student Report Card").substring(0, 56), { x: mg, y: H - 30, size: 15, font: boldFont, color: rgb(1,1,1) });
+        const meta = [schoolInfo?.className, schoolInfo?.teacherName, schoolInfo?.period].filter(Boolean).join("  ·  ");
+        if (meta) page.drawText(meta.substring(0, 72), { x: mg, y: H - 52, size: 9.5, font, color: rgb(0.88, 0.84, 1) });
+
+        let y = H - 106;
+
+        // Student name + optional photo
+        if (student.photo) {
+          try {
+            const raw = student.photo.replace(/^data:image\/\w+;base64,/, "");
+            const bytes = Buffer.from(raw, "base64");
+            let img: any;
+            try { img = await pdfDoc.embedPng(bytes); } catch { img = await pdfDoc.embedJpg(bytes); }
+            const sz = 52;
+            page.drawImage(img, { x: mg, y: y - sz, width: sz, height: sz });
+            page.drawText(student.name, { x: mg + sz + 10, y: y - 22, size: 17, font: boldFont, color: rgb(0.1, 0.08, 0.22) });
+            y -= sz + 10;
+          } catch {
+            page.drawText(student.name, { x: mg, y, size: 17, font: boldFont, color: rgb(0.1, 0.08, 0.22) });
+            y -= 26;
+          }
+        } else {
+          page.drawText(student.name, { x: mg, y, size: 17, font: boldFont, color: rgb(0.1, 0.08, 0.22) });
+          y -= 26;
+        }
+
+        y -= 6;
+        page.drawLine({ start: { x: mg, y }, end: { x: W - mg, y }, thickness: 0.4, color: rgb(0.72, 0.66, 0.9) });
+        y -= 14;
+
+        // Ratings table
+        const tableW = W - mg * 2;
+        const labelW = Math.min(195, tableW * 0.42);
+        const colW = (tableW - labelW) / Math.max((ratingScale as string[]).length, 1);
+        const ROW_H = 20;
+
+        // Column headers
+        page.drawRectangle({ x: mg, y: y - ROW_H + 3, width: tableW, height: ROW_H, color: rgb(0.49, 0.23, 0.93), opacity: 0.1 });
+        page.drawText("Category", { x: mg + 3, y: y - ROW_H + 8, size: 7.5, font: boldFont, color: rgb(0.32, 0.18, 0.52) });
+        (ratingScale as string[]).forEach((r: string, i: number) => {
+          const abbr = r.split(" ").map((w: string) => w.charAt(0)).join("").substring(0, 3);
+          page.drawText(abbr, { x: mg + labelW + colW * i + colW / 2 - 5, y: y - ROW_H + 8, size: 7.5, font: boldFont, color: rgb(0.32, 0.18, 0.52) });
+        });
+        y -= ROW_H;
+
+        // Category rows
+        for (let ci = 0; ci < (categories as string[]).length; ci++) {
+          if (y < 130) break;
+          const cat = categories[ci];
+          const selIdx = (ratingScale as string[]).indexOf(student.ratings?.[cat] || "");
+          if (ci % 2 === 0) page.drawRectangle({ x: mg, y: y - ROW_H + 3, width: tableW, height: ROW_H, color: rgb(0.97, 0.95, 1) });
+          page.drawText(cat.length > 36 ? cat.substring(0, 34) + ".." : cat, { x: mg + 3, y: y - ROW_H + 8, size: 8.5, font });
+          (ratingScale as string[]).forEach((_r: string, i: number) => {
+            const cx = mg + labelW + colW * i + colW / 2;
+            const cy = y - ROW_H + 11;
+            const B = 7;
+            if (i === selIdx) {
+              page.drawRectangle({ x: cx - B/2, y: cy - B/2, width: B, height: B, color: rgb(0.49, 0.23, 0.93) });
+            } else {
+              page.drawRectangle({ x: cx - B/2, y: cy - B/2, width: B, height: B, borderColor: rgb(0.7, 0.7, 0.82), borderWidth: 0.5, color: rgb(1,1,1) });
+            }
+          });
+          y -= ROW_H;
+        }
+        y -= 10;
+
+        // Rating scale legend
+        const legend = "Key: " + (ratingScale as string[]).map((r: string) => r.split(" ").map((w: string) => w.charAt(0)).join("") + "=" + r).join("  ");
+        if (y > 148) { page.drawText(legend.substring(0, 100), { x: mg, y, size: 6.5, font, color: rgb(0.55, 0.5, 0.68) }); y -= 14; }
+        y -= 4;
+
+        // Teacher's comment
+        const comment = comments?.[student.id];
+        if (comment && y > 130) {
+          page.drawRectangle({ x: mg, y: y - 14, width: tableW, height: 16, color: rgb(0.49, 0.23, 0.93), opacity: 0.08 });
+          page.drawText("Teacher's Comment", { x: mg + 3, y: y - 8, size: 8, font: boldFont, color: rgb(0.32, 0.18, 0.52) });
+          y -= 20;
+          const lines = wrapText(comment, font, 9.5, tableW - 6);
+          for (const line of lines) {
+            if (y < 110) break;
+            page.drawText(line, { x: mg + 3, y, size: 9.5, font, color: rgb(0.12, 0.1, 0.22) });
+            y -= 13;
+          }
+          y -= 8;
+        }
+
+        // Signature lines
+        const sigY = Math.min(y - 12, 92);
+        page.drawLine({ start: { x: mg, y: sigY }, end: { x: mg + 155, y: sigY }, thickness: 0.4, color: rgb(0.6, 0.6, 0.7) });
+        page.drawText("Teacher's Signature", { x: mg, y: sigY - 11, size: 7, font, color: rgb(0.55, 0.5, 0.68) });
+        page.drawLine({ start: { x: W - mg - 155, y: sigY }, end: { x: W - mg, y: sigY }, thickness: 0.4, color: rgb(0.6, 0.6, 0.7) });
+        page.drawText("Parent's / Guardian's Signature", { x: W - mg - 155, y: sigY - 11, size: 7, font, color: rgb(0.55, 0.5, 0.68) });
+
+        // BrightBoard footer
+        page.drawText("Generated by BrightBoard  ·  brightboardapp.com", { x: mg, y: 18, size: 6.5, font, color: rgb(0.49, 0.23, 0.93), opacity: 0.45 });
+      }
+
+      const pdfBytes = await pdfDoc.save();
+      const safeName = (schoolInfo?.schoolName || "Report-Cards").replace(/[^a-z0-9\-]/gi, "_");
+      res.json({ file: `data:application/pdf;base64,${Buffer.from(pdfBytes).toString("base64")}`, fileName: `${safeName}_${new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }).replace(" ", "_")}.pdf` });
+    } catch (err) { console.error("generate-report-pdf:", err); res.status(500).json({ error: "Failed to generate PDF" }); }
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+
   app.get("/api/usage/breakdown", async (req: any, res: any) => {
     try {
       const sessionUserId = req.session?.userId;
