@@ -52,6 +52,7 @@ export const presentationOptionsSchema = z.object({
   tapToReveal: z.boolean().optional(),
   autoPlay: z.boolean().optional(),
   autoPlayInterval: z.number().min(1).max(30).optional(),
+  gameTemplate: z.string().optional(),
 });
 
 export type PresentationOptions = z.infer<typeof presentationOptionsSchema>;

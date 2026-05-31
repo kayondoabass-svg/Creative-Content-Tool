@@ -73,6 +73,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/flashcards" className="text-muted-foreground hover:text-foreground transition-colors font-medium text-teal-600 dark:text-teal-400" data-testid="link-flashcards">
+                  📚 Free Flashcards
+                </Link>
+              </li>
+              <li>
                 <Link href="/resources" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-resources">
                   Free Resources
                 </Link>

@@ -871,6 +871,143 @@ ${pages.map(p => `  <url>
     });
   });
 
+  // ─── Flashcard routes (public — no auth required) ───────────────────────────
+
+  // Generate AI images for a set of vocabulary words
+  app.post("/api/flashcards/images", async (req: any, res: any) => {
+    try {
+      const { words } = req.body;
+      if (!Array.isArray(words) || words.length === 0) {
+        return res.status(400).json({ error: "words array required" });
+      }
+      const safeWords = words.slice(0, 16);
+      const images: Record<string, string> = {};
+
+      await Promise.all(safeWords.map(async (word: string) => {
+        try {
+          const prompt = `Simple, bright, colorful cartoon illustration of a ${word} on a clean white background. Child-friendly educational flashcard style. No text, letters, words, numbers, or labels anywhere in the image.`;
+          const result = await generateGeminiImage(prompt);
+          const b64 = (result as any)?.data?.[0]?.b64_json;
+          if (b64) images[word] = b64;
+        } catch (e) {
+          console.error(`Flashcard image error for "${word}":`, e);
+        }
+      }));
+
+      res.json({ images });
+    } catch (err) {
+      console.error("flashcards/images error:", err);
+      res.status(500).json({ error: "Failed to generate flashcard images" });
+    }
+  });
+
+  // Generate a printable PDF for a flashcard set (4 cards per A4 landscape page)
+  app.post("/api/flashcards/pdf", async (req: any, res: any) => {
+    try {
+      const { words, images, setName } = req.body;
+      if (!Array.isArray(words) || words.length === 0) {
+        return res.status(400).json({ error: "words array required" });
+      }
+
+      const pdfDoc = await PDFDocument.create();
+      const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const fontReg = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      // A4 landscape
+      const PAGE_W = 841.89;
+      const PAGE_H = 595.28;
+      const MARGIN = 24;
+      const CARD_W = (PAGE_W - MARGIN * 3) / 2;
+      const CARD_H = (PAGE_H - MARGIN * 3) / 2;
+      const LABEL_H = 44;
+      const CARDS_PER_PAGE = 4;
+
+      const positions = [
+        [MARGIN, PAGE_H / 2 + MARGIN / 2],
+        [MARGIN * 2 + CARD_W, PAGE_H / 2 + MARGIN / 2],
+        [MARGIN, MARGIN],
+        [MARGIN * 2 + CARD_W, MARGIN],
+      ];
+
+      const cardColors = [
+        { bg: rgb(0.88, 0.92, 1), border: rgb(0.49, 0.62, 0.95), label: rgb(0.25, 0.40, 0.85) },
+        { bg: rgb(0.92, 0.88, 1), border: rgb(0.62, 0.49, 0.95), label: rgb(0.42, 0.23, 0.85) },
+        { bg: rgb(0.88, 1, 0.94), border: rgb(0.39, 0.84, 0.62), label: rgb(0.10, 0.60, 0.35) },
+        { bg: rgb(1, 0.95, 0.88), border: rgb(0.95, 0.73, 0.39), label: rgb(0.80, 0.45, 0.10) },
+        { bg: rgb(1, 0.88, 0.93), border: rgb(0.95, 0.49, 0.67), label: rgb(0.85, 0.20, 0.45) },
+        { bg: rgb(0.88, 0.98, 1), border: rgb(0.39, 0.82, 0.95), label: rgb(0.05, 0.55, 0.75) },
+        { bg: rgb(1, 0.98, 0.88), border: rgb(0.95, 0.88, 0.39), label: rgb(0.65, 0.55, 0.05) },
+        { bg: rgb(1, 0.90, 0.88), border: rgb(0.95, 0.55, 0.49), label: rgb(0.80, 0.25, 0.20) },
+      ];
+
+      for (let pageStart = 0; pageStart < words.length; pageStart += CARDS_PER_PAGE) {
+        const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+        const batch = words.slice(pageStart, pageStart + CARDS_PER_PAGE);
+
+        for (let j = 0; j < batch.length; j++) {
+          const word = batch[j];
+          const [cx, cy] = positions[j];
+          const colorIdx = (pageStart + j) % cardColors.length;
+          const col = cardColors[colorIdx];
+
+          // Card background
+          page.drawRectangle({ x: cx, y: cy, width: CARD_W, height: CARD_H, color: col.bg, borderColor: col.border, borderWidth: 2, opacity: 1 });
+
+          // Image area
+          const imgAreaH = CARD_H - LABEL_H - 16;
+          const imgData = images?.[word];
+          if (imgData) {
+            try {
+              const imgBytes = Buffer.from(imgData, "base64");
+              let embeddedImg;
+              try { embeddedImg = await pdfDoc.embedPng(imgBytes); }
+              catch { embeddedImg = await pdfDoc.embedJpg(imgBytes); }
+              const maxW = CARD_W - 24;
+              const maxH = imgAreaH - 12;
+              const scale = Math.min(maxW / embeddedImg.width, maxH / embeddedImg.height, 1);
+              const dW = embeddedImg.width * scale;
+              const dH = embeddedImg.height * scale;
+              page.drawImage(embeddedImg, {
+                x: cx + (CARD_W - dW) / 2,
+                y: cy + LABEL_H + (imgAreaH - dH) / 2 + 8,
+                width: dW, height: dH,
+              });
+            } catch { /* skip image */ }
+          } else {
+            // Placeholder: dotted border box
+            page.drawRectangle({ x: cx + 20, y: cy + LABEL_H + 10, width: CARD_W - 40, height: imgAreaH - 10, color: rgb(1, 1, 1), borderColor: col.border, borderWidth: 1, opacity: 0.5 });
+          }
+
+          // Label bar
+          page.drawRectangle({ x: cx, y: cy, width: CARD_W, height: LABEL_H, color: col.label });
+
+          // Word text
+          const displayWord = word.charAt(0).toUpperCase() + word.slice(1);
+          const fontSize = displayWord.length > 12 ? 16 : 20;
+          const textW = font.widthOfTextAtSize(displayWord, fontSize);
+          page.drawText(displayWord, { x: cx + (CARD_W - textW) / 2, y: cy + (LABEL_H - fontSize) / 2 + 2, size: fontSize, font, color: rgb(1, 1, 1) });
+        }
+
+        // Page footer
+        const footerText = `BrightBoard Flashcards${setName ? ` · ${setName}` : ""} · brightboardapp.com`;
+        const ftw = fontReg.widthOfTextAtSize(footerText, 7);
+        page.drawText(footerText, { x: (PAGE_W - ftw) / 2, y: 6, size: 7, font: fontReg, color: rgb(0.49, 0.23, 0.93), opacity: 0.6 });
+      }
+
+      const pdfBytes = await pdfDoc.save();
+      const safeName = (setName || "Flashcards").replace(/[^a-z0-9\- ]/gi, "_");
+      res.json({
+        file: `data:application/pdf;base64,${Buffer.from(pdfBytes).toString("base64")}`,
+        fileName: `BrightBoard_${safeName}_Flashcards.pdf`,
+      });
+    } catch (err) {
+      console.error("flashcards/pdf error:", err);
+      res.status(500).json({ error: "Failed to generate flashcard PDF" });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // Page view tracking beacon — called by frontend on every route change
   app.post("/api/track/visit", async (req: any, res: any) => {
     try {
@@ -3513,6 +3650,7 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   const transition = options?.transition || "none";
   const transitionDelay = options?.transitionDelay || 0;
   const tapToReveal = options?.tapToReveal || false;
+  const gameTemplate = options?.gameTemplate || "";
   
   // Determine number of images per slide based on layout
   const imagesPerSlide = layout === "grid" ? 4 : (layout === "infographic" ? 0 : 1);
@@ -3525,6 +3663,21 @@ async function generatePresentation(prompt: string, gradeLevel?: string, subject
   // Build document context instruction if a PDF was uploaded
   const docContextInstruction = documentContext
     ? `\n\nBASE THIS PRESENTATION ON THE FOLLOWING DOCUMENT CONTENT:\n---\n${documentContext}\n---\nUse the document content as the primary source of facts and structure.`
+    : "";
+
+  // Build game template instruction if selected
+  const gameTemplateMap: Record<string, string> = {
+    vocabularyQuiz: `GAME FORMAT — VOCABULARY QUIZ 🎯: Structure every slide as a quiz question. Slide title = the question (e.g. "What is photosynthesis?"). Content bullets = ["A) First option", "B) Second option", "C) Third option", "D) Fourth option", "✅ Answer: [correct letter] — [brief explanation]"]. Include a fun vocabulary word and image for each slide.`,
+    jeopardy: `GAME FORMAT — JEOPARDY BOARD 🏆: Create a classic Jeopardy-style presentation. First slide = category overview board. Remaining slides = clue cards. Each slide title = "[Category] for [Points]". Content = ["📋 Clue: [the clue statement]", "🤔 Think of your answer...", "✅ Answer: [the question/answer in Jeopardy format]"]. Categories should be related to the topic.`,
+    trueOrFalse: `GAME FORMAT — TRUE OR FALSE ✅: Every slide presents a statement. Title = "True or False? 🤔". Content bullets = ["📢 Statement: [interesting true or false statement about the topic]", "⏳ Think... Is it TRUE or FALSE?", "✅ Answer: [TRUE / FALSE]! [brief interesting explanation]"]. Mix true and false statements. Make them surprising or tricky.`,
+    fillInTheBlank: `GAME FORMAT — FILL IN THE BLANK ✏️: Every slide has a sentence with a missing word. Title = "Complete the Sentence! ✏️" or a themed title. Content bullets = ["📖 '[sentence with ___ as the blank]'", "💭 Think of the missing word...", "✅ The word is: [word]! [fun fact or explanation]"]. Choose key vocabulary words from the topic.`,
+    pictureMatch: `GAME FORMAT — PICTURE & WORD MATCH 🖼️: Each slide shows a matching activity. Title = "Match the Word! 🖼️". Content bullets = ["🔤 Word: [vocabulary word]", "📷 What it looks like: [vivid description of the image]", "💡 Fun fact: [one interesting fact about it]", "🔗 Remember it by: [a memory trick or connection]"]. Image prompts should clearly illustrate the word.`,
+    spinTheWheel: `GAME FORMAT — SPIN THE WHEEL 🎡: Structure slides as wheel categories. First slide = overview with all 6–8 wheel categories listed. Remaining slides = one per category with: Title = the category name + emoji. Content = 3–4 vocabulary words or facts from that category that students must define or use in a sentence when their wheel lands there.`,
+    oddOneOut: `GAME FORMAT — ODD ONE OUT 🔍: Every slide shows 4 items and students find the one that doesn't belong. Title = "Spot the Odd One Out! 🔍". Content bullets = ["1️⃣ [item one]", "2️⃣ [item two]", "3️⃣ [item three]", "4️⃣ [item four]", "🤔 Which one is different and WHY?", "✅ The odd one out is: [number + item]! Because [reason]."]. Image should show all 4 items.`,
+    memoryMatch: `GAME FORMAT — MEMORY MATCH 🧠: Slides come in pairs. Slide 1 of a pair = the word (title: "🔤 [Word]", content: definition clues). Slide 2 of a pair = the image/picture description (title: "🖼️ [What is this?]", content: visual clues, answer revealed last). Label slides as "Card A" and "Card B" pairs. Design for print-and-flip gameplay.`,
+  };
+  const gameTemplateInstruction = gameTemplate && gameTemplateMap[gameTemplate]
+    ? `\n\n${gameTemplateMap[gameTemplate]}`
     : "";
 
   let contentInstructions = "";
@@ -3617,7 +3770,7 @@ ${style !== "textOnly" ? `- Include ${imagesPerSlide} fun, colourful image descr
     ? `Create a fun, interactive TAP TO REVEAL classroom game presentation about: ${prompt}. Create exactly ${numSlides} slides. Each slide is a different game challenge — mix quiz questions, clue games, true/false, fill-in-the-blank, and fun fact reveals. Make it feel like a game show!`
     : `Create an engaging educational presentation about: ${prompt}. Create exactly ${numSlides} slides.`;
 
-  basePrompt += keyPointsInstruction + docContextInstruction;
+  basePrompt += keyPointsInstruction + docContextInstruction + gameTemplateInstruction;
 
   let userMessage: any = basePrompt;
   

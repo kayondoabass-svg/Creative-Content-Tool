@@ -224,6 +224,9 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const [selectedKeyPoints, setSelectedKeyPoints] = useState<Set<string>>(new Set());
   const [isSuggestingKeyPoints, setIsSuggestingKeyPoints] = useState(false);
 
+  // Game template for presentation generator
+  const [gameTemplate, setGameTemplate] = useState<string>("");
+
   // PDF upload state for presentations
   const [pdfContext, setPdfContext] = useState<string | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string | null>(null);
@@ -488,6 +491,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       transition: values.presentationTransition,
       transitionDelay: values.presentationTransitionDelay ? parseFloat(values.presentationTransitionDelay) : undefined,
       tapToReveal: values.presentationTapToReveal,
+      gameTemplate: gameTemplate || undefined,
     } : undefined;
     const worksheetOptions = selectedType === "worksheet" ? {
       colorMode: values.worksheetColorMode,
@@ -1221,6 +1225,54 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                 {isSuggestingKeyPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                 Key Points
               </Button>
+            </div>
+          )}
+
+          {/* Game Templates for presentations */}
+          {selectedType === "presentation" && (
+            <div className="pt-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Game Template</span>
+                {gameTemplate && (
+                  <button type="button" onClick={() => setGameTemplate("")} className="text-xs text-muted-foreground hover:text-foreground underline" data-testid="button-clear-game-template">
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {[
+                  { id: "vocabularyQuiz",   emoji: "🎯", label: "Vocab Quiz"    },
+                  { id: "jeopardy",         emoji: "🏆", label: "Jeopardy"      },
+                  { id: "trueOrFalse",      emoji: "✅", label: "True / False"  },
+                  { id: "fillInTheBlank",   emoji: "✏️", label: "Fill Blank"    },
+                  { id: "pictureMatch",     emoji: "🖼️", label: "Pic Match"     },
+                  { id: "spinTheWheel",     emoji: "🎡", label: "Word Wheel"    },
+                  { id: "oddOneOut",        emoji: "🔍", label: "Odd One Out"   },
+                  { id: "memoryMatch",      emoji: "🧠", label: "Memory Match"  },
+                ].map(tpl => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => setGameTemplate(gameTemplate === tpl.id ? "" : tpl.id)}
+                    data-testid={`button-game-tpl-${tpl.id}`}
+                    className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-xl border-2 text-xs font-medium transition-all ${
+                      gameTemplate === tpl.id
+                        ? "border-purple-500 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300"
+                        : "border-border bg-muted/40 hover:border-purple-300 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="text-lg leading-none">{tpl.emoji}</span>
+                    <span className="whitespace-nowrap">{tpl.label}</span>
+                  </button>
+                ))}
+              </div>
+              {gameTemplate && (
+                <p className="text-xs text-purple-600 dark:text-purple-400 mt-1.5">
+                  ✦ Slides will be structured as a <strong>{
+                    { vocabularyQuiz: "Vocabulary Quiz", jeopardy: "Jeopardy Board", trueOrFalse: "True or False Game", fillInTheBlank: "Fill in the Blank", pictureMatch: "Picture & Word Match", spinTheWheel: "Spin the Wheel", oddOneOut: "Odd One Out", memoryMatch: "Memory Match" }[gameTemplate]
+                  }</strong> game
+                </p>
+              )}
             </div>
           )}
 
