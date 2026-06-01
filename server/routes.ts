@@ -4614,11 +4614,32 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
       }
     ],
     response_format: { type: "json_object" },
-    max_tokens: 4000,
+    max_tokens: 8000,
   });
 
   const jsonContent = response.choices[0]?.message?.content || "{}";
-  const worksheetData = JSON.parse(jsonContent);
+  let worksheetData: any;
+  try {
+    worksheetData = JSON.parse(jsonContent);
+  } catch {
+    // JSON was truncated — try to rescue partial content
+    const match = jsonContent.match(/\{[\s\S]*/);
+    if (match) {
+      // Find the last complete section object and close the array + root object
+      const partial = match[0];
+      const lastClose = partial.lastIndexOf('}');
+      if (lastClose > 0) {
+        const trimmed = partial.substring(0, lastClose + 1);
+        // Ensure sections array and root are closed
+        const repaired = trimmed.replace(/,\s*$/, '') + ']}';
+        try { worksheetData = JSON.parse(repaired); } catch {}
+      }
+    }
+    if (!worksheetData) {
+      console.error("Worksheet JSON parse failed — returning blank scaffold. Raw length:", jsonContent.length);
+      worksheetData = { title: prompt.substring(0, 50), sections: [{ type: "questions", title: "Questions", content: ["Generation incomplete — please try again."], answers: [] }] };
+    }
+  }
 
   // Generate images for sections that have imagePrompts (paid feature)
   if (includeImages && Array.isArray(worksheetData.sections)) {
