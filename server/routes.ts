@@ -5413,16 +5413,37 @@ Rules:
 
       // pdf-lib's built-in fonts only support Latin-1 (chars 0-255).
       // Strip/transliterate anything outside that range to prevent crashes.
+      // Transliteration map for characters that WinAnsi (pdf-lib standard fonts) cannot encode.
+      // Covers Romanian, Vietnamese, and other common languages teachers use.
+      const WANSI_MAP: Record<string, string> = {
+        // Romanian
+        'ă':'a','Ă':'A','â':'a','Â':'A','î':'i','Î':'I',
+        'ș':'s','Ș':'S','ş':'s','Ş':'S',  // both U+015F and U+0219 forms
+        'ț':'t','Ț':'T','ţ':'t','Ţ':'T',  // both U+0163 and U+021B forms
+        // Vietnamese vowels
+        'ơ':'o','Ơ':'O','ư':'u','Ư':'U',
+        'đ':'d','Đ':'D',
+        'ạ':'a','Ạ':'A','ả':'a','Ả':'A','ấ':'a','Ấ':'A','ầ':'a','Ầ':'A','ắ':'a','Ắ':'A','ặ':'a','Ặ':'A',
+        'ẻ':'e','Ẻ':'E','ề':'e','Ề':'E','ế':'e','Ế':'E','ệ':'e','Ệ':'E',
+        'ị':'i','Ị':'I','ỉ':'i','Ỉ':'I',
+        'ọ':'o','Ọ':'O','ổ':'o','Ổ':'O','ộ':'o','Ộ':'O','ớ':'o','Ớ':'O','ợ':'o','Ợ':'O',
+        'ụ':'u','Ụ':'U','ừ':'u','Ừ':'U','ứ':'u','Ứ':'U','ự':'u','Ự':'U',
+        // Central European
+        'ł':'l','Ł':'L','ő':'o','Ő':'O','ű':'u','Ű':'U',
+        // Other common
+        'ß':'ss','æ':'ae','Æ':'AE','ø':'o','Ø':'O','å':'a','Å':'A',
+      };
       const safePdf = (str: string, max = 999): string => {
         if (!str) return "";
         const s = str
-          .normalize("NFD")                          // decompose accented chars: é → e + ́
+          .replace(/[^\u0000-\u00FF]/g, c => WANSI_MAP[c] ?? '?') // map known chars, replace unknowns
+          .normalize("NFD")                          // decompose any remaining accented chars
           .replace(/[\u0300-\u036f]/g, "")           // strip combining diacritics
           .replace(/[\u2018\u2019]/g, "'")           // smart quotes
           .replace(/[\u201c\u201d]/g, '"')
           .replace(/\u2013|\u2014/g, "-")            // en/em dash
           .replace(/\u2026/g, "...")                 // ellipsis
-          .replace(/[^\x00-\xff]/g, "?");            // any remaining non-Latin-1
+          .replace(/[^\x00-\xff]/g, "?");            // belt-and-suspenders: drop anything remaining
         return s.substring(0, max);
       };
 
@@ -5551,9 +5572,26 @@ Rules:
       const { templatePdfBase64, students, fieldMap, comments, schoolInfo } = req.body;
       if (!templatePdfBase64 || !students?.length) return res.status(400).json({ error: "Missing template or students" });
 
+      const WANSI_MAP2: Record<string, string> = {
+        'ă':'a','Ă':'A','â':'a','Â':'A','î':'i','Î':'I',
+        'ș':'s','Ș':'S','ş':'s','Ş':'S','ț':'t','Ț':'T','ţ':'t','Ţ':'T',
+        'ơ':'o','Ơ':'O','ư':'u','Ư':'U','đ':'d','Đ':'D',
+        'ạ':'a','Ạ':'A','ả':'a','Ả':'A','ấ':'a','Ấ':'A','ầ':'a','Ầ':'A','ắ':'a','Ắ':'A','ặ':'a','Ặ':'A',
+        'ẻ':'e','Ẻ':'E','ề':'e','Ề':'E','ế':'e','Ế':'E','ệ':'e','Ệ':'E',
+        'ị':'i','Ị':'I','ỉ':'i','Ỉ':'I',
+        'ọ':'o','Ọ':'O','ổ':'o','Ổ':'O','ộ':'o','Ộ':'O','ớ':'o','Ớ':'O','ợ':'o','Ợ':'O',
+        'ụ':'u','Ụ':'U','ừ':'u','Ừ':'U','ứ':'u','Ứ':'U','ự':'u','Ự':'U',
+        'ł':'l','Ł':'L','ő':'o','Ő':'O','ű':'u','Ű':'U',
+        'ß':'ss','æ':'ae','Æ':'AE','ø':'o','Ø':'O','å':'a','Å':'A',
+      };
       const safePdfFill = (str: string, max = 999): string => {
         if (!str) return "";
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\u2013|\u2014/g, "-").replace(/\u2026/g, "...").replace(/[^\x00-\xff]/g, "?").substring(0, max);
+        return str
+          .replace(/[^\u0000-\u00FF]/g, c => WANSI_MAP2[c] ?? '?')
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"')
+          .replace(/\u2013|\u2014/g, "-").replace(/\u2026/g, "...")
+          .replace(/[^\x00-\xff]/g, "?").substring(0, max);
       };
 
       const templateBytes = Buffer.from(templatePdfBase64, "base64");
