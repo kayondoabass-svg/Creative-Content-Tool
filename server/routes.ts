@@ -149,6 +149,11 @@ export async function registerRoutes(
     res.end("google-site-verification: googlecea605fb996bd1af.html");
   });
 
+  app.get("/yandex_b2b16ad3e27af65c.html", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.end(`<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head><body>Verification: b2b16ad3e27af65c</body></html>`);
+  });
+
   app.get("/ads.txt", (_req, res) => {
     res.setHeader("Content-Type", "text/plain");
     res.send("google.com, pub-8935590092792147, DIRECT, f08c47fec0942fa0");
