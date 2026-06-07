@@ -1,0 +1,3 @@
+- [VPS deploy pattern](vps-deploy.md) — always use git reset --hard (not git pull) to avoid dist/ conflicts; never use --update-env with pm2 restart
+- [Worksheet 45% hang](worksheet-image-timeout.md) — image gen fetch had no timeout; fixed with 25s AbortController in geminiImageService.ts
+- [Report card name overlap](report-card-name-field.md) — AI detects nameField too low (body text); fixed with Y-cap at 40% + white rect + improved prompt
