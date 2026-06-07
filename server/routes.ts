@@ -3291,8 +3291,8 @@ This should look like it was designed by a world-class branding agency. Make it 
               ...worksheetOptions,
               includeImages: isPremium ? (worksheetOptions?.includeImages ?? false) : false,
             };
-            if (safeWorksheetOptions.includeImages) onProgress("Generating worksheet with images...", 45);
-            const worksheetResult = await generateWorksheet(prompt, gradeLevel, subject, safeWorksheetOptions);
+            if (safeWorksheetOptions.includeImages) onProgress("Building worksheet structure...", 45);
+            const worksheetResult = await generateWorksheet(prompt, gradeLevel, subject, safeWorksheetOptions, onProgress);
             generatedContent = JSON.stringify(worksheetResult);
             title = worksheetResult.title;
             break;
@@ -4566,7 +4566,7 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
 }
 
 // Worksheet generation
-async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: string, options?: WorksheetOptions) {
+async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: string, options?: WorksheetOptions, onProgress?: (step: string, percent: number) => void) {
   const context = buildContext(gradeLevel, subject);
   const colorMode = options?.colorMode || "colored";
   const includeImages = options?.includeImages === true;
@@ -4622,6 +4622,7 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
     max_tokens: 8000,
   });
 
+  onProgress?.("Worksheet content ready, adding images...", 55);
   const jsonContent = response.choices[0]?.message?.content || "{}";
   let worksheetData: any;
   try {
@@ -4652,6 +4653,8 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
     let imageCount = 0;
     const IMAGE_BUDGET_MS = 90_000;
     const imageStart = Date.now();
+    // Progress steps: 60%, 70%, 80% for images 1, 2, 3
+    const imageProgressSteps = [60, 70, 80];
     for (const section of worksheetData.sections) {
       if (imageCount >= 3) break; // cap at 3 images per worksheet
       if (Date.now() - imageStart > IMAGE_BUDGET_MS) {
@@ -4659,6 +4662,7 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
         break;
       }
       if (!section.imagePrompt || section.type === "drawing" || section.type === "writingPrompt") continue;
+      onProgress?.(`Adding image ${imageCount + 1} of 3...`, imageProgressSteps[imageCount] ?? 75);
       try {
         const imgResult = await generateGeminiImage(
           `Educational illustration for children: ${section.imagePrompt}. Colourful, cartoon style, no text, no labels, no words in the image.`
@@ -4672,6 +4676,7 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
         console.error("Worksheet image gen error:", e);
       }
     }
+    if (imageCount > 0) onProgress?.("Finalising worksheet...", 85);
   }
   
   return worksheetData;

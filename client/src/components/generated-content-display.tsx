@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon, Film, Gamepad2, Crown, Pencil, Plus, Palette, X } from "lucide-react";
-import { useState, useEffect, useRef, type MouseEvent } from "react";
+import { useState, useEffect, useRef, Component, type MouseEvent, type ReactNode } from "react";
 import type { ContentType, Slide, Activity, StoryboardFrame, Worksheet, GameType } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { SlideshowModal } from "./slideshow-modal";
@@ -39,6 +39,36 @@ interface GeneratedContentDisplayProps {
   onRegenerate?: () => void;
   isFirstTimeUser?: boolean;
   onPromptSelect?: (prompt: string, type: ContentType) => void;
+}
+
+class ContentErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error?.message || "Render error" };
+  }
+  componentDidCatch(error: Error, info: any) {
+    console.error("[ContentErrorBoundary] caught:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800 text-center space-y-2">
+          <p className="font-semibold text-red-700 dark:text-red-400">Could not display content</p>
+          <p className="text-sm text-muted-foreground">{this.state.error}</p>
+          <button
+            className="mt-2 text-xs underline text-muted-foreground"
+            onClick={() => this.setState({ hasError: false, error: "" })}
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export function GeneratedContentDisplay({
@@ -685,7 +715,9 @@ export function GeneratedContentDisplay({
         </div>
       </div>
       <div className="overflow-auto max-h-[600px]">
-        {renderContent()}
+        <ContentErrorBoundary>
+          {renderContent()}
+        </ContentErrorBoundary>
       </div>
       
       {type === "presentation" && (() => {
