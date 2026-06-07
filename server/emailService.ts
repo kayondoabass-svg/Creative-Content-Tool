@@ -563,3 +563,139 @@ export async function sendActivationEmail(email: string, firstName: string): Pro
     return false;
   }
 }
+
+export async function sendPaymentCongratulationsEmail(email: string, name: string, tier: string, amount: number, currency: string): Promise<boolean> {
+  try {
+    const displayName = name?.trim() || "Teacher";
+    const tierLabel = tier ? (tier.charAt(0).toUpperCase() + tier.slice(1)) : "Premium";
+    const amountStr = `${currency || "USD"} ${(amount / 100).toFixed(2)}`;
+
+    const result = await sendEmail(
+      email,
+      `🎉 Welcome to BrightBoard ${tierLabel}! Your subscription is active`,
+      `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f0ff;margin:0;padding:40px 20px;">
+<div style="max-width:600px;margin:0 auto;">
+  <div style="background:linear-gradient(135deg,#7c3aed 0%,#06b6d4 100%);border-radius:16px 16px 0 0;padding:40px;text-align:center;">
+    <div style="font-size:56px;margin-bottom:12px;">🎉</div>
+    <h1 style="color:white;margin:0;font-size:28px;font-weight:800;">Payment Confirmed!</h1>
+    <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:15px;">BrightBoard ${tierLabel} Plan</p>
+  </div>
+  <div style="background:white;padding:40px;border-radius:0 0 16px 16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+    <h2 style="color:#1f2937;font-size:22px;margin:0 0 8px;">Hi ${displayName}! 👋</h2>
+    <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 24px;">
+      Congratulations — your <strong>BrightBoard ${tierLabel} subscription</strong> is now active. Your classroom is about to level up! 🚀
+    </p>
+
+    <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:12px;padding:20px;margin:0 0 24px;">
+      <p style="margin:0;color:#166534;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">✅ Payment Summary</p>
+      <table style="width:100%;margin-top:12px;border-collapse:collapse;">
+        <tr><td style="color:#4b5563;font-size:14px;padding:4px 0;">Plan</td><td style="color:#1f2937;font-weight:700;font-size:14px;text-align:right;">${tierLabel}</td></tr>
+        <tr><td style="color:#4b5563;font-size:14px;padding:4px 0;">Amount Paid</td><td style="color:#1f2937;font-weight:700;font-size:14px;text-align:right;">${amountStr}</td></tr>
+      </table>
+    </div>
+
+    <p style="color:#374151;font-size:15px;font-weight:600;margin:0 0 12px;">What's unlocked for you:</p>
+    ${[
+      ['✨', 'Unlimited AI generations — worksheets, images, presentations, games, and more'],
+      ['🖼️', 'Premium HD & 4K image quality'],
+      ['📊', 'Up to 20 slides per presentation with premium animations'],
+      ['🎮', 'All 12 interactive classroom games'],
+      ['💾', 'PowerPoint export for presentations'],
+      ['🌍', 'Full multi-language support (11 languages)'],
+    ].map(([icon, text]) => `
+      <div style="display:flex;gap:12px;margin-bottom:10px;align-items:flex-start;">
+        <span style="font-size:20px;flex-shrink:0;">${icon}</span>
+        <span style="color:#4b5563;font-size:14px;line-height:1.5;">${text}</span>
+      </div>
+    `).join('')}
+
+    <div style="text-align:center;margin:32px 0 24px;">
+      <a href="https://brightboardapp.com" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:16px;">
+        Start Creating Now →
+      </a>
+    </div>
+
+    <p style="color:#9ca3af;font-size:13px;text-align:center;margin:0;">
+      Questions? Reply to this email or visit <a href="https://brightboardapp.com" style="color:#7c3aed;">brightboardapp.com</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>`
+    );
+
+    await logEmailExpense("PaymentCongratulations", email);
+    return result.success;
+  } catch (error) {
+    console.error('Error sending congratulations email to', email, ':', error);
+    return false;
+  }
+}
+
+export async function sendPaymentNudgeEmail(email: string, name: string, tier: string, amount: number, currency: string): Promise<boolean> {
+  try {
+    const displayName = name?.trim() || "Teacher";
+    const tierLabel = tier ? (tier.charAt(0).toUpperCase() + tier.slice(1)) : "Premium";
+    const amountStr = `${currency || "USD"} ${(amount / 100).toFixed(2)}`;
+
+    const result = await sendEmail(
+      email,
+      `⏳ Your BrightBoard payment didn't go through — let's try again`,
+      `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f0ff;margin:0;padding:40px 20px;">
+<div style="max-width:600px;margin:0 auto;">
+  <div style="background:linear-gradient(135deg,#7c3aed 0%,#06b6d4 100%);border-radius:16px 16px 0 0;padding:40px;text-align:center;">
+    <div style="font-size:56px;margin-bottom:12px;">⏳</div>
+    <h1 style="color:white;margin:0;font-size:28px;font-weight:800;">Almost There!</h1>
+    <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:15px;">Your Premium journey is one step away</p>
+  </div>
+  <div style="background:white;padding:40px;border-radius:0 0 16px 16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+    <h2 style="color:#1f2937;font-size:22px;margin:0 0 8px;">Hi ${displayName} 👋</h2>
+    <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 24px;">
+      We noticed your recent payment of <strong>${amountStr}</strong> for the <strong>${tierLabel} plan</strong> didn't complete. No worries — this happens sometimes and it's easy to fix!
+    </p>
+
+    <div style="background:#fef9c3;border:1px solid #fde047;border-radius:12px;padding:20px;margin:0 0 24px;">
+      <p style="margin:0 0 8px;color:#854d0e;font-size:14px;font-weight:700;">💡 Common reasons & quick fixes:</p>
+      <ul style="margin:0;padding-left:20px;color:#78350f;font-size:14px;line-height:1.9;">
+        <li>Insufficient mobile money balance — top up and retry</li>
+        <li>Wrong PIN entered — try again carefully</li>
+        <li>Network timeout — retry on a stable connection</li>
+        <li>Card declined — contact your bank or use mobile money</li>
+      </ul>
+    </div>
+
+    <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px;">
+      Your BrightBoard account is ready — you're just one payment away from unlocking unlimited AI worksheets, presentations, games, and more. 🎓
+    </p>
+
+    <div style="text-align:center;margin:32px 0 24px;">
+      <a href="https://brightboardapp.com/pricing" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:white;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:16px;">
+        Try Again — Get ${tierLabel} →
+      </a>
+    </div>
+
+    <p style="color:#6b7280;font-size:14px;text-align:center;line-height:1.6;margin:0 0 8px;">
+      Need help? Just reply to this email — we're here for you. 💜
+    </p>
+    <p style="color:#9ca3af;font-size:13px;text-align:center;margin:0;">
+      <a href="https://brightboardapp.com" style="color:#7c3aed;">brightboardapp.com</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>`
+    );
+
+    await logEmailExpense("PaymentNudge", email);
+    return result.success;
+  } catch (error) {
+    console.error('Error sending nudge email to', email, ':', error);
+    return false;
+  }
+}

@@ -1748,8 +1748,12 @@ ${pages.map(p => `  <url>
           paymentMethod: payments.paymentMethod,
           confirmationCode: payments.confirmationCode,
           createdAt: payments.createdAt,
+          userEmail: users.email,
+          userFirstName: users.firstName,
+          userLastName: users.lastName,
         })
         .from(payments)
+        .leftJoin(users, eq(payments.userId, users.id))
         .orderBy(desc(payments.createdAt))
         .limit(50);
 
@@ -5445,6 +5449,26 @@ export function registerSubscriptionRoutes(app: any) {
     } catch (error: any) {
       console.error("Recheck payment error:", error);
       res.status(500).json({ error: error.message || "Failed to recheck payment" });
+    }
+  });
+
+  app.post("/api/owner/send-payment-email", isOwnerMiddleware, async (req: any, res: any) => {
+    try {
+      const { emailType, userEmail, userName, tier, amount, currency } = req.body;
+      if (!userEmail || !emailType) return res.status(400).json({ error: "emailType and userEmail required" });
+      const { sendPaymentCongratulationsEmail, sendPaymentNudgeEmail } = await import("./emailService");
+      let success = false;
+      if (emailType === "congratulations") {
+        success = await sendPaymentCongratulationsEmail(userEmail, userName || "", tier || "premium", amount || 0, currency || "USD");
+      } else if (emailType === "nudge") {
+        success = await sendPaymentNudgeEmail(userEmail, userName || "", tier || "premium", amount || 0, currency || "USD");
+      } else {
+        return res.status(400).json({ error: "emailType must be 'congratulations' or 'nudge'" });
+      }
+      res.json({ success });
+    } catch (error: any) {
+      console.error("Send payment email error:", error);
+      res.status(500).json({ error: error.message || "Failed to send email" });
     }
   });
 

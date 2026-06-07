@@ -81,6 +81,9 @@ interface RevenueData {
     paymentMethod: string | null;
     confirmationCode: string | null;
     createdAt: string;
+    userEmail: string | null;
+    userFirstName: string | null;
+    userLastName: string | null;
   }>;
 }
 
@@ -180,6 +183,9 @@ function RevenueSection() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [recheckingId, setRecheckingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [emailSent, setEmailSent] = useState<Record<string, boolean>>({});
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
 
   const recheckMutation = useMutation({
     mutationFn: (orderId: string) =>
@@ -198,6 +204,35 @@ function RevenueSection() {
       setRecheckingId(null);
     },
   });
+
+  const sendPaymentEmail = async (payment: RevenueData["recentPayments"][0], emailType: "congratulations" | "nudge") => {
+    if (!payment.userEmail) {
+      toast({ title: "No email found", description: "This user has no email address on file.", variant: "destructive" });
+      return;
+    }
+    const key = `${payment.id}-${emailType}`;
+    setSendingEmail(key);
+    try {
+      const userName = [payment.userFirstName, payment.userLastName].filter(Boolean).join(" ");
+      await apiRequest("POST", "/api/owner/send-payment-email", {
+        emailType,
+        userEmail: payment.userEmail,
+        userName,
+        tier: payment.tier,
+        amount: payment.amount,
+        currency: payment.currency,
+      });
+      setEmailSent(prev => ({ ...prev, [key]: true }));
+      toast({
+        title: emailType === "congratulations" ? "🎉 Congratulations email sent!" : "⏳ Nudge email sent!",
+        description: `Email delivered to ${payment.userEmail}`,
+      });
+    } catch (err: any) {
+      toast({ title: "Failed to send email", description: err.message, variant: "destructive" });
+    } finally {
+      setSendingEmail(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -444,46 +479,138 @@ function RevenueSection() {
                   </tr>
                 </thead>
                 <tbody>
-                  {revenue.recentPayments.map((payment) => (
-                    <tr key={payment.id} className="border-b last:border-0" data-testid={`payment-row-${payment.id}`}>
-                      <td className="py-2.5 pr-4 text-muted-foreground whitespace-nowrap">
-                        {new Date(payment.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="py-2.5 pr-4 font-mono text-xs">{payment.orderId.slice(0, 12)}...</td>
-                      <td className="py-2.5 pr-4">
-                        <Badge variant="outline" className="capitalize">{payment.tier}</Badge>
-                      </td>
-                      <td className="py-2.5 pr-4 font-mono font-medium">{formatAmount(payment.amount, payment.currency)}</td>
-                      <td className="py-2.5 pr-4 capitalize">{payment.paymentMethod || "-"}</td>
-                      <td className="py-2.5 pr-4">
-                        <Badge className={statusColors[payment.status] || "bg-gray-500"}>
-                          {payment.status}
-                        </Badge>
-                      </td>
-                      <td className="py-2.5 pr-4 font-mono text-xs">{payment.confirmationCode || "-"}</td>
-                      <td className="py-2.5">
-                        {(payment.status === 'pending' || payment.status === 'failed') && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs"
-                            disabled={recheckingId === payment.orderId}
-                            onClick={() => {
-                              setRecheckingId(payment.orderId);
-                              recheckMutation.mutate(payment.orderId);
-                            }}
-                            data-testid={`button-recheck-${payment.id}`}
-                          >
-                            {recheckingId === payment.orderId ? (
-                              <RefreshCw className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <><RefreshCw className="w-3 h-3 mr-1" />Recheck</>
-                            )}
-                          </Button>
+                  {revenue.recentPayments.map((payment) => {
+                    const isExpanded = expandedId === payment.id;
+                    const userName = [payment.userFirstName, payment.userLastName].filter(Boolean).join(" ") || "Unknown";
+                    const congKey = `${payment.id}-congratulations`;
+                    const nudgeKey = `${payment.id}-nudge`;
+                    return (
+                      <>
+                        <tr
+                          key={payment.id}
+                          className={`border-b cursor-pointer transition-colors ${isExpanded ? "bg-muted/60" : "hover:bg-muted/30"}`}
+                          onClick={() => setExpandedId(isExpanded ? null : payment.id)}
+                          data-testid={`payment-row-${payment.id}`}
+                        >
+                          <td className="py-2.5 pr-4 text-muted-foreground whitespace-nowrap">
+                            {new Date(payment.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="py-2.5 pr-4 font-mono text-xs">{payment.orderId.slice(0, 12)}...</td>
+                          <td className="py-2.5 pr-4">
+                            <Badge variant="outline" className="capitalize">{payment.tier}</Badge>
+                          </td>
+                          <td className="py-2.5 pr-4 font-mono font-medium">{formatAmount(payment.amount, payment.currency)}</td>
+                          <td className="py-2.5 pr-4 capitalize">{payment.paymentMethod || "-"}</td>
+                          <td className="py-2.5 pr-4">
+                            <Badge className={statusColors[payment.status] || "bg-gray-500"}>
+                              {payment.status}
+                            </Badge>
+                          </td>
+                          <td className="py-2.5 pr-4 font-mono text-xs">{payment.confirmationCode || "-"}</td>
+                          <td className="py-2.5">
+                            <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                              {(payment.status === 'pending' || payment.status === 'failed') && (
+                                <Button
+                                  size="sm" variant="outline" className="h-7 px-2 text-xs"
+                                  disabled={recheckingId === payment.orderId}
+                                  onClick={() => { setRecheckingId(payment.orderId); recheckMutation.mutate(payment.orderId); }}
+                                  data-testid={`button-recheck-${payment.id}`}
+                                >
+                                  {recheckingId === payment.orderId
+                                    ? <RefreshCw className="w-3 h-3 animate-spin" />
+                                    : <><RefreshCw className="w-3 h-3 mr-1" />Recheck</>}
+                                </Button>
+                              )}
+                              <span className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`}>›</span>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr key={`${payment.id}-expanded`} className="border-b bg-muted/20">
+                            <td colSpan={8} className="px-4 py-4">
+                              <div className="rounded-xl border bg-card p-4 space-y-4 shadow-sm">
+                                {/* User info header */}
+                                <div className="flex items-center justify-between flex-wrap gap-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                      {(payment.userFirstName?.[0] || payment.userEmail?.[0] || "?").toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-sm">{userName}</p>
+                                      <p className="text-xs text-muted-foreground">{payment.userEmail || <span className="italic">No email on file</span>}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Badge variant="outline" className="capitalize">{payment.tier}</Badge>
+                                    <span>{formatAmount(payment.amount, payment.currency)}</span>
+                                    <Badge className={statusColors[payment.status] || "bg-gray-500"}>{payment.status}</Badge>
+                                  </div>
+                                </div>
+
+                                {/* Full order details */}
+                                <div className="grid grid-cols-2 gap-2 text-xs bg-muted/50 rounded-lg p-3">
+                                  <div><span className="text-muted-foreground">Order ID:</span> <span className="font-mono">{payment.orderId}</span></div>
+                                  <div><span className="text-muted-foreground">Date:</span> {new Date(payment.createdAt).toLocaleString()}</div>
+                                  <div><span className="text-muted-foreground">Method:</span> {payment.paymentMethod || "—"}</div>
+                                  <div><span className="text-muted-foreground">Confirmation:</span> {payment.confirmationCode || "—"}</div>
+                                </div>
+
+                                {/* Email actions */}
+                                <div className="border-t pt-3">
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">📧 Send Email to This User</p>
+                                  <div className="flex flex-wrap gap-3">
+                                    {/* Congratulations */}
+                                    <div className="flex-1 min-w-[220px] rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 p-3">
+                                      <div className="flex items-start gap-2 mb-2">
+                                        <span className="text-lg">🎉</span>
+                                        <div>
+                                          <p className="text-xs font-bold text-green-800 dark:text-green-300">Congratulations!</p>
+                                          <p className="text-[11px] text-green-700 dark:text-green-400 leading-tight">"Your Premium is now active — welcome aboard!"</p>
+                                        </div>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        disabled={!!sendingEmail || emailSent[congKey]}
+                                        onClick={() => sendPaymentEmail(payment, "congratulations")}
+                                        className="w-full h-7 text-xs bg-green-600 hover:bg-green-700 text-white border-0"
+                                        data-testid={`button-send-congrats-${payment.id}`}
+                                      >
+                                        {sendingEmail === congKey ? <><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Sending...</>
+                                          : emailSent[congKey] ? "✓ Sent!"
+                                          : "Send Congratulations"}
+                                      </Button>
+                                    </div>
+
+                                    {/* Try Again nudge */}
+                                    <div className="flex-1 min-w-[220px] rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3">
+                                      <div className="flex items-start gap-2 mb-2">
+                                        <span className="text-lg">⏳</span>
+                                        <div>
+                                          <p className="text-xs font-bold text-amber-800 dark:text-amber-300">We're Waiting — Try Again</p>
+                                          <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-tight">"Your payment didn't go through — here's how to retry!"</p>
+                                        </div>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        disabled={!!sendingEmail || emailSent[nudgeKey]}
+                                        onClick={() => sendPaymentEmail(payment, "nudge")}
+                                        className="w-full h-7 text-xs bg-amber-500 hover:bg-amber-600 text-white border-0"
+                                        data-testid={`button-send-nudge-${payment.id}`}
+                                      >
+                                        {sendingEmail === nudgeKey ? <><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Sending...</>
+                                          : emailSent[nudgeKey] ? "✓ Sent!"
+                                          : "Send Try Again Nudge"}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                      </>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
