@@ -32,3 +32,11 @@ pm2 logs output floods terminal with base64 image data. Use `--nostream` and `--
 
 ## pm2 flush
 Run `pm2 flush` to clear accumulated old error logs before testing a fix — otherwise old errors look like new ones.
+
+## PM2 "Process not found" recovery
+If `pm2 restart brightboard` says "Process not found" (process list lost after hard crash), start fresh with:
+```bash
+pm2 start dist/index.cjs --name brightboard --node-args="--env-file=.env" && pm2 save
+```
+Then if a ghost duplicate appears (two entries), delete the old one: `pm2 delete 0 && pm2 save`.
+**Why:** Plain `pm2 start dist/index.cjs --name brightboard` launches without env vars → DATABASE_URL crash. The `--node-args="--env-file=.env"` flag (Node 20 native) loads the .env file automatically.
