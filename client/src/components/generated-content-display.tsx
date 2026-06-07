@@ -84,6 +84,7 @@ export function GeneratedContentDisplay({
   const [showVideoExport, setShowVideoExport] = useState(false);
   const [showGamePlayer, setShowGamePlayer] = useState(false);
   const { toast } = useToast();
+  const { isPremium } = useSubscription();
 
   const getActivityData = () => {
     if (type !== "activity") return null;
