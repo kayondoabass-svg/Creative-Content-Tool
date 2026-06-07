@@ -5359,10 +5359,11 @@ Rules:
 - schoolName/className/teacherName/period: extract from visible printed text, else use ""
 - categories: array of evaluation/subject category labels exactly as written
 - ratingScale: rating labels from best to worst (e.g. Excellent, E, AA, Outstanding)
-- nameField: x,y percentage position of the student name blank line (where name is written)
+- nameField: x,y percentage position of the BLANK LINE or empty box where the individual student name is handwritten. This is typically after a label like "Student Name:" or "Name:" — point to the EMPTY SPACE after the colon/label, NOT to the label itself. It must be clearly separated from any body paragraph text below it.
 - commentField: x,y percentage position of the top-left of the teacher remarks/comment box, w=width%
 - ratings: for EACH category row, the x,y percentage of each rating checkbox, circle, or column cell
 - y=0% means TOP of page, y=100% means BOTTOM of page
+- CRITICAL for nameField: the y% must correspond to the blank fill-in line, not to body text paragraphs. If the blank line is in the top 30% of the page (inside a header section), set y accordingly. Do NOT place nameField inside the body text area.
 - If you cannot confidently detect a specific position, omit that field entirely — do not guess wildly`;
 
       const userContent: any = [
@@ -5623,11 +5624,22 @@ Rules:
         const stdFont = await studentDoc.embedFont(StandardFonts.Helvetica);
         const stdBoldFont = await studentDoc.embedFont(StandardFonts.HelveticaBold);
 
-        // Overlay student name
+        // Overlay student name — draw white background first to prevent overlap with template text
         try {
-          page.drawText(safePdfFill(student.name, 50), {
-            x: toX(nameField.x), y: toY(nameField.y),
-            size: 12, font: stdBoldFont, color: rgb(0.05, 0.05, 0.05),
+          const nameX = toX(nameField.x);
+          const nameY = toY(nameField.y);
+          const nameFontSize = 13;
+          const nameText = safePdfFill(student.name, 50);
+          const nameWidth = stdBoldFont.widthOfTextAtSize(nameText, nameFontSize);
+          // White rectangle to cleanly erase any template text underneath
+          page.drawRectangle({
+            x: nameX - 2, y: nameY - 4,
+            width: Math.max(nameWidth + 8, 120), height: nameFontSize + 6,
+            color: rgb(1, 1, 1), opacity: 1,
+          });
+          page.drawText(nameText, {
+            x: nameX, y: nameY,
+            size: nameFontSize, font: stdBoldFont, color: rgb(0.05, 0.05, 0.05),
           });
         } catch {}
 
