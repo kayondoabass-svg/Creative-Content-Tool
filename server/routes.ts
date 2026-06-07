@@ -4647,10 +4647,17 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
   }
 
   // Generate images for sections that have imagePrompts (paid feature)
+  // Hard 90-second total budget — stops early so the job never times out waiting for images.
   if (includeImages && Array.isArray(worksheetData.sections)) {
     let imageCount = 0;
+    const IMAGE_BUDGET_MS = 90_000;
+    const imageStart = Date.now();
     for (const section of worksheetData.sections) {
-      if (imageCount >= 5) break; // cap at 5 images per worksheet
+      if (imageCount >= 3) break; // cap at 3 images per worksheet
+      if (Date.now() - imageStart > IMAGE_BUDGET_MS) {
+        console.warn("[Worksheet] Image budget exhausted — skipping remaining images");
+        break;
+      }
       if (!section.imagePrompt || section.type === "drawing" || section.type === "writingPrompt") continue;
       try {
         const imgResult = await generateGeminiImage(

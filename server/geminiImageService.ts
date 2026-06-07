@@ -13,7 +13,7 @@
  */
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const FETCH_TIMEOUT_MS = 25_000;
+const FETCH_TIMEOUT_MS = 10_000; // 10s per model — fail fast, move on
 
 function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
