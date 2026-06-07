@@ -5610,7 +5610,13 @@ Rules:
       const toY = (yPct: number) => Math.max(0, pageH - (yPct / 100) * pageH);
 
       // Default field positions if AI didn't detect them
-      const nameField = fieldMap?.nameField || { x: 20, y: 21 };
+      const rawNameField = fieldMap?.nameField || { x: 20, y: 21 };
+      // Sanity cap: student name blank is always in the top 40% of the page (header area).
+      // If AI put it lower, clamp it — it has detected body text by mistake.
+      const nameField = {
+        x: rawNameField.x,
+        y: Math.min(rawNameField.y, 40),
+      };
       const commentField = fieldMap?.commentField || { x: 7, y: 72, w: 86 };
       const ratingsMap: any[] = fieldMap?.ratings || [];
 
