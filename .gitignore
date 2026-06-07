@@ -5,3 +5,4 @@ vite.config.ts.*
 *.tar.gz
 *.sql
 attached_assets/Pasted-*.txt
+dist/public/demo-video.mp4
