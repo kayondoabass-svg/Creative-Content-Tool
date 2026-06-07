@@ -7,9 +7,21 @@
  *  2. gemini-3.1-flash-image-preview → same
  *  3. imagen-4.0-fast-generate-001  → predict endpoint
  *  4. imagen-4.0-generate-001       → predict endpoint
+ *
+ * Each fetch has a 25-second abort timeout so a slow/unreachable API never
+ * blocks the job queue indefinitely.
  */
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const FETCH_TIMEOUT_MS = 25_000;
+
+function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
 
 export async function generateGeminiImage(
   prompt: string
@@ -29,7 +41,7 @@ export async function generateGeminiImage(
   for (const model of geminiImageModels) {
     try {
       const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
-      const resp = await fetch(url, {
+      const resp = await fetchWithTimeout(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -66,7 +78,7 @@ export async function generateGeminiImage(
   for (const model of imagenModels) {
     try {
       const url = `${GEMINI_BASE}/${model}:predict?key=${apiKey}`;
-      const resp = await fetch(url, {
+      const resp = await fetchWithTimeout(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -84,7 +96,6 @@ export async function generateGeminiImage(
       const data = await resp.json() as any;
       console.log(`[ImageGen] ${model} raw keys:`, JSON.stringify(Object.keys(data.predictions?.[0] || {})));
 
-      // Try all known field names across API versions
       const pred = data.predictions?.[0];
       const b64 =
         pred?.bytesBase64Encoded ||
