@@ -5452,8 +5452,13 @@ export function registerSubscriptionRoutes(app: any) {
     }
   });
 
-  app.post("/api/owner/send-payment-email", isOwnerMiddleware, async (req: any, res: any) => {
+  app.post("/api/owner/send-payment-email", async (req: any, res: any) => {
     try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const [requestingUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!requestingUser?.isOwner) return res.status(403).json({ error: "Not authorized" });
+
       const { emailType, userEmail, userName, tier, amount, currency } = req.body;
       if (!userEmail || !emailType) return res.status(400).json({ error: "emailType and userEmail required" });
       const { sendPaymentCongratulationsEmail, sendPaymentNudgeEmail } = await import("./emailService");
