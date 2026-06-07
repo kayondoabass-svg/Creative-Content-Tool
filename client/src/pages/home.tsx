@@ -91,7 +91,13 @@ export default function Home() {
     const params = new URLSearchParams(searchString);
     const type = params.get("type");
     const game = params.get("game");
-    
+    const socialLogin = params.get("social_login");
+
+    if (socialLogin === "success") {
+      // Clean the URL so the param doesn't persist or confuse the app
+      window.history.replaceState({}, "", "/");
+      toast({ title: "Welcome to BrightBoard! 🎉", description: "You're now signed in." });
+    }
     if (type && contentTypes.some(ct => ct.type === type)) {
       setSelectedType(type as ContentType);
     }
