@@ -2860,66 +2860,205 @@ This should look like it was designed by a world-class branding agency. Make it 
         yPosition -= 10;
       }
       
-      // Sections
-      for (const section of data.sections || []) {
-        checkPage();
-        
-        // Section image (if present)
-        if (section.imageUrl) {
-          try {
-            const imgData = section.imageUrl.replace(/^data:image\/\w+;base64,/, "");
-            const imgBytes = Buffer.from(imgData, "base64");
-            let embeddedImg: any;
-            try { embeddedImg = await pdfDoc.embedPng(imgBytes); } catch { embeddedImg = await pdfDoc.embedJpg(imgBytes); }
-            const imgW = Math.min(120, PAGE_W - margin * 2);
-            const imgH = (embeddedImg.height / embeddedImg.width) * imgW;
-            checkPage();
-            if (yPosition - imgH < minY + 30) { addLogo(page); page = pdfDoc.addPage([PAGE_W, PAGE_H]); yPosition = maxY; }
-            page.drawImage(embeddedImg, { x: PAGE_W - margin - imgW, y: yPosition - imgH, width: imgW, height: imgH });
-          } catch { /* skip image on error */ }
-        }
+      const layout = data.layout || (data.sections ? "mixed" : "mixed");
 
-        // Section title
-        if (section.title) {
-          page.drawText(section.title, {
-            x: margin,
-            y: yPosition,
-            size: 14,
-            font: boldFont,
-            color: rgb(0.3, 0.2, 0.5),
-          });
-          yPosition -= 22;
-        }
-        
-        // Content items
-        for (let i = 0; i < (section.content || []).length; i++) {
-          checkPage();
-          const item = section.content[i];
-          const numberedItem = `${i + 1}. ${item}`;
-          const itemLines = wrapText(numberedItem, font, 11, PAGE_W - margin * 2 - 10);
-          
-          for (const line of itemLines) {
+      // Helper: embed image from base64
+      const embedImg = async (dataUrl: string, maxW: number, maxH: number) => {
+        try {
+          const raw = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+          const bytes = Buffer.from(raw, "base64");
+          let img: any;
+          try { img = await pdfDoc.embedPng(bytes); } catch { img = await pdfDoc.embedJpg(bytes); }
+          const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+          return { img, w: img.width * scale, h: img.height * scale };
+        } catch { return null; }
+      };
+
+      // ── PICTURE GRID PDF ────────────────────────────────────────────────────
+      if (layout === "pictureGrid") {
+        const questions: any[] = data.questions || [];
+        const COLS = 4;
+        const cellW = (PAGE_W - margin * 2) / COLS;
+        const cellH = 130;
+        const imgAreaH = 80;
+        let col = 0;
+        let rowY = yPosition;
+
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i];
+          if (col === 0 && i > 0) {
+            rowY -= cellH;
             checkPage();
-            page.drawText(line, { x: margin + 10, y: yPosition, size: 11, font });
-            yPosition -= lineHeight;
           }
-          
-          if (section.type === "writingPrompt" || section.type === "drawing") {
-            for (let j = 0; j < 3; j++) {
-              yPosition -= 5;
-              checkPage();
-              page.drawLine({
-                start: { x: margin + 10, y: yPosition },
-                end: { x: PAGE_W - margin, y: yPosition },
-                thickness: 0.5,
-                color: rgb(0.7, 0.7, 0.7),
-              });
-              yPosition -= lineHeight;
+          const cellX = margin + col * cellW;
+          const cellTop = rowY;
+          // Cell border
+          page.drawRectangle({ x: cellX, y: cellTop - cellH, width: cellW, height: cellH, borderColor: rgb(0.2, 0.2, 0.2), borderWidth: 1 });
+          // Image
+          if (q.imageUrl) {
+            const res = await embedImg(q.imageUrl, cellW - 8, imgAreaH - 4);
+            if (res) {
+              const imgX = cellX + (cellW - res.w) / 2;
+              const imgY = cellTop - 4 - res.h;
+              page.drawImage(res.img, { x: imgX, y: imgY, width: res.w, height: res.h });
             }
           }
+          // Question text
+          const qText = `${i + 1}. ${q.textBeforeBlank || ""} _______ ${q.textAfterBlank || ""}`;
+          const qLines = wrapText(qText, font, 8, cellW - 8);
+          let textY = cellTop - imgAreaH - 4;
+          for (const line of qLines) {
+            page.drawText(line, { x: cellX + 4, y: textY, size: 8, font, color: rgb(0.1, 0.1, 0.1) });
+            textY -= 10;
+          }
+          if (q.options) {
+            page.drawText(q.options, { x: cellX + 4, y: textY, size: 7, font, color: rgb(0.4, 0.4, 0.4) });
+          }
+          col = (col + 1) % COLS;
+        }
+        yPosition = rowY - cellH - 10;
+      }
+
+      // ── FILL BLANK PDF ──────────────────────────────────────────────────────
+      else if (layout === "fillBlank") {
+        const questions: any[] = data.questions || [];
+        for (let i = 0; i < questions.length; i++) {
+          checkPage();
+          const q = questions[i];
+          const lineText = `• ${q.textBeforeBlank || ""} _______________ ${q.textAfterBlank || ""}  ${q.options || ""}`;
+          const lines = wrapText(lineText, font, 11, PAGE_W - margin * 2 - (q.imageUrl ? 60 : 10));
+          // Image on right if present
+          if (q.imageUrl) {
+            const res = await embedImg(q.imageUrl, 45, 45);
+            if (res) page.drawImage(res.img, { x: PAGE_W - margin - 48, y: yPosition - res.h + 4, width: res.w, height: res.h });
+          }
+          for (const line of lines) {
+            page.drawText(line, { x: margin + 10, y: yPosition, size: 11, font, color: rgb(0.05, 0.05, 0.05) });
+            yPosition -= lineHeight;
+          }
+          // Separator line
+          page.drawLine({ start: { x: margin, y: yPosition + 4 }, end: { x: PAGE_W - margin, y: yPosition + 4 }, thickness: 0.3, color: rgb(0.8, 0.8, 0.8) });
+          yPosition -= 6;
+        }
+      }
+
+      // ── MULTIPLE CHOICE PDF ─────────────────────────────────────────────────
+      else if (layout === "multipleChoice") {
+        const questions: any[] = data.questions || [];
+        for (let i = 0; i < questions.length; i++) {
+          checkPage();
+          const q = questions[i];
+          const qLines = wrapText(`${i + 1}. ${q.question}`, boldFont, 11, PAGE_W - margin * 2);
+          for (const line of qLines) {
+            page.drawText(line, { x: margin, y: yPosition, size: 11, font: boldFont, color: rgb(0.1, 0.1, 0.3) });
+            yPosition -= lineHeight;
+          }
+          const opts: string[] = q.options || [];
+          const half = Math.ceil(opts.length / 2);
+          for (let oi = 0; oi < half; oi++) {
+            checkPage();
+            const leftOpt = opts[oi] || "";
+            const rightOpt = opts[oi + half] || "";
+            page.drawText(leftOpt, { x: margin + 10, y: yPosition, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
+            if (rightOpt) page.drawText(rightOpt, { x: margin + 10 + (PAGE_W - margin * 2) / 2, y: yPosition, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
+            yPosition -= lineHeight;
+          }
+          yPosition -= 6;
+        }
+      }
+
+      // ── MATCHING PDF ────────────────────────────────────────────────────────
+      else if (layout === "matching") {
+        const pairs: any[] = data.pairs || [];
+        const colW = (PAGE_W - margin * 2 - 20) / 2;
+        page.drawText("Column A", { x: margin, y: yPosition, size: 11, font: boldFont, color: rgb(0.2, 0.2, 0.6) });
+        page.drawText("Column B", { x: margin + colW + 20, y: yPosition, size: 11, font: boldFont, color: rgb(0.1, 0.5, 0.4) });
+        yPosition -= 20;
+        const shuffled = [...pairs].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < pairs.length; i++) {
+          checkPage();
+          page.drawText(`${i + 1}. ${pairs[i].left}`, { x: margin, y: yPosition, size: 11, font, color: rgb(0.1, 0.1, 0.1) });
+          page.drawText(`${String.fromCharCode(65 + i)}. ${shuffled[i].right}`, { x: margin + colW + 20, y: yPosition, size: 11, font, color: rgb(0.1, 0.1, 0.1) });
+          yPosition -= lineHeight + 4;
+        }
+      }
+
+      // ── TRUE OR FALSE PDF ───────────────────────────────────────────────────
+      else if (layout === "trueOrFalse") {
+        const statements: any[] = data.statements || [];
+        for (let i = 0; i < statements.length; i++) {
+          checkPage();
+          const s = statements[i];
+          const tfText = wrapText(`${i + 1}. ${s.text}`, font, 11, PAGE_W - margin * 2 - 80);
+          for (const line of tfText) {
+            page.drawText(line, { x: margin, y: yPosition, size: 11, font, color: rgb(0.05, 0.05, 0.05) });
+            yPosition -= lineHeight;
+          }
+          // T / F boxes
+          const boxY = yPosition + lineHeight * tfText.length - lineHeight + 2;
+          page.drawRectangle({ x: PAGE_W - margin - 70, y: boxY - 12, width: 28, height: 14, borderColor: rgb(0.2, 0.6, 0.2), borderWidth: 1 });
+          page.drawText("T", { x: PAGE_W - margin - 60, y: boxY - 9, size: 10, font: boldFont, color: rgb(0.2, 0.6, 0.2) });
+          page.drawRectangle({ x: PAGE_W - margin - 36, y: boxY - 12, width: 28, height: 14, borderColor: rgb(0.7, 0.2, 0.2), borderWidth: 1 });
+          page.drawText("F", { x: PAGE_W - margin - 26, y: boxY - 9, size: 10, font: boldFont, color: rgb(0.7, 0.2, 0.2) });
           yPosition -= 4;
         }
-        yPosition -= 10;
+      }
+
+      // ── WRITING PDF ─────────────────────────────────────────────────────────
+      else if (layout === "writing") {
+        const prompts: any[] = data.prompts || [];
+        for (let i = 0; i < prompts.length; i++) {
+          checkPage();
+          const p = prompts[i];
+          const pLines = wrapText(`${i + 1}. ${p.text}`, boldFont, 11, PAGE_W - margin * 2);
+          for (const line of pLines) {
+            page.drawText(line, { x: margin, y: yPosition, size: 11, font: boldFont, color: rgb(0.1, 0.1, 0.3) });
+            yPosition -= lineHeight;
+          }
+          yPosition -= 4;
+          for (let li = 0; li < (p.lines || 4); li++) {
+            checkPage();
+            page.drawLine({ start: { x: margin, y: yPosition }, end: { x: PAGE_W - margin, y: yPosition }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
+            yPosition -= 18;
+          }
+          yPosition -= 8;
+        }
+      }
+
+      // ── MIXED (legacy sections) PDF ─────────────────────────────────────────
+      else {
+        for (const section of data.sections || []) {
+          checkPage();
+          if (section.imageUrl) {
+            const res = await embedImg(section.imageUrl, 120, 120);
+            if (res) {
+              if (yPosition - res.h < minY + 30) { addLogo(page); page = pdfDoc.addPage([PAGE_W, PAGE_H]); yPosition = maxY; }
+              page.drawImage(res.img, { x: PAGE_W - margin - res.w, y: yPosition - res.h, width: res.w, height: res.h });
+            }
+          }
+          if (section.title) {
+            page.drawText(section.title, { x: margin, y: yPosition, size: 14, font: boldFont, color: rgb(0.3, 0.2, 0.5) });
+            yPosition -= 22;
+          }
+          for (let i = 0; i < (section.content || []).length; i++) {
+            checkPage();
+            const item = section.content[i];
+            const itemLines = wrapText(`${i + 1}. ${item}`, font, 11, PAGE_W - margin * 2 - 10);
+            for (const line of itemLines) {
+              page.drawText(line, { x: margin + 10, y: yPosition, size: 11, font });
+              yPosition -= lineHeight;
+            }
+            if (section.type === "writingPrompt" || section.type === "drawing") {
+              for (let j = 0; j < 3; j++) {
+                yPosition -= 5; checkPage();
+                page.drawLine({ start: { x: margin + 10, y: yPosition }, end: { x: PAGE_W - margin, y: yPosition }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) });
+                yPosition -= lineHeight;
+              }
+            }
+            yPosition -= 4;
+          }
+          yPosition -= 10;
+        }
       }
 
       // Logo on last page
@@ -4570,53 +4709,117 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
   const context = buildContext(gradeLevel, subject);
   const colorMode = options?.colorMode || "colored";
   const includeImages = options?.includeImages === true;
-  
-  const colorInstructions = colorMode === "blackWhite" 
-    ? "Design for black and white printing. Use clear borders, no background colors, high contrast elements."
-    : "Use colorful, engaging design with colored backgrounds, borders, and visual elements.";
+  const worksheetType = options?.worksheetType || "mixed";
 
-  const imageField = includeImages
-    ? `"imagePrompt": "A clear, child-friendly DALL-E illustration prompt for this section (no text or labels in the image). For drawing/writingPrompt sections use an empty string." (include for every section)`
-    : "";
+  const colorInstructions = colorMode === "blackWhite"
+    ? "Design for black and white printing. Use clear borders, no background colors, high contrast elements."
+    : "Use colorful, engaging design.";
+
+  // Build type-specific prompt
+  const typePrompts: Record<string, string> = {
+    pictureGrid: `Return a JSON object with layout "pictureGrid" and 12 questions (fills a 4×3 grid):
+{
+  "title": "Worksheet Title",
+  "instructions": "Fill in the blank.",
+  "colorMode": "${colorMode}",
+  "layout": "pictureGrid",
+  "questions": [
+    { "textBeforeBlank": "text before blank (can be empty)", "textAfterBlank": "text after blank (can be empty)", "options": "(word1/word2)", "answer": "correct word", "imagePrompt": "simple child-friendly object to illustrate this question, no text, no words in image" }
+  ]
+}
+Generate exactly 12 questions. Keep sentence fragments short (fit in a small grid cell). ${includeImages ? "Include imagePrompt for every question." : 'Set imagePrompt to "" for all questions.'}`,
+
+    fillBlank: `Return a JSON object with layout "fillBlank" and 8-10 questions in bullet-list style:
+{
+  "title": "Worksheet Title",
+  "instructions": "Fill in the blanks.",
+  "colorMode": "${colorMode}",
+  "layout": "fillBlank",
+  "questions": [
+    { "textBeforeBlank": "text before the blank", "textAfterBlank": "rest of sentence.", "options": "(word1/word2)", "answer": "correct word", "imagePrompt": "a small cute illustration related to this sentence, no text in image" }
+  ]
+}
+${includeImages ? "Include imagePrompt for every question (small icon-style image)." : 'Set imagePrompt to "" for all questions.'}`,
+
+    multipleChoice: `Return a JSON object with layout "multipleChoice" and 10 questions:
+{
+  "title": "Worksheet Title",
+  "instructions": "Circle the correct answer.",
+  "colorMode": "${colorMode}",
+  "layout": "multipleChoice",
+  "questions": [
+    { "question": "Question text?", "options": ["A) option", "B) option", "C) option", "D) option"], "answer": "A" }
+  ]
+}`,
+
+    matching: `Return a JSON object with layout "matching" and 10 pairs:
+{
+  "title": "Worksheet Title",
+  "instructions": "Match column A to column B.",
+  "colorMode": "${colorMode}",
+  "layout": "matching",
+  "pairs": [
+    { "left": "term or word", "right": "definition or match" }
+  ]
+}
+Shuffle the right column so it is NOT in matching order (students must draw lines).`,
+
+    trueOrFalse: `Return a JSON object with layout "trueOrFalse" and 12 statements:
+{
+  "title": "Worksheet Title",
+  "instructions": "Write True or False for each statement.",
+  "colorMode": "${colorMode}",
+  "layout": "trueOrFalse",
+  "statements": [
+    { "text": "Statement text.", "answer": true }
+  ]
+}
+Mix true and false statements roughly 50/50.`,
+
+    writing: `Return a JSON object with layout "writing" and 4-6 writing prompts:
+{
+  "title": "Worksheet Title",
+  "instructions": "Write your answer in complete sentences.",
+  "colorMode": "${colorMode}",
+  "layout": "writing",
+  "prompts": [
+    { "text": "Writing prompt or question.", "lines": 4 }
+  ]
+}
+Vary the number of lines (3-6) based on how much writing each prompt requires.`,
+
+    mixed: `Return a JSON object with this exact structure:
+{
+  "title": "Worksheet Title",
+  "instructions": "Short 1-2 sentence instruction for students",
+  "colorMode": "${colorMode}",
+  "layout": "mixed",
+  "sections": [
+    {
+      "type": "header|questions|fillBlank|matching|multipleChoice|writingPrompt|drawing",
+      "title": "Section Title (optional)",
+      "content": ["Item 1", "Item 2"],
+      "answers": ["Answer 1", "Answer 2"]${includeImages ? `,\n      "imagePrompt": "child-friendly illustration, no text in image"` : ""}
+    }
+  ]
+}
+Include a variety of section types. Create 4-6 sections with 3-6 items each.
+For multipleChoice, format as: "Question? A) opt B) opt C) opt D) opt"
+For fillBlank, use underscores: "The ___ is blue"`,
+  };
+
+  const systemPrompt = `You are an expert educational worksheet creator for teachers. ${context}
+${colorInstructions}
+CRITICAL: All numbers, calculations, and mathematical content must be 100% accurate.
+IMPORTANT: Keep student-facing "instructions" concise (1-2 sentences max).
+
+${typePrompts[worksheetType] || typePrompts.mixed}`;
 
   const response = await geminiCreate({
     model: "gemini-2.0-flash-lite",
     messages: [
-      {
-        role: "system",
-        content: `You are an expert educational worksheet creator. Create engaging, printable worksheets for teachers. ${context}
-        
-        ${colorInstructions}
-        
-        CRITICAL MATH & NUMBER ACCURACY: All numbers, calculations, equations, and mathematical content MUST be 100% accurate. Double-check all arithmetic. Number sequences must list EVERY number with no gaps. All answers in the answer key must be correct.
-        
-        IMPORTANT: Keep student-facing "instructions" concise (1-2 sentences max). Do NOT repeat the instructions inside section content.
-        
-        Return a JSON object with this exact structure:
-        {
-          "title": "Worksheet Title",
-          "instructions": "Short 1-2 sentence instruction for students",
-          "colorMode": "${colorMode}",
-          "sections": [
-            {
-              "type": "header|questions|fillBlank|matching|multipleChoice|writingPrompt|drawing",
-              "title": "Section Title (optional)",
-              "content": ["Question or prompt 1", "Question or prompt 2", ...],
-              "answers": ["Answer 1", "Answer 2", ...],
-              ${imageField}
-            }
-          ]
-        }
-        
-        Include a variety of section types. Create 4-8 sections with 3-6 items each.
-        For multipleChoice, format each content item as: "Question? A) option B) option C) option D) option"
-        For matching, use "Left item -> Right item" format in answers.
-        For fillBlank, use underscores like "The ___ is blue" in content.`
-      },
-      {
-        role: "user",
-        content: `Create an educational worksheet about: ${prompt}. Make it appropriate, engaging, and classroom-ready.`
-      }
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Create an educational worksheet about: ${prompt}. Make it appropriate, engaging, and classroom-ready.` }
     ],
     response_format: { type: "json_object" },
     max_tokens: 8000,
@@ -4628,57 +4831,66 @@ async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: 
   try {
     worksheetData = JSON.parse(jsonContent);
   } catch {
-    // JSON was truncated — try to rescue partial content
     const match = jsonContent.match(/\{[\s\S]*/);
     if (match) {
-      // Find the last complete section object and close the array + root object
       const partial = match[0];
       const lastClose = partial.lastIndexOf('}');
       if (lastClose > 0) {
         const trimmed = partial.substring(0, lastClose + 1);
-        // Ensure sections array and root are closed
         const repaired = trimmed.replace(/,\s*$/, '') + ']}';
         try { worksheetData = JSON.parse(repaired); } catch {}
       }
     }
     if (!worksheetData) {
       console.error("Worksheet JSON parse failed — returning blank scaffold. Raw length:", jsonContent.length);
-      worksheetData = { title: prompt.substring(0, 50), sections: [{ type: "questions", title: "Questions", content: ["Generation incomplete — please try again."], answers: [] }] };
+      worksheetData = { title: prompt.substring(0, 50), layout: "mixed", sections: [{ type: "questions", title: "Questions", content: ["Generation incomplete — please try again."], answers: [] }] };
     }
   }
 
-  // Generate images for sections that have imagePrompts (paid feature)
-  // Hard 90-second total budget — stops early so the job never times out waiting for images.
-  if (includeImages && Array.isArray(worksheetData.sections)) {
-    let imageCount = 0;
+  // Generate images for question-based layouts (pictureGrid, fillBlank) and mixed sections
+  if (includeImages) {
     const IMAGE_BUDGET_MS = 90_000;
     const imageStart = Date.now();
-    // Progress steps: 60%, 70%, 80% for images 1, 2, 3
-    const imageProgressSteps = [60, 70, 80];
-    for (const section of worksheetData.sections) {
-      if (imageCount >= 3) break; // cap at 3 images per worksheet
-      if (Date.now() - imageStart > IMAGE_BUDGET_MS) {
-        console.warn("[Worksheet] Image budget exhausted — skipping remaining images");
-        break;
-      }
-      if (!section.imagePrompt || section.type === "drawing" || section.type === "writingPrompt") continue;
-      onProgress?.(`Adding image ${imageCount + 1} of 3...`, imageProgressSteps[imageCount] ?? 75);
+    const imageProgressSteps = [60, 65, 70, 72, 75, 77, 80, 82];
+    let imageCount = 0;
+    const MAX_IMAGES = worksheetType === "pictureGrid" ? 8 : 3;
+
+    const tryGenImage = async (imagePrompt: string): Promise<string | null> => {
+      if (imageCount >= MAX_IMAGES) return null;
+      if (Date.now() - imageStart > IMAGE_BUDGET_MS) return null;
       try {
         const imgResult = await generateGeminiImage(
-          `Educational illustration for children: ${section.imagePrompt}. Colourful, cartoon style, no text, no labels, no words in the image.`
+          `Educational illustration for children: ${imagePrompt}. Colourful, cartoon style, no text, no labels, no words in the image.`
         );
         const b64 = imgResult.data?.[0]?.b64_json;
         if (b64) {
-          section.imageUrl = `data:image/png;base64,${b64}`;
+          onProgress?.(`Adding image ${imageCount + 1}...`, imageProgressSteps[imageCount] ?? 78);
           imageCount++;
+          return `data:image/png;base64,${b64}`;
         }
       } catch (e) {
         console.error("Worksheet image gen error:", e);
       }
+      return null;
+    };
+
+    if ((worksheetType === "pictureGrid" || worksheetType === "fillBlank") && Array.isArray(worksheetData.questions)) {
+      for (const q of worksheetData.questions) {
+        if (imageCount >= MAX_IMAGES || Date.now() - imageStart > IMAGE_BUDGET_MS) break;
+        if (!q.imagePrompt) continue;
+        q.imageUrl = await tryGenImage(q.imagePrompt);
+      }
+    } else if (Array.isArray(worksheetData.sections)) {
+      for (const section of worksheetData.sections) {
+        if (imageCount >= 3 || Date.now() - imageStart > IMAGE_BUDGET_MS) break;
+        if (!section.imagePrompt || section.type === "drawing" || section.type === "writingPrompt") continue;
+        section.imageUrl = await tryGenImage(section.imagePrompt);
+      }
     }
+
     if (imageCount > 0) onProgress?.("Finalising worksheet...", 85);
   }
-  
+
   return worksheetData;
 }
 

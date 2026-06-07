@@ -1482,90 +1482,265 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
 function WorksheetContent({ content }: { content: string }) {
   const { isPremium } = useSubscription();
   const [showLogo, setShowLogo] = useState(true);
+  const [showAnswers, setShowAnswers] = useState(false);
 
   try {
     const data = JSON.parse(content);
-    const sections = data.sections || [];
     const isBlackWhite = data.colorMode === "blackWhite";
+    const layout = data.layout || (data.sections ? "mixed" : "mixed");
+
+    const bw = (colored: string, bwClass: string) => isBlackWhite ? bwClass : colored;
+
+    const WorksheetHeader = () => (
+      <div className={`text-center border-b-4 pb-4 mb-6 relative ${bw("border-blue-500", "border-black")}`}>
+        <h2 className={`text-3xl font-extrabold uppercase tracking-wide ${bw("text-slate-800 dark:text-slate-100", "text-black")}`}>
+          {data.title}
+        </h2>
+        {data.instructions && (
+          <p className={`mt-2 text-sm font-semibold ${bw("text-slate-600 dark:text-slate-300", "text-black")}`}>
+            {data.instructions}
+          </p>
+        )}
+        {showLogo && (
+          <div className="flex items-center gap-1 justify-center mt-2" data-testid="logo-badge-worksheet">
+            <div className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 border ${bw("bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800", "border-black bg-white")}`}>
+              <img src="/logo.png" alt="BrightBoard" className="w-4 h-4 rounded" />
+              <span className={`text-[10px] font-semibold ${bw("text-purple-700 dark:text-purple-300", "text-black")}`}>brightboardapp.com</span>
+            </div>
+          </div>
+        )}
+        {isPremium && (
+          <button onClick={() => setShowLogo(v => !v)}
+            className="absolute top-0 right-0 text-[10px] text-muted-foreground hover:text-foreground underline"
+            data-testid="button-toggle-logo">
+            {showLogo ? "Hide logo" : "Show logo"}
+          </button>
+        )}
+      </div>
+    );
+
+    // ── PICTURE GRID ──────────────────────────────────────────────────────────
+    if (layout === "pictureGrid") {
+      const questions = data.questions || [];
+      return (
+        <div className="space-y-4" data-testid="worksheet-content">
+          <WorksheetHeader />
+          <div className={`grid grid-cols-4 border-t-2 border-l-2 ${bw("border-slate-700", "border-black")}`}>
+            {questions.map((q: any, idx: number) => (
+              <div key={idx}
+                className={`flex flex-col border-r-2 border-b-2 p-2 justify-between ${bw("border-slate-700 bg-white", "border-black bg-white")}`}
+                style={{ minHeight: "140px" }}
+                data-testid={`worksheet-cell-${idx}`}>
+                <div className="flex-1 flex items-center justify-center overflow-hidden mb-1">
+                  {q.imageUrl ? (
+                    <img src={q.imageUrl} alt={`clue ${idx + 1}`} className="max-h-20 max-w-full object-contain" />
+                  ) : (
+                    <div className={`w-full h-16 rounded border-2 border-dashed flex items-center justify-center ${bw("border-slate-300 text-slate-300", "border-gray-400 text-gray-400")}`}>
+                      <span className="text-2xl">🖼️</span>
+                    </div>
+                  )}
+                </div>
+                <div className={`text-xs font-semibold leading-tight ${bw("text-slate-800", "text-black")}`}>
+                  <span className={`font-bold mr-0.5 ${bw("text-blue-600", "text-black")}`}>{idx + 1}.</span>
+                  {q.textBeforeBlank && <span>{q.textBeforeBlank} </span>}
+                  <span className={`inline-block w-10 border-b-2 mx-0.5 align-bottom ${bw("border-slate-600", "border-black")}`}> </span>
+                  {q.textAfterBlank && <span> {q.textAfterBlank}</span>}
+                  {q.options && <span className={`block text-[9px] mt-0.5 ${bw("text-slate-500", "text-black")}`}>{q.options}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <AnswerKeyToggle questions={questions} show={showAnswers} setShow={setShowAnswers} />
+        </div>
+      );
+    }
+
+    // ── FILL BLANKS (bullet list) ─────────────────────────────────────────────
+    if (layout === "fillBlank") {
+      const questions = data.questions || [];
+      return (
+        <div className="space-y-4" data-testid="worksheet-content">
+          <WorksheetHeader />
+          <div className="space-y-2">
+            {questions.map((q: any, idx: number) => (
+              <div key={idx} className={`flex items-center gap-3 py-2 border-b ${bw("border-slate-200", "border-black")}`}
+                data-testid={`worksheet-question-${idx}`}>
+                <div className="flex-1 text-sm font-medium flex flex-wrap items-center gap-1">
+                  <span className={bw("text-blue-600 font-bold", "font-bold")}>•</span>
+                  {q.textBeforeBlank && <span>{q.textBeforeBlank}</span>}
+                  <span className={`inline-block w-24 border-b-2 mx-1 ${bw("border-slate-700", "border-black")}`}> </span>
+                  {q.textAfterBlank && <span>{q.textAfterBlank}</span>}
+                  {q.options && <span className={`text-xs ${bw("text-slate-500", "text-black")}`}>{q.options}</span>}
+                </div>
+                {q.imageUrl && (
+                  <img src={q.imageUrl} alt={`clue ${idx + 1}`} className="w-12 h-12 object-contain flex-shrink-0" />
+                )}
+              </div>
+            ))}
+          </div>
+          <AnswerKeyToggle questions={questions} show={showAnswers} setShow={setShowAnswers} />
+        </div>
+      );
+    }
+
+    // ── MULTIPLE CHOICE ───────────────────────────────────────────────────────
+    if (layout === "multipleChoice") {
+      const questions = data.questions || [];
+      return (
+        <div className="space-y-4" data-testid="worksheet-content">
+          <WorksheetHeader />
+          <div className="space-y-4">
+            {questions.map((q: any, idx: number) => (
+              <div key={idx} className={`p-3 rounded-lg border ${bw("border-slate-200 bg-slate-50/50 dark:bg-slate-900/30 dark:border-slate-700", "border-black bg-white")}`}
+                data-testid={`worksheet-question-${idx}`}>
+                <p className="font-semibold text-sm mb-2">
+                  <span className={`font-bold mr-1 ${bw("text-blue-600", "text-black")}`}>{idx + 1}.</span>
+                  {q.question}
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {(q.options || []).map((opt: string, oi: number) => (
+                    <div key={oi} className={`text-xs p-1.5 rounded border ${bw("border-slate-200", "border-black")}`}>{opt}</div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <AnswerKeyToggle questions={questions} show={showAnswers} setShow={setShowAnswers} />
+        </div>
+      );
+    }
+
+    // ── MATCHING ──────────────────────────────────────────────────────────────
+    if (layout === "matching") {
+      const pairs = data.pairs || [];
+      const shuffledRight = [...pairs].sort(() => Math.random() - 0.5);
+      return (
+        <div className="space-y-4" data-testid="worksheet-content">
+          <WorksheetHeader />
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <p className={`text-xs font-bold uppercase mb-3 ${bw("text-blue-600", "text-black")}`}>Column A</p>
+              {pairs.map((p: any, idx: number) => (
+                <div key={idx} className={`flex items-center gap-2 p-2 rounded border ${bw("border-slate-200", "border-black")}`}>
+                  <span className={`font-bold text-xs w-5 ${bw("text-blue-600", "text-black")}`}>{idx + 1}.</span>
+                  <span className="text-sm font-medium">{p.left}</span>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <p className={`text-xs font-bold uppercase mb-3 ${bw("text-teal-600", "text-black")}`}>Column B</p>
+              {shuffledRight.map((p: any, idx: number) => (
+                <div key={idx} className={`flex items-center gap-2 p-2 rounded border ${bw("border-slate-200", "border-black")}`}>
+                  <span className={`font-bold text-xs w-5 ${bw("text-teal-600", "text-black")}`}>{String.fromCharCode(65 + idx)}.</span>
+                  <span className="text-sm font-medium">{p.right}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <details className="mt-4">
+            <summary className="text-sm text-muted-foreground cursor-pointer">Answer Key</summary>
+            <div className="mt-2 p-3 bg-muted/50 rounded text-sm space-y-1">
+              {pairs.map((p: any, idx: number) => (
+                <p key={idx}>{idx + 1}. {p.left} → {p.right}</p>
+              ))}
+            </div>
+          </details>
+        </div>
+      );
+    }
+
+    // ── TRUE OR FALSE ─────────────────────────────────────────────────────────
+    if (layout === "trueOrFalse") {
+      const statements = data.statements || [];
+      return (
+        <div className="space-y-4" data-testid="worksheet-content">
+          <WorksheetHeader />
+          <div className="space-y-2">
+            {statements.map((s: any, idx: number) => (
+              <div key={idx} className={`flex items-center gap-3 p-2.5 rounded border ${bw("border-slate-200 bg-slate-50/50 dark:bg-slate-900/30", "border-black bg-white")}`}
+                data-testid={`worksheet-statement-${idx}`}>
+                <span className={`font-bold text-xs w-5 flex-shrink-0 ${bw("text-blue-600", "text-black")}`}>{idx + 1}.</span>
+                <p className="text-sm font-medium flex-1">{s.text}</p>
+                <div className="flex gap-2 flex-shrink-0">
+                  <div className={`px-3 py-1 rounded border text-xs font-bold ${bw("border-green-400 text-green-700", "border-black text-black")}`}>T</div>
+                  <div className={`px-3 py-1 rounded border text-xs font-bold ${bw("border-red-400 text-red-700", "border-black text-black")}`}>F</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <details className="mt-4">
+            <summary className="text-sm text-muted-foreground cursor-pointer">Answer Key</summary>
+            <div className="mt-2 p-3 bg-muted/50 rounded text-sm grid grid-cols-3 gap-1">
+              {statements.map((s: any, idx: number) => (
+                <p key={idx}>{idx + 1}. {s.answer ? "True" : "False"}</p>
+              ))}
+            </div>
+          </details>
+        </div>
+      );
+    }
+
+    // ── WRITING PROMPTS ───────────────────────────────────────────────────────
+    if (layout === "writing") {
+      const prompts = data.prompts || [];
+      return (
+        <div className="space-y-4" data-testid="worksheet-content">
+          <WorksheetHeader />
+          <div className="space-y-5">
+            {prompts.map((p: any, idx: number) => (
+              <div key={idx} data-testid={`worksheet-prompt-${idx}`}>
+                <p className={`text-sm font-semibold mb-2`}>
+                  <span className={`font-bold mr-1 ${bw("text-blue-600", "text-black")}`}>{idx + 1}.</span>
+                  {p.text}
+                </p>
+                {Array.from({ length: p.lines || 4 }).map((_, li) => (
+                  <div key={li} className={`w-full border-b mt-4 ${bw("border-slate-400", "border-black")}`} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── MIXED (legacy sections format) ────────────────────────────────────────
+    const sections = data.sections || [];
     const hasImages = sections.some((s: any) => s.imageUrl);
-    
     return (
       <div className="space-y-4" data-testid="worksheet-content">
-        {/* Header with logo */}
-        <div className="text-center border-b pb-4 relative">
-          <h2 className="text-2xl font-bold">{data.title}</h2>
-          {data.instructions && (
-            <p className="text-muted-foreground mt-1 text-sm">{data.instructions}</p>
-          )}
-          <div className="flex gap-2 justify-center mt-2 flex-wrap">
-            <Badge variant={isBlackWhite ? "outline" : "default"} data-testid="badge-color-mode">
-              {isBlackWhite ? "Black & White" : "Colored"}
+        <WorksheetHeader />
+        <div className="flex gap-2 justify-center -mt-2 mb-2 flex-wrap">
+          <Badge variant={isBlackWhite ? "outline" : "default"} data-testid="badge-color-mode">
+            {isBlackWhite ? "Black & White" : "Colored"}
+          </Badge>
+          {hasImages && (
+            <Badge variant="secondary" className="gap-1">
+              <ImageIcon className="h-3 w-3" /> With Images
             </Badge>
-            {hasImages && (
-              <Badge variant="secondary" className="gap-1">
-                <ImageIcon className="h-3 w-3" /> With Images
-              </Badge>
-            )}
-          </div>
-          {/* BrightBoard Logo Badge */}
-          {showLogo && (
-            <div className="flex items-center gap-1 justify-center mt-2" data-testid="logo-badge-worksheet">
-              <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-full px-2.5 py-0.5">
-                <img src="/logo.png" alt="BrightBoard" className="w-4 h-4 rounded" />
-                <span className="text-purple-700 dark:text-purple-300 text-[10px] font-semibold">brightboardapp.com</span>
-              </div>
-            </div>
-          )}
-          {/* Premium logo toggle */}
-          {isPremium && (
-            <button
-              onClick={() => setShowLogo(v => !v)}
-              className="absolute top-0 right-0 text-[10px] text-muted-foreground hover:text-foreground underline"
-              data-testid="button-toggle-logo"
-            >
-              {showLogo ? "Hide logo" : "Show logo"}
-            </button>
           )}
         </div>
-        
         <div className="space-y-6">
           {sections.map((section: any, idx: number) => (
-            <Card 
-              key={idx} 
+            <Card key={idx}
               className={`p-4 ${isBlackWhite ? "bg-white border-2 border-black" : "bg-gradient-to-r from-muted/50 to-muted/20"}`}
-              data-testid={`worksheet-section-${idx}`}
-            >
+              data-testid={`worksheet-section-${idx}`}>
               <div className={`flex gap-3 ${section.imageUrl ? "items-start" : ""}`}>
-                {/* Section image (paid feature) */}
                 {section.imageUrl && (
-                  <img
-                    src={section.imageUrl}
-                    alt={section.title || "Illustration"}
+                  <img src={section.imageUrl} alt={section.title || "Illustration"}
                     className="w-24 h-24 object-cover rounded-lg border flex-shrink-0"
-                    data-testid={`worksheet-section-image-${idx}`}
-                  />
+                    data-testid={`worksheet-section-image-${idx}`} />
                 )}
                 <div className="flex-1">
                   {section.title && (
-                    <h3 className={`font-semibold mb-3 ${isBlackWhite ? "text-black" : ""}`}>
-                      {section.title}
-                    </h3>
+                    <h3 className={`font-semibold mb-3 ${isBlackWhite ? "text-black" : ""}`}>{section.title}</h3>
                   )}
-                  
                   <div className="space-y-2">
                     {section.content?.map((item: string, i: number) => (
-                      <div 
-                        key={i} 
-                        className={`p-2 rounded ${isBlackWhite ? "border border-black" : "bg-background/50"}`}
-                      >
+                      <div key={i} className={`p-2 rounded ${isBlackWhite ? "border border-black" : "bg-background/50"}`}>
                         {section.type === "fillBlank" ? (
-                          <p className="font-medium">
-                            {i + 1}. {item.replace(/_+/g, (match: string) => `_${"_".repeat(Math.max(10, match.length))}_`)}
-                          </p>
+                          <p className="font-medium">{i + 1}. {item.replace(/_+/g, (match: string) => `_${"_".repeat(Math.max(10, match.length))}_`)}</p>
                         ) : section.type === "multipleChoice" ? (
-                          <div>
-                            <p className="font-medium">{i + 1}. {item}</p>
-                          </div>
+                          <p className="font-medium">{i + 1}. {item}</p>
                         ) : section.type === "writingPrompt" ? (
                           <div>
                             <p className="font-medium">{item}</p>
@@ -1582,7 +1757,6 @@ function WorksheetContent({ content }: { content: string }) {
                       </div>
                     ))}
                   </div>
-
                   {section.answers && section.answers.length > 0 && (
                     <details className="mt-3">
                       <summary className="text-sm text-muted-foreground cursor-pointer">Answer Key</summary>
@@ -1603,6 +1777,21 @@ function WorksheetContent({ content }: { content: string }) {
   } catch {
     return <TextContent content={content} />;
   }
+}
+
+function AnswerKeyToggle({ questions, show, setShow }: { questions: any[]; show: boolean; setShow: (v: boolean) => void }) {
+  const answers = questions.filter((q: any) => q.answer);
+  if (!answers.length) return null;
+  return (
+    <details open={show} onToggle={(e) => setShow((e.target as HTMLDetailsElement).open)} className="mt-4">
+      <summary className="text-sm text-muted-foreground cursor-pointer select-none">Answer Key</summary>
+      <div className="mt-2 p-3 bg-muted/50 rounded text-sm grid grid-cols-3 gap-1">
+        {questions.map((q: any, i: number) => (
+          q.answer ? <p key={i}>{i + 1}. {q.answer}</p> : null
+        ))}
+      </div>
+    </details>
+  );
 }
 
 function MindmapContent({ content }: { content: string }) {

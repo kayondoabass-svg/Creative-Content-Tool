@@ -27,6 +27,16 @@ const worksheetColorModes = [
   { value: "blackWhite", key: "home.blackAndWhite" },
 ];
 
+const worksheetTypes = [
+  { value: "mixed",          emoji: "🎲", label: "Mixed"           },
+  { value: "fillBlank",      emoji: "✏️", label: "Fill Blanks"     },
+  { value: "pictureGrid",    emoji: "🖼️", label: "Picture Grid"    },
+  { value: "multipleChoice", emoji: "🔤", label: "Multiple Choice" },
+  { value: "matching",       emoji: "🔗", label: "Matching"        },
+  { value: "trueOrFalse",    emoji: "✅", label: "True / False"    },
+  { value: "writing",        emoji: "📝", label: "Writing"         },
+];
+
 const videoLengths = [
   { value: "30sec", label: "30 sec" },
   { value: "1min", label: "1 min" },
@@ -192,6 +202,7 @@ const formSchema = z.object({
   presentationTapToReveal: z.boolean().optional(),
   worksheetColorMode: z.string().optional(),
   worksheetIncludeImages: z.boolean().optional(),
+  worksheetType: z.string().optional(),
   // Mindmap options
   mindmapBranchCount: z.string().optional(),
   mindmapLayoutStyle: z.string().optional(),
@@ -285,6 +296,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       presentationTapToReveal: false,
       worksheetColorMode: "colored",
       worksheetIncludeImages: false,
+      worksheetType: "mixed",
       // Mindmap options
       mindmapBranchCount: "5",
       mindmapLayoutStyle: "radial",
@@ -496,6 +508,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     const worksheetOptions = selectedType === "worksheet" ? {
       colorMode: values.worksheetColorMode,
       includeImages: values.worksheetIncludeImages,
+      worksheetType: values.worksheetType || "mixed",
     } : undefined;
     const imageOptions = selectedType === "image" ? {
       style: values.imageStyle,
@@ -1574,6 +1587,34 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
 
           {selectedType === "worksheet" && (
             <div className="space-y-2">
+              {/* Worksheet type selector */}
+              <FormField
+                control={form.control}
+                name="worksheetType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Worksheet Type</FormLabel>
+                    <div className="flex flex-wrap gap-1.5 mt-1" data-testid="worksheet-type-selector">
+                      {worksheetTypes.map((wt) => (
+                        <button
+                          key={wt.value}
+                          type="button"
+                          onClick={() => field.onChange(wt.value)}
+                          data-testid={`btn-worksheet-type-${wt.value}`}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                            field.value === wt.value
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-muted/50 text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                          }`}
+                        >
+                          <span>{wt.emoji}</span>
+                          <span>{wt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </FormItem>
+                )}
+              />
               {/* Free-tier image reminder */}
               {!isPremium && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-sm" data-testid="banner-worksheet-images">
