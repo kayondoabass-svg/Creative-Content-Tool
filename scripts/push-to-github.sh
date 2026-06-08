@@ -7,7 +7,8 @@ if [ -z "$GITHUB_PAT" ]; then
 fi
 
 REPO="kayondoabass-svg/Creative-Content-Tool"
-REMOTE="https://${GITHUB_PAT}@github.com/${REPO}.git"
+GITHUB_USER="kayondoabass-svg"
+REMOTE="https://${GITHUB_USER}:${GITHUB_PAT}@github.com/${REPO}.git"
 
 git config user.email "agent@brightboardapp.com"
 git config user.name "BrightBoard"
