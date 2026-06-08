@@ -34,4 +34,4 @@ fi
 
 echo "🚀 Pushing to GitHub..."
 git push -u origin main
-echo "✅ Done. VPS just needs: git reset --hard origin/main && pm2 restart brightboard"
+echo "✅ Done. VPS just needs: git fetch origin main && git reset --hard origin/main && pm2 restart brightboard"
