@@ -2,10 +2,10 @@ import type { GeneratedContent, InsertGeneratedContent, OrganizationSettings } f
 import { randomUUID } from "crypto";
 
 export interface IStorage {
-  getAllContent(): Promise<GeneratedContent[]>;
+  getContentByUser(userId: string): Promise<GeneratedContent[]>;
   getContent(id: number): Promise<GeneratedContent | undefined>;
   createContent(content: InsertGeneratedContent): Promise<GeneratedContent>;
-  deleteContent(id: number): Promise<void>;
+  deleteContent(id: number, userId?: string): Promise<void>;
   getOrganizationSettings(): Promise<OrganizationSettings>;
   updateOrganizationSettings(settings: Partial<OrganizationSettings>): Promise<OrganizationSettings>;
 }
@@ -21,10 +21,10 @@ export class MemStorage implements IStorage {
     this.organizationSettings = {};
   }
 
-  async getAllContent(): Promise<GeneratedContent[]> {
-    return Array.from(this.content.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+  async getContentByUser(userId: string): Promise<GeneratedContent[]> {
+    return Array.from(this.content.values())
+      .filter(c => c.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async getContent(id: number): Promise<GeneratedContent | undefined> {
@@ -35,6 +35,7 @@ export class MemStorage implements IStorage {
     const id = this.nextId++;
     const content: GeneratedContent = {
       ...insertContent,
+      userId: insertContent.userId ?? null,
       id,
       createdAt: new Date(),
     };
@@ -42,7 +43,9 @@ export class MemStorage implements IStorage {
     return content;
   }
 
-  async deleteContent(id: number): Promise<void> {
+  async deleteContent(id: number, userId?: string): Promise<void> {
+    const item = this.content.get(id);
+    if (item && userId && item.userId !== userId) return;
     this.content.delete(id);
   }
 

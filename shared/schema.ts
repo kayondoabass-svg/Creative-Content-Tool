@@ -13,6 +13,7 @@ export type ContentType = typeof contentTypes[number];
 // Generated content table
 export const generatedContent = pgTable("generated_content", {
   id: serial("id").primaryKey(),
+  userId: text("user_id"),
   type: text("type").notNull(),
   prompt: text("prompt").notNull(),
   title: text("title").notNull(),

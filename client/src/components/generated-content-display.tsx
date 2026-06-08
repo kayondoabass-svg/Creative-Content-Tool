@@ -226,6 +226,33 @@ export function GeneratedContentDisplay({
       img.src = svgUrl;
       return;
     }
+    // For images: decode base64 and save as PNG
+    if (type === "image") {
+      try {
+        const data = JSON.parse(content);
+        const b64 = data.b64_json || (data.images && data.images[0]);
+        if (b64) {
+          const byteChars = atob(b64);
+          const byteArr = new Uint8Array(byteChars.length);
+          for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+          const imgBlob = new Blob([byteArr], { type: "image/png" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(imgBlob);
+          a.download = `brightboard-image-${Date.now()}.png`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+          return;
+        }
+        // Fallback: imageUrl
+        if (data.imageUrl) {
+          const a = document.createElement("a");
+          a.href = data.imageUrl;
+          a.download = `brightboard-image-${Date.now()}.png`;
+          a.click();
+          return;
+        }
+      } catch {}
+    }
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

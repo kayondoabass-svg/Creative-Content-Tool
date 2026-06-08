@@ -2036,9 +2036,11 @@ ${pages.map(p => `  <url>
   // ========== END OWNER DASHBOARD ROUTES ==========
 
   // Get all generated content
-  app.get("/api/content", async (req, res) => {
+  app.get("/api/content", async (req: any, res) => {
     try {
-      const content = await storage.getAllContent();
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const content = await storage.getContentByUser(userId);
       res.json(content);
     } catch (error) {
       console.error("Error fetching content:", error);
@@ -2047,13 +2049,14 @@ ${pages.map(p => `  <url>
   });
 
   // Get single content item
-  app.get("/api/content/:id", async (req, res) => {
+  app.get("/api/content/:id", async (req: any, res) => {
     try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
       const id = parseInt(req.params.id);
       const content = await storage.getContent(id);
-      if (!content) {
-        return res.status(404).json({ error: "Content not found" });
-      }
+      if (!content) return res.status(404).json({ error: "Content not found" });
+      if (content.userId && content.userId !== userId) return res.status(403).json({ error: "Access denied" });
       res.json(content);
     } catch (error) {
       console.error("Error fetching content:", error);
@@ -2062,10 +2065,14 @@ ${pages.map(p => `  <url>
   });
 
   // Delete content
-  app.delete("/api/content/:id", async (req, res) => {
+  app.delete("/api/content/:id", async (req: any, res) => {
     try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
       const id = parseInt(req.params.id);
-      await storage.deleteContent(id);
+      const item = await storage.getContent(id);
+      if (item && item.userId && item.userId !== userId) return res.status(403).json({ error: "Access denied" });
+      await storage.deleteContent(id, userId);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting content:", error);
@@ -3462,8 +3469,8 @@ This should look like it was designed by a world-class branding agency. Make it 
         if (!isPremium) parsed.watermark = "brightboardapp.com";
         generatedContent = JSON.stringify(parsed);
 
-        // Save to storage
-        const saved = await storage.createContent({ type, prompt, title, content: generatedContent });
+        // Save to storage — always attach userId so content is private per user
+        const saved = await storage.createContent({ type, prompt, title, content: generatedContent, userId });
 
         onProgress("Saving to your library...", 95);
 
