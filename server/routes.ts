@@ -12,6 +12,66 @@ import { generateVideoFromStoryboard } from "./videoService";
 import { jobQueue } from "./jobQueue";
 import fs from "fs";
 import path from "path";
+import rateLimit from "express-rate-limit";
+
+// ── Rate limiters ────────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: "Too many attempts. Please wait 15 minutes and try again." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 8,
+  message: { error: "Too many accounts created from this IP. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 15,
+  message: { error: "You're generating too fast. Please wait a moment." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalApiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 200,
+  message: { error: "Too many requests. Please slow down." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ── In-memory generation cache ───────────────────────────────────────────────
+interface CacheEntry { content: string; title: string; expiresAt: number; }
+const generationCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function getCacheKey(type: string, prompt: string, extra: Record<string, unknown>): string {
+  const raw = JSON.stringify({ type, prompt: prompt.trim().toLowerCase(), ...extra });
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
+
+function getFromCache(key: string): CacheEntry | null {
+  const entry = generationCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { generationCache.delete(key); return null; }
+  return entry;
+}
+
+function setCache(key: string, content: string, title: string): void {
+  if (generationCache.size > 500) {
+    // Evict oldest 100 entries when cache is large
+    const keys = [...generationCache.keys()].slice(0, 100);
+    keys.forEach(k => generationCache.delete(k));
+  }
+  generationCache.set(key, { content, title, expiresAt: Date.now() + CACHE_TTL_MS });
+}
 
 // Custom authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -140,6 +200,19 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // ── Apply general API rate limit to all /api routes ──────────────────────
+  app.use("/api", generalApiLimiter);
+
+  // ── Health check endpoint (for UptimeRobot / load balancer) ─────────────
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      cache: { entries: generationCache.size },
+    });
+  });
 
   // ========== SEO & MONETIZATION FILES ==========
   // Served explicitly so they always work in production regardless of static file setup
@@ -365,7 +438,7 @@ ${pages.map(p => `  <url>
   });
 
   // Login with email/password
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
       
@@ -541,7 +614,7 @@ ${pages.map(p => `  <url>
   });
 
   // Reset password with code
-  app.post("/api/auth/reset-password", async (req, res) => {
+  app.post("/api/auth/reset-password", authLimiter, async (req, res) => {
     try {
       const { email, code, newPassword } = req.body;
       
@@ -3262,7 +3335,7 @@ This should look like it was designed by a world-class branding agency. Make it 
   });
 
   // Generate content (requires authentication) — async queue-based
-  app.post("/api/generate", async (req, res) => {
+  app.post("/api/generate", generateLimiter, async (req, res) => {
     try {
       // Auth must happen synchronously before returning jobId
       const sessionUserId = (req as any).session?.userId;
@@ -3356,6 +3429,22 @@ This should look like it was designed by a world-class branding agency. Make it 
 
         let generatedContent: string;
         let title: string;
+
+        // Check generation cache (text/presentation/worksheet cacheable; images/storyboards skip)
+        const cacheableTypes = ["text", "presentation", "worksheet", "mindmap", "activity"];
+        const cacheKey = cacheableTypes.includes(type)
+          ? getCacheKey(type, prompt, { gradeLevel, subject, slideCount, worksheetOptions, activityOptions })
+          : null;
+        if (cacheKey) {
+          const cached = getFromCache(cacheKey);
+          if (cached) {
+            onProgress("Loaded from cache...", 95);
+            generatedContent = cached.content;
+            title = cached.title;
+            const saved = await storage.createContent({ type, prompt, title, content: generatedContent, userId });
+            return { content: generatedContent, title, id: saved.id, fromCache: true };
+          }
+        }
 
         switch (type) {
           case "image": {
@@ -3468,6 +3557,9 @@ This should look like it was designed by a world-class branding agency. Make it 
         parsed.showLogo = true;
         if (!isPremium) parsed.watermark = "brightboardapp.com";
         generatedContent = JSON.stringify(parsed);
+
+        // Store in cache for cacheable types
+        if (cacheKey) setCache(cacheKey, generatedContent, title);
 
         // Save to storage — always attach userId so content is private per user
         const saved = await storage.createContent({ type, prompt, title, content: generatedContent, userId });
