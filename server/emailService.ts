@@ -16,18 +16,39 @@ async function sendEmail(to: string, subject: string, html: string, from: string
   if (text) body.text = text;
   if (replyTo) body.replyTo = replyTo;
 
-  const res = await fetch(AFROAI_API_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  // 15-second timeout so a hanging AfroAI connection never blocks the process
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15_000);
 
-  if (!res.ok) throw new Error(`Email send failed: ${await res.text()}`);
+  let res: Response;
+  try {
+    res = await fetch(AFROAI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!res.ok) {
+    // Read as text first — response may be HTML (e.g. Cloudflare error), not JSON
+    const body = await res.text().catch(() => `HTTP ${res.status}`);
+    throw new Error(`Email send failed (${res.status}): ${body.substring(0, 200)}`);
+  }
+
+  // Guard against non-JSON responses (Cloudflare HTML etc.)
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Email API returned non-JSON (${res.status}): ${body.substring(0, 100)}`);
+  }
+
   const data = await res.json() as any;
-
   return { success: true, messageId: data.messageId };
 }
 

@@ -128,7 +128,13 @@ app.use((req, res, next) => {
       console.error('[activation] Error in scheduled email job:', err);
     }
   };
-  setTimeout(() => { scheduleActivationEmails(); setInterval(scheduleActivationEmails, 4 * 60 * 60 * 1000); }, 10 * 60 * 1000);
+  // Use void + catch so any rejection is logged, never unhandled
+  setTimeout(() => {
+    void scheduleActivationEmails().catch(e => console.error('[activation] scheduler error:', e));
+    setInterval(() => {
+      void scheduleActivationEmails().catch(e => console.error('[activation] scheduler error:', e));
+    }, 4 * 60 * 60 * 1000);
+  }, 10 * 60 * 1000);
 
   // Serve flashcard images from root public/ in both dev and production
   app.use("/flashcard-images", express.static(path.join(process.cwd(), "public", "flashcard-images")));
