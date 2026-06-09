@@ -5,6 +5,14 @@ import { createServer } from "http";
 import { setupAuth } from "./replit_integrations/auth";
 import path from "path";
 
+// ── Global crash guards — keep the process alive if any async error escapes ──
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught exception (process kept alive):", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled promise rejection (process kept alive):", reason);
+});
+
 const app = express();
 const httpServer = createServer(app);
 
