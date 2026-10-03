@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, X, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Eye, Hand } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Slide } from "@shared/schema";
 import { BrightBoardLogo } from "./brightboard-logo";

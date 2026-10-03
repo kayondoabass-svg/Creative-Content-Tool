@@ -89,7 +89,7 @@ export default function SignupPage() {
 
   if (step === "verify") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+      <div className="min-h-screen flex items-center justify-center page-shell p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
@@ -133,7 +133,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
+    <div className="min-h-screen flex items-center justify-center page-shell p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-teal-500 bg-clip-text text-transparent">
@@ -166,12 +166,12 @@ export default function SignupPage() {
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
-                <Input id="password" type={showPassword ? "text" : "password"}
+                <Input id="password" type={showPassword ? "text" : "password"} className="pe-10" autoComplete="new-password"
                   placeholder="At least 8 characters" value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required minLength={8} data-testid="input-password" />
                 <Button type="button" variant="ghost" size="icon"
-                  className="absolute right-0 top-0 h-full"
+                  className="absolute end-0 top-0 h-full no-default-hover-elevate no-default-active-elevate"
                   onClick={() => setShowPassword(!showPassword)} data-testid="button-toggle-password">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>

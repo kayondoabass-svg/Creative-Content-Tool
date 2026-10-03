@@ -3,3 +3,5 @@
 - [Report card name overlap](report-card-name-field.md) — AI detects nameField too low (body text); fixed with Y-cap at 40% + white rect + improved prompt
 - [isPremium ReferenceError crash](ispremium-crash.md) — GeneratedContentDisplay used isPremium without calling useSubscription(); crashed entire React tree on every page load
 - [dist rebuild required for VPS](dist-rebuild-required.md) — VPS serves pre-built dist/ from git; must run npm run build and commit dist/ before pushing or VPS sees no change
+- [App-wide design direction](design-direction.md) — Edupath light-demo inspiration applies to public pages and Teacher Studio; preserve BrightBoard’s functionality and factual copy.
+- [Isolated preview dependencies](preview-dependencies.md) — mockup previews need independent Tailwind resolution; never upgrade the main app just to repair a preview.

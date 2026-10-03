@@ -28,7 +28,7 @@ import {
   Edit2,
   Loader2
 } from "lucide-react";
-import { SiTiktok, SiFacebook, SiGoogle, SiAmazon, SiCloudflare } from "react-icons/si";
+import { SiTiktok, SiFacebook, SiGoogle, SiCloudflare } from "react-icons/si";
 
 interface Expense {
   id: number;
@@ -53,7 +53,7 @@ const categoryInfo: Record<string, { label: string; icon: any; color: string }> 
   resend: { label: "Resend Emails", icon: Mail, color: "bg-blue-500" },
   replit: { label: "Replit", icon: Cloud, color: "bg-orange-500" },
   cloudflare: { label: "Cloudflare", icon: SiCloudflare, color: "bg-yellow-500" },
-  amazon: { label: "Amazon/AWS", icon: SiAmazon, color: "bg-amber-600" },
+  amazon: { label: "Amazon/AWS", icon: Cloud, color: "bg-amber-600" },
   paddle: { label: "Paddle Fees", icon: CreditCard, color: "bg-indigo-500" },
   tiktok_ads: { label: "TikTok Ads", icon: SiTiktok, color: "bg-pink-500" },
   meta_ads: { label: "Meta Ads", icon: SiFacebook, color: "bg-blue-600" },

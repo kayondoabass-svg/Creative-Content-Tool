@@ -11,7 +11,7 @@ import {
   GraduationCap, School, Award, Lightbulb, Mail, CheckCircle, 
   RefreshCw, X, ArrowRight, Download, Smartphone, Monitor, Apple
 } from "lucide-react";
-import { SiFacebook } from "react-icons/si";
+import { SiFacebook, SiInstagram } from "react-icons/si";
 import { Footer } from "@/components/footer";
 import { LanguageSelector } from "@/components/language-selector";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/accordion";
 
 const FACEBOOK_URL = "https://www.facebook.com/share/1Degjg2YnK/";
+const INSTAGRAM_URL = "https://www.instagram.com/brightboardapp/";
 
 const showcaseSlidesData = [
   { titleKey: "slideImageTitle", descKey: "slideImageDesc", icon: Image, color: "from-pink-500 to-rose-500" },
@@ -158,31 +159,43 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-b from-background to-muted/30">
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 border-b">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+    <div className="flex flex-col min-h-screen page-shell">
+      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-background/90 border-b border-border/80">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <img 
               src="/logo.png" 
               alt={t('common.appName')} 
-              className="h-12 w-12 rounded-lg object-contain bg-white"
+              className="h-10 w-10 rounded-xl object-contain bg-card p-1 ring-1 ring-border/70"
             />
-            <span className="font-bold text-xl">{t('common.appName')}</span>
+            <span className="font-bold tracking-tight text-lg">{t('common.appName')}</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/features" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">{t('common.features')}</Link>
-            <Link href="/how-it-works" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-how-it-works">{t('footer.howItWorks')}</Link>
-            <Link href="/blog" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog">{t('footer.blog')}</Link>
-            <Link href="/file-tools" className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-file-tools">{t('common.fileTools')}</Link>
+            <Link href="/features" className="hidden lg:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">{t('common.features')}</Link>
+            <Link href="/how-it-works" className="hidden lg:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-how-it-works">{t('footer.howItWorks')}</Link>
+            <Link href="/blog" className="hidden lg:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog">{t('footer.blog')}</Link>
+            <Link href="/file-tools" className="hidden lg:block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-file-tools">{t('common.fileTools')}</Link>
+            <Link href="/studio" className="hidden lg:block text-sm font-semibold text-primary hover:text-accent transition-colors" data-testid="link-studio-nav">Teacher Studio</Link>
+            <Link href="/about" className="hidden xl:block text-sm text-muted-foreground hover:text-primary transition-colors" data-testid="link-about-nav">{t('footer.about')}</Link>
             <a
               href={FACEBOOK_URL}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="link-facebook-nav"
               aria-label="Follow BrightBoard on Facebook"
-              className="hidden sm:flex w-8 h-8 rounded-full bg-[#1877F2] items-center justify-center text-white hover:bg-[#1666d8] transition-colors shadow-sm"
+              className="hidden xl:flex w-8 h-8 rounded-full bg-[#1877F2] items-center justify-center text-white hover:bg-[#1666d8] transition-colors shadow-sm"
             >
               <SiFacebook className="w-4 h-4" />
+            </a>
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="link-instagram-nav"
+              aria-label="Follow BrightBoard on Instagram"
+              className="hidden xl:flex w-8 h-8 rounded-full bg-gradient-to-tr from-[#fd5949] via-[#d6249f] to-[#285AEB] items-center justify-center text-white hover:opacity-90 transition-opacity shadow-sm"
+            >
+              <SiInstagram className="w-4 h-4" />
             </a>
             <LanguageSelector />
             <ThemeToggle />
@@ -191,18 +204,25 @@ export default function LandingPage() {
             </Button>
           </div>
         </div>
+        <div className="no-scrollbar flex gap-5 overflow-x-auto border-t border-border/60 px-4 py-2.5 lg:hidden" aria-label="Mobile navigation">
+          <Link href="/features" className="shrink-0 text-xs font-medium text-muted-foreground">{t("common.features")}</Link>
+          <Link href="/studio" className="shrink-0 text-xs font-semibold text-primary">Teacher Studio</Link>
+          <Link href="/about" className="shrink-0 text-xs font-medium text-muted-foreground">{t("footer.about")}</Link>
+          <Link href="/pricing" className="shrink-0 text-xs font-medium text-muted-foreground">{t("common.pricing")}</Link>
+          <Link href="/resources" className="shrink-0 text-xs font-medium text-muted-foreground">{t("footer.resources", { defaultValue: "Resources" })}</Link>
+        </div>
       </nav>
 
-      <main className="flex-1 pt-24 pb-16">
+      <main className="flex-1 pb-16">
         {/* Welcome Back Banner */}
         {showWelcomeBack && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-full max-w-lg px-4 animate-in slide-in-from-top duration-500">
-            <Card className="p-4 bg-gradient-to-r from-primary/10 via-purple-500/10 to-teal-500/10 border-primary/30 shadow-lg">
-              <div className="flex items-center gap-3">
+          <div className="container mx-auto max-w-3xl px-4 mt-5 animate-in slide-in-from-top duration-500">
+            <Card className="relative p-4 pr-10 bg-gradient-to-r from-primary/10 via-purple-500/10 to-teal-500/10 border-primary/30 shadow-sm">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                   <Sparkles className="w-5 h-5 text-primary" />
                 </div>
-                <div className="flex-1">
+                <div className="min-w-[180px] flex-1">
                   <p className="font-semibold text-sm" data-testid="text-welcome-back">{t('landing.welcomeBackTitle')}</p>
                   <p className="text-xs text-muted-foreground">{t('landing.welcomeBackMessage')}</p>
                 </div>
@@ -214,7 +234,8 @@ export default function LandingPage() {
                 </Button>
                 <button
                   onClick={() => setShowWelcomeBack(false)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="absolute end-3 top-3 p-1 text-muted-foreground hover:text-foreground"
+                  aria-label={t("common.close", { defaultValue: "Close" })}
                   data-testid="button-dismiss-welcome"
                 >
                   <X className="w-4 h-4" />
@@ -226,28 +247,30 @@ export default function LandingPage() {
 
         {/* Hero Section */}
         <section className="container mx-auto px-4 py-12">
-          <div className="text-center max-w-3xl mx-auto mb-8">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-primary via-purple-500 to-teal-500 bg-clip-text text-transparent">{t('landing.heroTitle')}</span>
-              <span className="block text-2xl md:text-4xl mt-2 text-foreground/80">{t('landing.heroSubtitle')}</span>
+          <div className="grid lg:grid-cols-[1.08fr_.92fr] items-center gap-9 lg:gap-14 max-w-6xl mx-auto mb-12">
+          <div className="text-center lg:text-left max-w-3xl mx-auto lg:mx-0">
+            <p className="bb-eyebrow mb-4">{t("landing.heroEyebrow", { defaultValue: "Make room for the teaching" })}</p>
+            <h1 className="bb-display text-4xl md:text-6xl font-extrabold mb-6 leading-[1.04]">
+              <span className="text-primary">{t('landing.heroTitle')}</span>
+              <span className="block text-2xl md:text-4xl mt-3 text-foreground/80 font-semibold tracking-[-.035em]">{t('landing.heroSubtitle')}</span>
             </h1>
-            <p className="text-xl text-muted-foreground mb-8">
+            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
               {t('landing.heroDescription')}
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center lg:justify-start mb-8">
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg shadow-primary/30 text-lg font-bold px-8 py-6 h-auto rounded-xl"
+                className="text-lg font-bold px-8 py-6 h-auto rounded-full shadow-md"
                 asChild
                 data-testid="button-get-started"
               >
                 <Link href="/signup">
                   <Sparkles className="w-5 h-5 mr-2" />
-                  {t('common.getStarted')} — It's Free
+                  {t('common.getStarted')}
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild data-testid="button-watch-demo" className="px-6 py-6 h-auto rounded-xl">
+              <Button size="lg" variant="outline" asChild data-testid="button-watch-demo" className="px-6 py-6 h-auto rounded-full">
                 <a href="#demo">
                   <Play className="w-4 h-4 mr-2" />
                   {t('landing.watchDemo')}
@@ -279,17 +302,17 @@ export default function LandingPage() {
             </div>
 
             {/* Trust Badges */}
-            <div className="flex flex-wrap justify-center gap-4 sm:gap-8 text-sm text-muted-foreground">
+            <div className="flex flex-wrap justify-center lg:justify-start gap-4 sm:gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-green-500" />
+                <Shield className="w-5 h-5 text-primary" />
                 <span>{t('landing.trustMoneyBack')}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-500" />
+                <Clock className="w-5 h-5 text-accent" />
                 <span>{t('landing.trustCancel')}</span>
               </div>
               <div className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-purple-500" />
+                <CreditCard className="w-5 h-5 text-primary" />
                 <span>{t('landing.trustSecure')}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -298,13 +321,36 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+          <div className="relative mx-auto w-full max-w-[550px]">
+            <div className="absolute inset-x-8 top-7 bottom-4 rounded-[2rem] bg-secondary/90 rotate-[-4deg]" />
+            <div className="absolute inset-x-5 top-3 bottom-6 rounded-[2rem] border border-primary/10 bg-primary/5 rotate-[3deg]" />
+            <div className="relative isolate overflow-hidden rounded-[2rem] border border-primary/10 bg-secondary shadow-xl min-h-[330px] md:min-h-[455px]">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_65%_33%,rgba(139,92,246,.18),transparent_60%)]" />
+              <div className="absolute left-5 top-5 z-10 inline-flex items-center gap-2 rounded-full border border-white/80 bg-card/85 px-3 py-2 text-xs font-semibold shadow-sm backdrop-blur">
+                <span className="h-2 w-2 rounded-full bg-primary" /> Teacher Studio
+              </div>
+              <img
+                src="/images/teacher-hero.webp"
+                alt="An educator planning classroom materials on her laptop"
+                className="absolute inset-x-0 bottom-0 z-[1] mx-auto h-[96%] w-full object-contain object-bottom drop-shadow-[0_18px_24px_rgba(46,52,46,.12)]"
+                decoding="async"
+                width={900}
+                height={900}
+              />
+              <div className="absolute bottom-5 left-5 z-10 hidden sm:block max-w-[190px] rounded-2xl border border-white/80 bg-card/90 p-3.5 shadow-lg backdrop-blur">
+                <div className="flex items-center gap-2 text-primary mb-1"><Presentation className="h-4 w-4" /><span className="text-xs font-bold">{t("landing.materialsLabel", { defaultValue: "Lesson materials" })}</span></div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">{t("landing.materialsCaption", { defaultValue: "Start with an idea. Leave with something ready to teach." })}</p>
+              </div>
+            </div>
+          </div>
+          </div>
 
           {/* Usage Stats Counter */}
-          <div className="max-w-2xl mx-auto mb-12">
+          {stats && (stats.totalUsers > 0 || stats.totalContent > 0) && <div className="max-w-2xl mx-auto mb-12">
             <div className="grid grid-cols-2 gap-4">
               <Card className="text-center p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
                 <div className="text-3xl md:text-4xl font-bold text-primary">
-                  {stats?.totalUsers ? stats.totalUsers.toLocaleString() : t('common.statsTeachersFallback')}+
+                  {stats.totalUsers.toLocaleString()}
                 </div>
                 <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
                   <Users className="w-4 h-4" />
@@ -313,7 +359,7 @@ export default function LandingPage() {
               </Card>
               <Card className="text-center p-4 bg-gradient-to-br from-teal-500/10 to-cyan-500/10 border-teal-500/20">
                 <div className="text-3xl md:text-4xl font-bold text-teal-600 dark:text-teal-400">
-                  {stats?.totalContent ? stats.totalContent.toLocaleString() : t('common.statsContentFallback')}+
+                  {stats.totalContent.toLocaleString()}
                 </div>
                 <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
                   <FileCheck className="w-4 h-4" />
@@ -321,7 +367,7 @@ export default function LandingPage() {
                 </div>
               </Card>
             </div>
-          </div>
+          </div>}
 
           {/* Showcase Carousel */}
           <div className="max-w-4xl mx-auto">
@@ -744,6 +790,18 @@ export default function LandingPage() {
                   <a href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">
                     <SiFacebook className="w-5 h-5 mr-2" />
                     Follow on Facebook
+                  </a>
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  asChild
+                  data-testid="button-instagram-cta"
+                  className="border-[#d6249f]/40 text-[#d6249f] hover:bg-[#d6249f]/10"
+                >
+                  <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
+                    <SiInstagram className="w-5 h-5 mr-2" />
+                    Follow on Instagram
                   </a>
                 </Button>
               </div>

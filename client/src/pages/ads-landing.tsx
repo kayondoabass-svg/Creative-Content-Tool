@@ -7,7 +7,7 @@ import {
   Gamepad2, Video, CheckCircle, ArrowRight, Star, Users,
   Zap, Shield, Clock, Globe
 } from "lucide-react";
-import { SiFacebook } from "react-icons/si";
+import { SiFacebook, SiInstagram } from "react-icons/si";
 import { useQuery } from "@tanstack/react-query";
 
 const features = [
@@ -256,6 +256,15 @@ export default function AdsLanding() {
           className="inline-flex items-center gap-1 text-[#1877F2] hover:underline"
         >
           <SiFacebook className="w-3 h-3" /> Follow us on Facebook
+        </a>
+        <a
+          href="https://www.instagram.com/brightboardapp/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 inline-flex items-center gap-1 text-[#d6249f] hover:underline"
+          aria-label="Follow BrightBoard on Instagram"
+        >
+          <SiInstagram className="w-3 h-3" /> Follow us on Instagram
         </a>
       </footer>
     </div>

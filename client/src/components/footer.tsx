@@ -1,16 +1,17 @@
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Mail } from "lucide-react";
-import { SiFacebook } from "react-icons/si";
+import { SiFacebook, SiInstagram } from "react-icons/si";
 
 const FACEBOOK_URL = "https://www.facebook.com/share/1Degjg2YnK/";
+const INSTAGRAM_URL = "https://www.instagram.com/brightboardapp/";
 
 export function Footer() {
   const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t bg-card dark:bg-card" data-testid="footer">
+    <footer className="border-t border-border/80 bg-card/80" data-testid="footer">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
           <div className="md:col-span-1">
@@ -18,9 +19,9 @@ export function Footer() {
               <img 
                 src="/logo.png" 
                 alt="BrightBoard" 
-                className="w-10 h-10 rounded-lg object-contain bg-white"
+                className="w-10 h-10 rounded-xl object-contain bg-background p-1 ring-1 ring-border/70"
               />
-              <span className="font-bold text-xl bg-gradient-to-r from-purple-600 to-teal-500 bg-clip-text text-transparent">
+              <span className="font-bold text-xl text-primary">
                 BrightBoard
               </span>
             </Link>
@@ -37,6 +38,16 @@ export function Footer() {
                 aria-label="Follow BrightBoard on Facebook"
               >
                 <SiFacebook className="w-4 h-4" />
+              </a>
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="link-instagram-footer"
+                className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#fd5949] via-[#d6249f] to-[#285AEB] flex items-center justify-center text-white hover:opacity-90 transition-opacity shadow-sm"
+                aria-label="Follow BrightBoard on Instagram"
+              >
+                <SiInstagram className="w-4 h-4" />
               </a>
               <a
                 href="mailto:support@brightboardapp.com"
@@ -68,13 +79,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/studio" className="text-muted-foreground hover:text-foreground transition-colors font-medium text-purple-600 dark:text-purple-400" data-testid="link-teacher-studio">
-                  ✦ Teacher Studio
+                <Link href="/studio" className="text-muted-foreground hover:text-primary transition-colors font-medium" data-testid="link-teacher-studio">
+                  Teacher Studio
                 </Link>
               </li>
               <li>
-                <Link href="/flashcards" className="text-muted-foreground hover:text-foreground transition-colors font-medium text-teal-600 dark:text-teal-400" data-testid="link-flashcards">
-                  📚 Free Flashcards
+                <Link href="/flashcards" className="text-muted-foreground hover:text-primary transition-colors font-medium" data-testid="link-flashcards">
+                  Free Flashcards
                 </Link>
               </li>
               <li>
@@ -156,8 +167,8 @@ export function Footer() {
                   className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
                   data-testid="link-email"
                 >
-                  <Mail className="w-4 h-4" />
-                  support@brightboardapp.com
+                  <Mail className="w-4 h-4 shrink-0" />
+                  <span className="break-all">support@brightboardapp.com</span>
                 </a>
               </li>
             </ul>
@@ -229,16 +240,28 @@ export function Footer() {
               Powered by Afro AI (Keyo Technologies)
             </p>
           </div>
-          <a
-            href={FACEBOOK_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="link-facebook-bottom"
-            className="flex items-center gap-2 text-sm text-[#1877F2] hover:text-[#1666d8] transition-colors font-medium"
-          >
-            <SiFacebook className="w-4 h-4" />
-            Follow us on Facebook
-          </a>
+          <div className="flex flex-wrap items-center gap-4">
+            <a
+              href={FACEBOOK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="link-facebook-bottom"
+              className="flex items-center gap-2 text-sm text-[#1877F2] hover:text-[#1666d8] transition-colors font-medium"
+            >
+              <SiFacebook className="w-4 h-4" />
+              Follow us on Facebook
+            </a>
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="link-instagram-bottom"
+              className="flex items-center gap-2 text-sm text-[#d6249f] hover:opacity-80 transition-opacity font-medium"
+            >
+              <SiInstagram className="w-4 h-4" />
+              Follow us on Instagram
+            </a>
+          </div>
           <p className="text-sm text-muted-foreground">
             Made with love for educators worldwide
           </p>

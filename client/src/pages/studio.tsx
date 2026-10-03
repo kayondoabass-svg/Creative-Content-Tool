@@ -19,7 +19,7 @@ import {
   FileText, Award, Palette, FolderOpen, Crown, Sparkles, Upload, Download,
   ChevronRight, ChevronLeft, Check, Loader2, User, Mail, Phone, MapPin,
   Briefcase, GraduationCap, Star, Globe, BookOpen, ArrowRight, Printer,
-  RefreshCw, Lock, Zap, ClipboardList, Plus, X, Pencil, CheckCircle,
+  RefreshCw, Lock, Zap, ClipboardList, Plus, X, Pencil, CheckCircle, Medal,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -55,10 +55,10 @@ const CV_TEMPLATES = [
 ];
 
 const CERT_TEMPLATES = [
-  { id: "achievement",  name: "Achievement",   icon: "🏆", colors: ["#f59e0b", "#d97706"], desc: "For outstanding performance" },
-  { id: "excellence",   name: "Excellence",    icon: "⭐", colors: ["#7c3aed", "#6d28d9"], desc: "For exceptional effort" },
-  { id: "participation",name: "Participation", icon: "🎗️", colors: ["#0284c7", "#0369a1"], desc: "For taking part" },
-  { id: "completion",   name: "Completion",    icon: "✅", colors: ["#16a34a", "#15803d"], desc: "For finishing a course" },
+  { id: "achievement",  name: "Achievement",   icon: Award, colors: ["#f59e0b", "#d97706"], desc: "For outstanding performance" },
+  { id: "excellence",   name: "Excellence",    icon: Star, colors: ["#7c3aed", "#6d28d9"], desc: "For exceptional effort" },
+  { id: "participation",name: "Participation", icon: Medal, colors: ["#0284c7", "#0369a1"], desc: "For taking part" },
+  { id: "completion",   name: "Completion",    icon: CheckCircle, colors: ["#16a34a", "#15803d"], desc: "For finishing a course" },
 ];
 
 // ─── CV Template Renderers (inline styles for print compatibility) ────────────
@@ -670,35 +670,35 @@ export default function StudioPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
+      <div className="min-h-screen flex flex-col bg-background page-shell">
         {/* Hero */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-purple-700 to-teal-600 text-white">
+        <div className="relative overflow-hidden bg-primary text-primary-foreground">
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
           <div className="relative container mx-auto px-4 py-16 text-center">
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium mb-6">
               <Sparkles className="w-4 h-4" /> Free for all teachers
             </div>
             <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Teacher Studio</h1>
-            <p className="text-xl text-white/80 max-w-2xl mx-auto mb-8">
-              Your professional toolkit — build polished CVs, print student certificates, design school logos, and convert files. All powered by AI, all in one place.
+            <p className="text-xl text-primary-foreground/85 max-w-2xl mx-auto mb-8">
+              Your professional toolkit — build polished CVs, print student certificates, design school logos, convert files, and prepare report cards. Five practical tools, all in one place.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button asChild size="lg" className="bg-white text-purple-700 hover:bg-white/90 font-bold text-base px-8 shadow-lg" data-testid="button-studio-signup">
+              <Button asChild size="lg" className="bg-card text-primary hover:bg-card/90 font-bold text-base px-8 shadow-lg" data-testid="button-studio-signup">
                 <Link href="/signup">Get Started Free <ArrowRight className="w-4 h-4 ml-2" /></Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="border-white/40 text-white hover:bg-white/10 font-semibold text-base px-8" data-testid="button-studio-login">
+              <Button asChild size="lg" variant="outline" className="border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 font-semibold text-base px-8" data-testid="button-studio-login">
                 <Link href="/login">Sign In</Link>
               </Button>
             </div>
-            <p className="text-white/60 text-sm mt-4">No credit card required &bull; 1 free CV &amp; certificate per month</p>
+            <p className="text-primary-foreground/75 text-sm mt-4">No credit card required &bull; 1 free CV &amp; certificate per month</p>
           </div>
         </div>
 
         {/* Features */}
         <div className="container mx-auto px-4 py-16">
           <h2 className="text-2xl font-bold text-center mb-2">Everything a teacher needs</h2>
-          <p className="text-muted-foreground text-center mb-10">Four powerful tools, zero design skills required.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <p className="text-muted-foreground text-center mb-10">Five practical tools, zero design skills required.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             {[
               {
                 icon: <FileText className="w-7 h-7 text-purple-600" />,
@@ -736,11 +736,20 @@ export default function StudioPage() {
                 desc: "Convert documents between PDF, JPEG, and PNG instantly — right in your browser. No uploads to third-party sites, no waiting, completely private.",
                 points: ["PDF ↔ JPEG ↔ PNG", "Runs entirely in your browser", "Completely private — no uploads"],
               },
+              {
+                icon: <ClipboardList className="w-7 h-7 text-primary" />,
+                bg: "bg-primary/10",
+                title: "Report Cards",
+                badge: "AI-assisted",
+                badgeColor: "bg-primary/10 text-primary",
+                desc: "Prepare school report cards with learner ratings and comments. Upload a school template or build a report layout for your class.",
+                points: ["School template support", "Learner ratings and comments", "Print-ready report cards"],
+              },
             ].map((f) => (
               <Card key={f.title} className="border-0 shadow-sm hover:shadow-md transition-shadow">
                 <CardContent className="pt-6 pb-6 space-y-3">
                   <div className={`w-12 h-12 rounded-xl ${f.bg} flex items-center justify-center`}>{f.icon}</div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-bold text-base">{f.title}</h3>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${f.badgeColor}`}>{f.badge}</span>
                   </div>
@@ -826,11 +835,11 @@ export default function StudioPage() {
         </div>
 
         {/* Final CTA */}
-        <div className="bg-gradient-to-r from-purple-600 to-teal-600 py-12 text-white text-center">
+        <div className="bg-primary py-12 text-primary-foreground text-center">
           <h2 className="text-2xl font-bold mb-3">Ready to save hours every week?</h2>
-          <p className="text-white/80 mb-6">Join thousands of teachers who already use BrightBoard to create professional materials in minutes.</p>
+          <p className="text-white/80 mb-6">Build classroom materials and everyday professional documents in one practical workspace.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button asChild size="lg" className="bg-white text-purple-700 hover:bg-white/90 font-bold" data-testid="button-studio-final-signup">
+            <Button asChild size="lg" className="bg-card text-primary hover:bg-card/90 font-bold" data-testid="button-studio-final-signup">
               <Link href="/signup">Create free account</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="border-white/40 text-white hover:bg-white/10 font-semibold" data-testid="button-studio-final-login">
@@ -845,16 +854,16 @@ export default function StudioPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background page-shell">
       {/* Hero */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-purple-700 to-teal-600 text-white">
+      <div className="relative overflow-hidden bg-primary text-primary-foreground">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
         <div className="relative container mx-auto px-4 py-12">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm"><Sparkles className="w-6 h-6" /></div>
             <div>
               <h1 className="text-3xl font-black tracking-tight">Teacher Studio</h1>
-              <p className="text-purple-200 text-sm">Your complete professional toolkit</p>
+              <p className="text-primary-foreground/85 text-sm">Your complete professional toolkit</p>
             </div>
             {isPremium && <Badge className="ml-auto bg-amber-400 text-amber-900 font-bold"><Crown className="w-3 h-3 mr-1" />Premium</Badge>}
           </div>
@@ -1082,7 +1091,7 @@ export default function StudioPage() {
                     <button key={tmpl.id} onClick={() => setCertTemplate(tmpl.id)} className={`rounded-2xl border-2 overflow-hidden text-left transition-all hover:shadow-lg ${certTemplate === tmpl.id ? "border-purple-500 shadow-lg" : "border-border hover:border-purple-300"}`}>
                       <div style={{ background: `linear-gradient(135deg, ${tmpl.colors[0]}, ${tmpl.colors[1]})`, height: "100px" }} className="flex items-center justify-center">
                         <div className="text-center">
-                          <div className="text-3xl mb-1">{tmpl.icon}</div>
+                          <tmpl.icon className="w-8 h-8 text-white mx-auto mb-1" />
                           <div className="text-white font-bold text-xs">{tmpl.name}</div>
                         </div>
                       </div>
@@ -1167,7 +1176,7 @@ export default function StudioPage() {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 gap-2 opacity-70">
-                      {["Modern & Clean ✨", "Playful & Fun 🎨", "Academic 📚", "Minimalist ◻️", "Creative 🚀", "Any Style"].map(style => (
+                      {["Modern & Clean", "Playful & Fun", "Academic", "Minimalist", "Creative", "Any Style"].map(style => (
                         <div key={style} className="text-xs bg-muted rounded-lg p-2 text-center">{style}</div>
                       ))}
                     </div>
@@ -1212,11 +1221,11 @@ export default function StudioPage() {
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     {[
-                      { from: "JPG", to: "PDF", icon: "🖼→📄" }, { from: "PNG", to: "PDF", icon: "🖼→📄" },
-                      { from: "JPG", to: "PNG", icon: "🖼→🖼" }, { from: "PDF", to: "PNG", icon: "📄→🖼" },
+                      { from: "JPG", to: "PDF" }, { from: "PNG", to: "PDF" },
+                      { from: "JPG", to: "PNG" }, { from: "PDF", to: "PNG" },
                     ].map(c => (
                       <div key={`${c.from}-${c.to}`} className="flex items-center gap-2 bg-muted rounded-xl p-3 text-sm">
-                        <span className="text-lg">{c.icon}</span>
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
                         <span className="font-medium">{c.from} → {c.to}</span>
                       </div>
                     ))}

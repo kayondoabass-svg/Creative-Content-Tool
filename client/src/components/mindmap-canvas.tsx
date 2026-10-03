@@ -112,7 +112,7 @@ function wrapText(text: string, maxChars: number): string[] {
 
 function SvgText({ x, y, text, maxChars, fs, fw, fill, anchor }: {
   x: number; y: number; text: string; maxChars: number;
-  fs: number; fw?: string; fill?: string; anchor?: string;
+  fs: number; fw?: string; fill?: string; anchor?: "start" | "middle" | "end" | "inherit";
 }) {
   const lines = wrapText(text, maxChars);
   const lh = fs * 1.3;

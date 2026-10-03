@@ -64,8 +64,10 @@ function Router() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      <div className="flex items-center justify-center h-full bg-background">
+        <div className="h-10 w-10 rounded-xl border border-primary/20 bg-primary/10 grid place-items-center">
+          <GraduationCap className="h-5 w-5 text-primary animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -217,23 +219,23 @@ function HeaderWithLogo() {
   }
 
   return (
-    <header className="flex items-center justify-between px-6 py-3 border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 md:px-7 py-2.5 border-b border-border/80 bg-card/90 backdrop-blur-xl sticky top-0 z-50 shadow-xs">
       <div className="flex items-center gap-3">
         <img 
           src="/logo.png" 
           alt="BrightBoard" 
-          className="h-12 w-12 rounded-lg object-contain bg-white"
+          className="h-10 w-10 rounded-xl object-contain bg-background p-1 ring-1 ring-border/70"
           data-testid="img-brightboard-logo"
         />
         <div>
-          <h1 className="font-bold text-lg tracking-tight flex items-center gap-2">
+          <h1 className="font-bold text-lg tracking-tight flex items-center gap-2 text-foreground">
             BrightBoard
             <GraduationCap className="h-4 w-4 text-muted-foreground" />
           </h1>
           <p className="text-xs text-muted-foreground -mt-0.5">{t("common.tagline")}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5 sm:gap-2">
         {settings?.logo && (
           <img
             src={settings.logo}
@@ -253,8 +255,45 @@ function HeaderWithLogo() {
   );
 }
 
+function PublicHeader() {
+  const { t } = useTranslation();
+  return (
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-xl">
+      <div className="bb-page flex min-h-16 items-center justify-between gap-4 py-2">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="BrightBoard home">
+          <img src="/logo.png" alt="" className="h-9 w-9 rounded-xl object-contain bg-card p-0.5 ring-1 ring-border/70" />
+          <span className="font-bold tracking-tight text-foreground">BrightBoard</span>
+        </Link>
+        <nav className="hidden items-center gap-5 lg:flex" aria-label="Main navigation">
+          <Link href="/features" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t("common.features")}</Link>
+          <Link href="/how-it-works" className="hidden xl:block text-sm text-muted-foreground hover:text-primary transition-colors">{t("footer.howItWorks")}</Link>
+          <Link href="/studio" className="text-sm font-semibold text-primary hover:text-accent transition-colors">Teacher Studio</Link>
+          <Link href="/resources" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t("footer.resources", { defaultValue: "Resources" })}</Link>
+          <Link href="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t("footer.about")}</Link>
+          <Link href="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t("common.pricing")}</Link>
+        </nav>
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <LanguageSelector />
+          <ThemeToggle />
+          <Button asChild size="sm" className="rounded-full px-4" data-testid="button-login-header">
+            <Link href="/login">{t("common.signIn")}</Link>
+          </Button>
+        </div>
+      </div>
+      <nav className="no-scrollbar flex gap-5 overflow-x-auto border-t border-border/60 px-4 py-2.5 lg:hidden" aria-label="Mobile navigation">
+        <Link href="/features" className="shrink-0 text-xs font-medium text-muted-foreground">{t("common.features")}</Link>
+        <Link href="/studio" className="shrink-0 text-xs font-semibold text-primary">Teacher Studio</Link>
+        <Link href="/resources" className="shrink-0 text-xs font-medium text-muted-foreground">{t("footer.resources", { defaultValue: "Resources" })}</Link>
+        <Link href="/about" className="shrink-0 text-xs font-medium text-muted-foreground">{t("footer.about")}</Link>
+        <Link href="/pricing" className="shrink-0 text-xs font-medium text-muted-foreground">{t("common.pricing")}</Link>
+      </nav>
+    </header>
+  );
+}
+
 function AppShell() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
 
   if (isLoading) {
     return (
@@ -266,7 +305,7 @@ function AppShell() {
 
   if (isAuthenticated) {
     return (
-      <div className="flex flex-col h-screen w-full bg-background overflow-hidden">
+      <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden">
         <HeaderWithLogo />
         <main className="flex-1 overflow-y-auto min-h-0">
           <PageTracker />
@@ -276,9 +315,12 @@ function AppShell() {
     );
   }
 
+  const standaloneRoutes = ["/", "/login", "/signup", "/verify-email", "/ads", "/payment/callback", "/file-tools"];
+  const hasPublicHeader = !standaloneRoutes.includes(location);
   return (
     <div className="min-h-screen w-full bg-background">
       <PageTracker />
+      {hasPublicHeader && <PublicHeader />}
       <Router />
     </div>
   );

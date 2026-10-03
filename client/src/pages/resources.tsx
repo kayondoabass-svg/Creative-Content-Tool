@@ -103,8 +103,8 @@ export default function Resources() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="container max-w-5xl mx-auto px-4 py-8 flex-1">
+    <div className="min-h-screen page-shell flex flex-col">
+      <div className="bb-page py-10 md:py-14 flex-1">
         <Link href="/">
           <Button variant="ghost" className="mb-6" data-testid="button-back-home">
             <ArrowLeft className="w-4 h-4 mr-2" />

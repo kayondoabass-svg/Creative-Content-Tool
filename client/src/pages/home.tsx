@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearch, useLocation } from "wouter";
+import { useSearch, useLocation, Link } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Image, Presentation, FileText, Film, ClipboardList, Network, MailCheck, X } from "lucide-react";
+import { Image, Presentation, FileText, Film, ClipboardList, Network, MailCheck, X, AlertTriangle, ArrowUpRight } from "lucide-react";
 import { ContentTypeCard } from "@/components/content-type-card";
 import { PromptInput } from "@/components/prompt-input";
 import { GeneratedContentDisplay } from "@/components/generated-content-display";
@@ -96,7 +96,7 @@ export default function Home() {
     if (socialLogin === "success") {
       // Clean the URL so the param doesn't persist or confuse the app
       window.history.replaceState({}, "", "/");
-      toast({ title: "Welcome to BrightBoard! 🎉", description: "You're now signed in." });
+      toast({ title: "Welcome to BrightBoard", description: "You're now signed in." });
     }
     if (type && contentTypes.some(ct => ct.type === type)) {
       setSelectedType(type as ContentType);
@@ -253,10 +253,10 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-full bg-background">
+    <div className="flex h-full bg-background page-shell">
       {/* Main Content — this is the single scroll container */}
       <div className="flex-1 min-w-0 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-7 md:py-10 space-y-8">
 
           {/* Email verification banner */}
           {showVerifyBanner && (
@@ -279,13 +279,19 @@ export default function Home() {
           )}
 
           {/* Header */}
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary via-chart-4 to-accent bg-clip-text text-transparent">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div className="space-y-2">
+            <p className="bb-eyebrow">BrightBoard · Teacher workspace</p>
+            <h1 className="bb-display text-3xl md:text-4xl font-extrabold tracking-tight">
               {t("home.whatCreate")}
             </h1>
             <p className="text-muted-foreground">
               {t("home.chooseType")}
             </p>
+            </div>
+            <Link href="/studio" className="inline-flex items-center gap-2 self-start sm:self-auto text-sm font-semibold text-primary bg-primary/8 hover:bg-primary/12 rounded-xl px-4 py-2.5 transition-colors">
+              Teacher Studio <ArrowUpRight className="w-4 h-4" />
+            </Link>
           </div>
 
           {/* Content Type Selection - Horizontal scroll on mobile */}
@@ -319,7 +325,7 @@ export default function Home() {
               className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3 text-sm"
             >
               <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300">
-                <span className="text-base">⚠️</span>
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span>
                   {lowCreditCount > 0
                     ? `You have ${lowCreditCount} ${LOW_CREDIT_LABELS[lowCreditType] || "content"} left today — make it count!`
@@ -341,7 +347,7 @@ export default function Home() {
                   data-testid="low-credit-dismiss-btn"
                   className="text-amber-600 dark:text-amber-400 hover:text-amber-800 transition-colors"
                 >
-                  ✕
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
