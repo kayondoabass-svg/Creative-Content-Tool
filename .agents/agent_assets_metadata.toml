@@ -17,15 +17,18 @@ id = "w1-eltKaRUUqRwGSDEenZ"
 uri = "file://attached_assets/generated_images/ad_wow_moment_v1.png"
 type = "image"
 title = "Option A — \"The Wow Moment\" (Teacher holds colourful worksheet, students excited)"
+logical_id = "6eb2a6f0-6682-4fb5-b205-47d35933d37c"
 
 [[outputs]]
 id = "uN2OK-Z9C1Zzof1ZJI1fX"
 uri = "file://attached_assets/generated_images/ad_wow_moment_v2.png"
 type = "image"
 title = "Option B — \"The Screen Glow\" (Teacher & children around glowing tablet)"
+logical_id = "6b54fa9f-df2d-43ac-a1d0-c18f575b9964"
 
 [[outputs]]
 id = "q_dtdxMmGce9iI6Sxvr-2"
 uri = "file://attached_assets/generated_images/ad_option_b_text.png"
 type = "image"
 title = "Option B with Text — Social Media Ad Version"
+logical_id = "106825ca-afe6-45cf-80c8-f27ca8eb305f"
