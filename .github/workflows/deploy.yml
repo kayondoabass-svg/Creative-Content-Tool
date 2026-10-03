@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: Build & deploy
+    name: Verify build & deploy
     runs-on: ubuntu-latest
 
     steps:
@@ -18,13 +18,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
+      # The VPS serves the committed dist/ files, not this runner's build.
+      - name: Verify committed production build
+        run: |
+          node --check dist/index.cjs
+          node <<'NODE'
+          const fs = require("node:fs");
+          for (const file of ["dist/index.cjs", "dist/public/index.html"]) {
+            if (!fs.statSync(file).isFile() || fs.statSync(file).size === 0) {
+              throw new Error(`Missing or empty production file: ${file}`);
+            }
+          }
+          const html = fs.readFileSync("dist/public/index.html", "utf8");
+          const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)];
+          if (assets.length === 0) throw new Error("No production assets found");
+          for (const [, asset] of assets) {
+            if (!fs.statSync(`dist/public${asset}`).isFile()) {
+              throw new Error(`Missing production asset: ${asset}`);
+            }
+          }
+          console.log(`Verified production build and ${assets.length} entry assets`);
+          NODE
 
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
