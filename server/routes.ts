@@ -1146,20 +1146,9 @@ ${pages.map(p => `  <url>
     }
   });
 
-  // Public stats endpoint for landing page
-  app.get("/api/public/stats", async (req, res) => {
-    try {
-      const totalUsers = await db.select({ count: sql<number>`count(*)` }).from(users);
-      const totalContent = await db.select({ count: sql<number>`count(*)` }).from(generatedContent);
-      
-      res.json({
-        totalUsers: Number(totalUsers[0]?.count || 0),
-        totalContent: Number(totalContent[0]?.count || 0),
-      });
-    } catch (error) {
-      console.error("Error fetching public stats:", error);
-      res.json({ totalUsers: 0, totalContent: 0 });
-    }
+  // Retired: usage metrics are available only through the owner dashboard.
+  app.get("/api/public/stats", (_req, res) => {
+    res.status(410).json({ error: "Public usage statistics are no longer available." });
   });
 
   // Contact form endpoint

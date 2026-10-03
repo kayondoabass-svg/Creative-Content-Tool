@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { 
   Sparkles, Image, FileText, Presentation, Video, FileSpreadsheet, 
-  ChevronLeft, ChevronRight, Shield, Clock, CreditCard, Users, 
-  FileCheck, Play, Star, Gamepad2, Globe, Zap,
+  Shield, Clock, CreditCard,
+  Play, Star, Gamepad2, Globe, Zap,
   GraduationCap, School, Award, Lightbulb, Mail, CheckCircle, 
   RefreshCw, X, ArrowRight, Download, Smartphone, Monitor, Apple
 } from "lucide-react";
@@ -27,15 +27,6 @@ import {
 
 const FACEBOOK_URL = "https://www.facebook.com/share/1Degjg2YnK/";
 const INSTAGRAM_URL = "https://www.instagram.com/brightboardapp/";
-
-const showcaseSlidesData = [
-  { titleKey: "slideImageTitle", descKey: "slideImageDesc", icon: Image, color: "from-pink-500 to-rose-500" },
-  { titleKey: "slidePresentationTitle", descKey: "slidePresentationDesc", icon: Presentation, color: "from-blue-500 to-cyan-500" },
-  { titleKey: "slideWorksheetTitle", descKey: "slideWorksheetDesc", icon: FileSpreadsheet, color: "from-orange-500 to-amber-500" },
-  { titleKey: "slideGameTitle", descKey: "slideGameDesc", icon: Gamepad2, color: "from-green-500 to-emerald-500" },
-  { titleKey: "slideVideoTitle", descKey: "slideVideoDesc", icon: Video, color: "from-purple-500 to-violet-500" },
-  { titleKey: "slideTextTitle", descKey: "slideTextDesc", icon: FileText, color: "from-teal-500 to-cyan-500" },
-];
 
 const testimonialsData = [
   { nameKey: "testimonial1Name", roleKey: "testimonial1Role", locationKey: "testimonial1Location", quoteKey: "testimonial1Quote", rating: 5 },
@@ -77,7 +68,6 @@ const sampleContentData = [
 
 export default function LandingPage() {
   const { t } = useTranslation();
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [isReturningVisitor, setIsReturningVisitor] = useState(false);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [newsletterEmail, setNewsletterEmail] = useState("");
@@ -94,10 +84,6 @@ export default function LandingPage() {
     const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
     return (dayOfYear % 30) + 1;
   })();
-
-  const { data: stats } = useQuery<{ totalUsers: number; totalContent: number }>({
-    queryKey: ['/api/public/stats'],
-  });
 
   const { data: newsletterCount } = useQuery<{ count: number }>({
     queryKey: ['/api/newsletter/count'],
@@ -141,13 +127,6 @@ export default function LandingPage() {
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % showcaseSlidesData.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -169,9 +148,6 @@ export default function LandingPage() {
     }
   };
 
-  const goToSlide = (index: number) => setCurrentSlide(index);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + showcaseSlidesData.length) % showcaseSlidesData.length);
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % showcaseSlidesData.length);
 
   const faqs = [
     { question: t('landing.faq1Question'), answer: t('landing.faq1Answer') },
@@ -369,92 +345,6 @@ export default function LandingPage() {
           </div>
           </div>
 
-          {/* Usage Stats Counter */}
-          {stats && (stats.totalUsers > 0 || stats.totalContent > 0) && <div className="max-w-2xl mx-auto mb-12">
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="text-center p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20">
-                <div className="text-3xl md:text-4xl font-bold text-primary">
-                  {stats.totalUsers.toLocaleString()}
-                </div>
-                <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                  <Users className="w-4 h-4" />
-                  {t('landing.teachersJoined')}
-                </div>
-              </Card>
-              <Card className="text-center p-4 bg-gradient-to-br from-teal-500/10 to-cyan-500/10 border-teal-500/20">
-                <div className="text-3xl md:text-4xl font-bold text-teal-600 dark:text-teal-400">
-                  {stats.totalContent.toLocaleString()}
-                </div>
-                <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                  <FileCheck className="w-4 h-4" />
-                  {t('landing.resourcesCreated')}
-                </div>
-              </Card>
-            </div>
-          </div>}
-
-          {/* Showcase Carousel */}
-          <div className="max-w-4xl mx-auto">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-muted/50 to-muted/20 border p-8">
-              <div className="flex items-center justify-between gap-4">
-                <button 
-                  onClick={prevSlide}
-                  className="flex-shrink-0 w-10 h-10 rounded-full bg-background/80 border flex items-center justify-center transition-colors hover-elevate"
-                  data-testid="button-prev-slide"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                
-                <div className="flex-1 text-center min-h-[180px] flex flex-col items-center justify-center">
-                  {showcaseSlidesData.map((slide, index) => {
-                    const IconComponent = slide.icon;
-                    return (
-                      <div
-                        key={index}
-                        className={`absolute inset-0 flex flex-col items-center justify-center p-8 transition-all duration-500 ${
-                          index === currentSlide 
-                            ? 'opacity-100 translate-x-0' 
-                            : index < currentSlide 
-                              ? 'opacity-0 -translate-x-full' 
-                              : 'opacity-0 translate-x-full'
-                        }`}
-                      >
-                        <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${slide.color} flex items-center justify-center mb-4 shadow-lg`}>
-                          <IconComponent className="w-8 h-8 text-white" />
-                        </div>
-                        <h3 className="text-2xl font-bold mb-2">{t(`landing.${slide.titleKey}`)}</h3>
-                        <p className="text-muted-foreground text-lg max-w-md">{t(`landing.${slide.descKey}`)}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                <button 
-                  onClick={nextSlide}
-                  className="flex-shrink-0 w-10 h-10 rounded-full bg-background/80 border flex items-center justify-center transition-colors hover-elevate"
-                  data-testid="button-next-slide"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-              
-              {/* Slide indicators */}
-              <div className="flex justify-center gap-2 mt-6">
-                {showcaseSlidesData.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => goToSlide(index)}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      index === currentSlide 
-                        ? 'bg-primary w-6' 
-                        : 'bg-muted-foreground/30'
-                    }`}
-                    data-testid={`button-slide-${index}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
         </section>
 
         {/* Demo Video Section */}

@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth } from "./replit_integrations/auth";
 import path from "path";
+import { registerChatbotWidget } from "./chatbot-widget";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -71,6 +72,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  registerChatbotWidget(app);
   await setupAuth(app);
   
   await registerRoutes(httpServer, app);

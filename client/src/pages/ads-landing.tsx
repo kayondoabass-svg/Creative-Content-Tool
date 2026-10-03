@@ -4,11 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Sparkles, Presentation, FileSpreadsheet, Brain, BookOpen,
-  Gamepad2, Video, CheckCircle, ArrowRight, Star, Users,
-  Zap, Shield, Clock, Globe
+  Gamepad2, Video, CheckCircle, ArrowRight, Star,
+  Shield, Clock, Globe
 } from "lucide-react";
 import { SiFacebook, SiInstagram } from "react-icons/si";
-import { useQuery } from "@tanstack/react-query";
 
 const features = [
   {
@@ -92,10 +91,6 @@ const CtaButton = ({ label = "Get Started Free — No Credit Card", size = "lg" 
 );
 
 export default function AdsLanding() {
-  const { data: stats } = useQuery<{ totalUsers: number; totalContent: number }>({
-    queryKey: ['/api/public/stats'],
-  });
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/40 flex flex-col">
 
@@ -144,20 +139,6 @@ export default function AdsLanding() {
             <span className="flex items-center gap-1"><Shield className="w-4 h-4 text-green-500" /> 7-day money-back guarantee</span>
             <span className="flex items-center gap-1"><Clock className="w-4 h-4 text-blue-500" /> Cancel anytime</span>
             <span className="flex items-center gap-1"><Globe className="w-4 h-4 text-teal-500" /> Available in 12+ languages</span>
-          </div>
-        </section>
-
-        {/* ── STATS ── */}
-        <section className="px-4 pb-8 max-w-lg mx-auto">
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="text-center p-4 bg-gradient-to-br from-primary/10 to-purple-500/10 border-primary/20" data-testid="card-ads-stat-users">
-              <div className="text-3xl font-bold text-primary">{stats?.totalUsers ? `${stats.totalUsers.toLocaleString()}+` : "2,000+"}</div>
-              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1"><Users className="w-3 h-3" /> Educators joined</div>
-            </Card>
-            <Card className="text-center p-4 bg-gradient-to-br from-teal-500/10 to-cyan-500/10 border-teal-500/20" data-testid="card-ads-stat-content">
-              <div className="text-3xl font-bold text-teal-600 dark:text-teal-400">{stats?.totalContent ? `${stats.totalContent.toLocaleString()}+` : "15,000+"}</div>
-              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1"><Zap className="w-3 h-3" /> Resources created</div>
-            </Card>
           </div>
         </section>
 
