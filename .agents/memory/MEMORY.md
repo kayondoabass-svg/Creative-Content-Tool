@@ -5,3 +5,4 @@
 - [dist rebuild required for VPS](dist-rebuild-required.md) — VPS serves pre-built dist/ from git; must run npm run build and commit dist/ before pushing or VPS sees no change
 - [App-wide design direction](design-direction.md) — Edupath light-demo inspiration applies to public pages and Teacher Studio; preserve BrightBoard’s functionality and factual copy.
 - [Isolated preview dependencies](preview-dependencies.md) — mockup previews need independent Tailwind resolution; never upgrade the main app just to repair a preview.
+- [Static screenshot limits](static-screenshot-limits.md) — full-page captures leave offscreen lazy images blank; URL fragments may not scroll a page whose content mounts asynchronously.

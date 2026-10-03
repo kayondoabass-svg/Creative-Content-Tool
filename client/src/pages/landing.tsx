@@ -45,10 +45,34 @@ const testimonialsData = [
 ];
 
 const sampleContentData = [
-  { typeKey: "samplePresentation", titleKey: "samplePresentationTitle", descKey: "samplePresentationDesc", gradient: "from-blue-500 to-purple-500", icon: Presentation },
-  { typeKey: "sampleWorksheet", titleKey: "sampleWorksheetTitle", descKey: "sampleWorksheetDesc", gradient: "from-orange-500 to-red-500", icon: FileSpreadsheet },
-  { typeKey: "sampleGame", titleKey: "sampleGameTitle", descKey: "sampleGameDesc", gradient: "from-green-500 to-teal-500", icon: Gamepad2 },
-  { typeKey: "sampleStoryboard", titleKey: "sampleStoryboardTitle", descKey: "sampleStoryboardDesc", gradient: "from-purple-500 to-pink-500", icon: Video },
+  {
+    typeKey: "samplePresentation",
+    titleKey: "samplePresentationTitle",
+    descKey: "samplePresentationDesc",
+    image: "/images/sample-content/solar-system.jpg",
+    imageAlt: "A detailed classroom model of the solar system",
+  },
+  {
+    typeKey: "sampleWorksheet",
+    titleKey: "sampleWorksheetTitle",
+    descKey: "sampleWorksheetDesc",
+    image: "/images/sample-content/math-practice.jpg",
+    imageAlt: "A student solving math equations at a classroom desk",
+  },
+  {
+    typeKey: "sampleGame",
+    titleKey: "sampleGameTitle",
+    descKey: "sampleGameDesc",
+    image: "/images/sample-content/vocabulary-spinner.jpg",
+    imageAlt: "A student using a colorful vocabulary spinner",
+  },
+  {
+    typeKey: "sampleStoryboard",
+    titleKey: "sampleStoryboardTitle",
+    descKey: "sampleStoryboardDesc",
+    image: "/images/sample-content/photosynthesis.jpg",
+    imageAlt: "A student studying green leaves in sunlight",
+  },
 ];
 
 export default function LandingPage() {
@@ -478,12 +502,18 @@ export default function LandingPage() {
           </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {sampleContentData.map((item, index) => {
-              const IconComponent = item.icon;
-              return (
+            {sampleContentData.map((item, index) => (
                 <Card key={index} className="group hover-elevate overflow-hidden" data-testid={`sample-card-${index}`}>
-                  <div className={`h-32 bg-gradient-to-br ${item.gradient} flex items-center justify-center`}>
-                    <IconComponent className="w-12 h-12 text-white opacity-80 group-hover:scale-110 transition-transform" />
+                  <div className="h-40 overflow-hidden bg-muted">
+                    <img
+                      src={item.image}
+                      alt={item.imageAlt}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                      decoding="async"
+                      width={1024}
+                      height={1024}
+                    />
                   </div>
                   <CardContent className="p-4">
                     <div className="text-xs text-primary font-medium mb-1">{t(`landing.${item.typeKey}`)}</div>
@@ -491,8 +521,7 @@ export default function LandingPage() {
                     <p className="text-sm text-muted-foreground">{t(`landing.${item.descKey}`)}</p>
                   </CardContent>
                 </Card>
-              );
-            })}
+              ))}
           </div>
           
           <div className="text-center mt-8">
@@ -510,32 +539,38 @@ export default function LandingPage() {
           <h2 className="text-3xl font-bold text-center mb-12">{t('landing.featuresTitle')}</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureCard 
-              icon={<Image className="w-6 h-6" />}
+              image="/images/sample-content/solar-system.jpg"
+              imagePosition="center 65%"
               title={t('contentTypes.image')}
               description={t('contentTypes.imageDesc')}
             />
             <FeatureCard 
-              icon={<Presentation className="w-6 h-6" />}
+              image="/images/sample-content/lesson-slides.jpg"
+              imagePosition="center 60%"
               title={t('contentTypes.presentation')}
               description={t('contentTypes.presentationDesc')}
             />
             <FeatureCard 
-              icon={<FileText className="w-6 h-6" />}
+              image="/images/sample-content/text-content.jpg"
+              imagePosition="center 65%"
               title={t('contentTypes.text')}
               description={t('contentTypes.textDesc')}
             />
             <FeatureCard 
-              icon={<Video className="w-6 h-6" />}
+              image="/images/sample-content/video-storyboards.jpg"
+              imagePosition="center 55%"
               title={t('contentTypes.storyboard')}
               description={t('contentTypes.storyboardDesc')}
             />
             <FeatureCard 
-              icon={<FileSpreadsheet className="w-6 h-6" />}
+              image="/images/sample-content/math-practice.jpg"
+              imagePosition="center 55%"
               title={t('contentTypes.worksheet')}
               description={t('contentTypes.worksheetDesc')}
             />
             <FeatureCard 
-              icon={<Gamepad2 className="w-6 h-6" />}
+              image="/images/sample-content/vocabulary-spinner.jpg"
+              imagePosition="center 55%"
               title={t('contentTypes.activity')}
               description={t('contentTypes.activityDesc')}
             />
@@ -830,13 +865,22 @@ export default function LandingPage() {
   );
 }
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+function FeatureCard({ image, imagePosition = "center", title, description }: { image: string; imagePosition?: string; title: string; description: string }) {
   return (
-    <Card className="hover-elevate">
+    <Card className="group hover-elevate overflow-hidden">
+      <div className="aspect-[16/9] overflow-hidden bg-muted">
+        <img
+          src={image}
+          alt={title}
+          className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-105"
+          style={{ objectPosition: imagePosition }}
+          loading="lazy"
+          decoding="async"
+          width={1024}
+          height={1024}
+        />
+      </div>
       <CardContent className="p-6">
-        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 text-primary">
-          {icon}
-        </div>
         <h3 className="font-semibold text-lg mb-2">{title}</h3>
         <p className="text-muted-foreground">{description}</p>
       </CardContent>
