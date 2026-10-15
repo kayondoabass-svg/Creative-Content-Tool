@@ -29,7 +29,7 @@ export default function LoginPage() {
   const { login, isLoggingIn, forgotPassword, resetPassword, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  const [step, setStep] = useState<"login" | "forgot" | "reset">("login");
+  const [step, setStep] = useState<"login" | "forgot" | "reset" | "reset-link">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -79,7 +79,7 @@ export default function LoginPage() {
       if (errorMessage.toLowerCase().includes("verify your email") || errorMessage.toLowerCase().includes("not verified")) {
         localStorage.setItem("pendingVerificationEmail", email);
         toast({ title: "Email not verified", description: "Redirecting you to verify your email...", variant: "destructive" });
-        setTimeout(() => setLocation(`/verify-email?email=${encodeURIComponent(email)}`), 1500);
+        setTimeout(() => setLocation(`/verify-email?email=${encodeURIComponent(email)}&method=link`), 1500);
         return;
       }
       toast({ title: "Login failed", description: errorMessage, variant: "destructive" });
@@ -91,9 +91,10 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const recaptchaToken = await getRecaptchaToken("FORGOT_PASSWORD");
-      await forgotPassword({ email, recaptchaToken });
-      setStep("reset");
-      toast({ title: "Check your email", description: "We sent you a reset code" });
+      const result = await forgotPassword({ email, recaptchaToken });
+      const usesLink = result.verificationMethod === "link";
+      setStep(usesLink ? "reset-link" : "reset");
+      toast({ title: "Check your email", description: usesLink ? "If an account exists, a password-reset link has been sent." : "We sent you a reset code" });
     } catch (error: any) {
       toast({ title: "Request failed", description: error.message || "Please try again", variant: "destructive" });
     } finally {
@@ -109,7 +110,11 @@ export default function LoginPage() {
     }
     setIsLoading(true);
     try {
-      await resetPassword({ email, code: resetCode, newPassword });
+      const result = await resetPassword({ email, code: resetCode, newPassword });
+      if (result.verificationMethod === "link") {
+        setLocation(`/verify-email?email=${encodeURIComponent(email)}&method=link`);
+        return;
+      }
       toast({ title: "Password reset!", description: "You can now sign in with your new password" });
       setStep("login");
       setPassword("");
@@ -123,6 +128,38 @@ export default function LoginPage() {
   };
 
   const hasSocialProviders = socialProviders?.google || socialProviders?.facebook || socialProviders?.tiktok;
+
+  if (step === "reset-link") {
+    return (
+      <div className="min-h-screen flex items-center justify-center page-shell p-4">
+        <Card className="w-full max-w-md" data-testid="password-reset-link-sent">
+          <CardHeader className="text-center">
+            <Mail className="h-10 w-10 text-primary mx-auto mb-3" />
+            <CardTitle>Check your email</CardTitle>
+            <CardDescription>
+              If an account exists for {email}, Afro Auth will send a password-reset link.
+              Open the link to choose your new password, then return here to sign in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">Check your spam folder too. You do not need to enter a code here.</p>
+            <Button className="w-full" onClick={() => { setStep("login"); setPassword(""); }} data-testid="button-return-to-login">Back to sign in</Button>
+            <Button variant="outline" className="w-full" onClick={() => setStep("forgot")}>Try another email or request a new link</Button>
+            <Button variant="ghost" className="w-full whitespace-normal" disabled={isLoading} onClick={async () => {
+              setIsLoading(true);
+              try {
+                await forgotPassword({ email, legacy: true });
+                setStep("reset");
+                toast({ title: "Check your email", description: "If an older BrightBoard account exists, a recovery code has been sent." });
+              } catch (error: any) {
+                toast({ title: "Recovery failed", description: error.message || "Please try again.", variant: "destructive" });
+              } finally { setIsLoading(false); }
+            }} data-testid="button-legacy-recovery">Older BrightBoard account? Recover with an email code</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (step === "reset") {
     return (
@@ -172,7 +209,7 @@ export default function LoginPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold">Forgot Password?</CardTitle>
-            <CardDescription>Enter your email and we'll send you a reset code</CardDescription>
+            <CardDescription>Enter your email and we'll send you a password-reset link</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleForgotPassword} className="space-y-4">
@@ -185,7 +222,7 @@ export default function LoginPage() {
               <Button type="submit"
                 className="w-full bg-gradient-to-r from-purple-600 to-teal-500 hover:from-purple-700 hover:to-teal-600"
                 disabled={isLoading} data-testid="button-send-reset-code">
-                {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</> : "Send Reset Code"}
+                {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</> : "Send reset link"}
               </Button>
               <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("login")} data-testid="button-back-to-login">
                 <ArrowLeft className="w-4 h-4 mr-2" />Back to Sign In

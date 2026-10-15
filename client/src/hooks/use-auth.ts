@@ -90,8 +90,8 @@ export function useAuth() {
   });
 
   const forgotPasswordMutation = useMutation({
-    mutationFn: async ({ email, recaptchaToken }: { email: string; recaptchaToken?: string }) => {
-      const response = await apiRequest("POST", "/api/auth/forgot-password", { email, recaptchaToken });
+    mutationFn: async ({ email, recaptchaToken, legacy }: { email: string; recaptchaToken?: string; legacy?: boolean }) => {
+      const response = await apiRequest("POST", "/api/auth/forgot-password", { email, recaptchaToken, legacy });
       return response.json();
     },
   });

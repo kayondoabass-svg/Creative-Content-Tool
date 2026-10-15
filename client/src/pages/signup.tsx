@@ -56,10 +56,11 @@ export default function SignupPage() {
       const recaptchaToken = await getRecaptchaToken("signup");
       const urlParams = new URLSearchParams(window.location.search);
       const ref = urlParams.get("ref") || undefined;
-      await signup({ email, password, firstName, lastName, recaptchaToken, ref });
+      const result = await signup({ email, password, firstName, lastName, recaptchaToken, ref });
       localStorage.setItem("pendingVerificationEmail", email);
-      toast({ title: "Account created!", description: "Enter the 6-digit code we sent to your email." });
-      setLocation(`/verify-email?email=${encodeURIComponent(email)}`);
+      const usesLink = result.verificationMethod === "link";
+      toast({ title: "Account created!", description: usesLink ? "Open the confirmation link in your email, then sign in." : "Enter the 6-digit code we sent to your email." });
+      setLocation(`/verify-email?email=${encodeURIComponent(email)}${usesLink ? "&method=link" : ""}`);
     } catch (error: any) {
       toast({ title: "Sign up failed", description: error.message || "Please try again", variant: "destructive" });
     }

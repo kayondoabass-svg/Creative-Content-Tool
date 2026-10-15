@@ -15,6 +15,7 @@ export default function VerifyEmailPage() {
   const { toast } = useToast();
   
   const params = new URLSearchParams(search);
+  const [usesLink, setUsesLink] = useState(params.get("method") === "link");
   const emailFromUrl = params.get("email") || localStorage.getItem("pendingVerificationEmail") || "";
   
   const [email, setEmail] = useState(emailFromUrl);
@@ -63,8 +64,10 @@ export default function VerifyEmailPage() {
     }
     
     try {
-      await resendCode({ email });
-      toast({ title: "Code sent!", description: "Check your email for a new verification code" });
+      const result = await resendCode({ email });
+      const linkSent = usesLink || result.verificationMethod === "link";
+      if (linkSent) setUsesLink(true);
+      toast({ title: linkSent ? "Check your email" : "Code sent!", description: linkSent ? "If your account needs confirmation, a new confirmation link has been sent." : "Check your email for a new verification code" });
     } catch (error: any) {
       toast({ 
         title: "Failed to resend code", 
@@ -73,6 +76,35 @@ export default function VerifyEmailPage() {
       });
     }
   };
+
+  if (usesLink) {
+    return (
+      <div className="min-h-screen flex items-center justify-center page-shell p-4">
+        <Card className="w-full max-w-md" data-testid="email-confirmation-link">
+          <CardHeader className="text-center">
+            <Mail className="h-10 w-10 text-primary mx-auto mb-3" />
+            <CardTitle>Confirm your email</CardTitle>
+            <CardDescription>
+              Afro Auth sends a confirmation link to your email. Open the link and
+              complete confirmation, then return to BrightBoard to sign in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="confirmation-email">Email address</Label>
+              <Input id="confirmation-email" type="email" value={email} onChange={e => setEmail(e.target.value)} data-testid="input-confirmation-email" />
+            </div>
+            <p className="text-sm text-muted-foreground">Check your spam folder too. No six-digit code is needed on this page.</p>
+            <Button className="w-full" onClick={() => setLocation("/login")} data-testid="button-confirmation-login">I confirmed my email — sign in</Button>
+            <Button variant="outline" className="w-full" onClick={handleResend} disabled={isResendingCode || !email} data-testid="button-resend-confirmation">
+              {isResendingCode ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Resend confirmation link
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isVerified) {
     return (

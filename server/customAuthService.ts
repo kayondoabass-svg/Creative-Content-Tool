@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { db } from "./db";
 import { users, verificationCodes } from "@shared/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, isNull } from "drizzle-orm";
 import { sendVerificationEmail, sendPasswordResetEmail } from "./emailService";
 
 const SALT_ROUNDS = 10;
@@ -13,7 +13,7 @@ const CODE_EXPIRY_MINUTES = 10;
 const OWNER_EMAIL = "kayondoabass@gmail.com";
 
 function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 export async function verifyRecaptcha(token: string): Promise<boolean> {
@@ -43,7 +43,8 @@ export async function signUp(
   password: string,
   firstName: string,
   lastName: string,
-  recaptchaToken?: string
+  recaptchaToken?: string,
+  options?: { externalVerification: boolean }
 ): Promise<{ success: boolean; message: string; userId?: string }> {
   try {
     // Check if email already exists
@@ -78,6 +79,15 @@ export async function signUp(
         subscriptionStatus: isOwnerEmail ? "active" : "inactive",
       })
       .returning();
+
+    // Afro Auth owns confirmation mail for new provider-backed signups.
+    if (options?.externalVerification) {
+      return {
+        success: true,
+        message: "Account created. Open the confirmation link in your email, then sign in.",
+        userId: newUser.id,
+      };
+    }
 
     // Generate and send verification code + magic-link token
     const code = generateVerificationCode();
@@ -335,7 +345,8 @@ export async function requestPasswordReset(
 export async function resetPassword(
   email: string,
   code: string,
-  newPassword: string
+  newPassword: string,
+  beforeReset?: () => Promise<{ success: boolean; message?: string }>
 ): Promise<{ success: boolean; message: string }> {
   try {
     const [validCode] = await db
@@ -346,6 +357,7 @@ export async function resetPassword(
           eq(verificationCodes.email, email.toLowerCase()),
           eq(verificationCodes.code, code),
           eq(verificationCodes.type, "password_reset"),
+          isNull(verificationCodes.usedAt),
           gt(verificationCodes.expiresAt, new Date())
         )
       )
@@ -353,6 +365,11 @@ export async function resetPassword(
 
     if (!validCode) {
       return { success: false, message: "Invalid or expired reset code" };
+    }
+
+    if (beforeReset) {
+      const result = await beforeReset();
+      if (!result.success) return { success: false, message: result.message || "Password recovery failed" };
     }
 
     // Hash new password
