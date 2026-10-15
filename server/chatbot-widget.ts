@@ -1,37 +1,64 @@
 import type { Express } from "express";
 import rateLimit from "express-rate-limit";
 
-const PROVIDER_CHAT_FETCH = 'fetch("https://afroaigroup.com/api/widget-chat/" + key, {';
-const LOCAL_CHAT_FETCH = 'fetch("/api/chatbot-widget/chat", {';
+const PROVIDER_ORIGIN = "https://afroaigroup.com";
+const LOCAL_CHAT_FETCH = 'fetch("/api/chatbot-widget/chat",';
+
+// Support the legacy and current API contracts, without depending on the
+// provider's quote style, whitespace, or concatenation vs. template literals.
+// Unknown contracts must fail closed, never fall back to cross-origin chat.
+function adaptWidget(source: string): { source: string; chatEndpoint: string } {
+  const endpoints = new Set<string>();
+  let adapted = source.replace(
+    /\bfetch\s*\(\s*(["'])https:\/\/afroaigroup\.com(\/api\/(?:v1\/)?widget-chat\/)\1\s*\+\s*key\s*,/g,
+    (_match, _quote, path: string) => {
+      endpoints.add(path);
+      return LOCAL_CHAT_FETCH;
+    },
+  );
+  adapted = adapted.replace(
+    /\bfetch\s*\(\s*`https:\/\/afroaigroup\.com(\/api\/(?:v1\/)?widget-chat\/)\$\{\s*key\s*\}`\s*,/g,
+    (_match, path: string) => {
+      endpoints.add(path);
+      return LOCAL_CHAT_FETCH;
+    },
+  );
+  // Reject partial rewrites and ambiguous migrations as well as unknown APIs.
+  if (endpoints.size !== 1 || /https:\/\/afroaigroup\.com\/api\//.test(adapted)) {
+    throw new Error("Unexpected widget format");
+  }
+  return { source: adapted, chatEndpoint: PROVIDER_ORIGIN + Array.from(endpoints)[0] };
+}
 
 // Keep the provider's widget appearance, but send messages through our origin.
 // AfroAI's OPTIONS response does not permit browser JSON requests across origins.
 export function registerChatbotWidget(app: Express): void {
-  let cachedWidget: { key: string; script: string; expiresAt: number } | undefined;
+  type Widget = { key: string; script: string; chatEndpoint: string; expiresAt: number };
+  let cachedWidget: Widget | undefined;
 
-  async function widgetScript(key: string): Promise<string> {
+  async function widgetScript(key: string): Promise<Widget> {
     if (cachedWidget?.key === key && cachedWidget.expiresAt > Date.now()) {
-      return cachedWidget.script;
+      return cachedWidget;
     }
 
     const url = new URL("https://afroaigroup.com/widget.js");
     url.searchParams.set("key", key);
     const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!response.ok) throw new Error("Widget provider unavailable");
-    const source = await response.text();
-    if (!source.includes(PROVIDER_CHAT_FETCH)) {
-      throw new Error("Unexpected widget format");
-    }
+    const adapted = adaptWidget(await response.text());
 
     const script = `(() => {
       if (document.getElementById("brightboard-afroai-widget")) return;
       const marker = document.createElement("meta");
       marker.id = "brightboard-afroai-widget";
       document.head.appendChild(marker);
-      ${source.replace(PROVIDER_CHAT_FETCH, LOCAL_CHAT_FETCH)}
+      ${adapted.source}
     })();`;
-    cachedWidget = { key, script, expiresAt: Date.now() + 5 * 60_000 };
-    return script;
+    cachedWidget = {
+      key, script, chatEndpoint: adapted.chatEndpoint,
+      expiresAt: Date.now() + 5 * 60_000,
+    };
+    return cachedWidget;
   }
 
   // The /api/ prefix also keeps this runtime configuration out of the PWA cache.
@@ -48,7 +75,7 @@ export function registerChatbotWidget(app: Express): void {
     }
 
     try {
-      res.send(await widgetScript(key));
+      res.send((await widgetScript(key)).script);
     } catch {
       // Never log upstream URLs, which contain the embed key.
       console.error("[BrightBoard] Chatbot widget provider unavailable.");
@@ -96,8 +123,11 @@ export function registerChatbotWidget(app: Express): void {
     }
 
     try {
+      // Use the same API version as the validated widget, even when a chat POST
+      // arrives before the script is cached. Never guess or retry another API.
+      const widget = await widgetScript(key);
       const response = await fetch(
-        `https://afroaigroup.com/api/widget-chat/${encodeURIComponent(key)}`,
+        `${widget.chatEndpoint}${encodeURIComponent(key)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

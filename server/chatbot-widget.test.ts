@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { runInNewContext } from "node:vm";
 import express from "express";
 import { registerChatbotWidget } from "./chatbot-widget";
 
@@ -7,8 +8,9 @@ const nativeFetch = globalThis.fetch;
 const fixtureKey = "test-widget-key";
 const fixtureScript = `(function() {
   var key = "test-widget-key";
-  function send() { fetch("https://afroaigroup.com/api/widget-chat/" + key, {
-    method: "POST"
+  globalThis.sendWidgetMessage = function() { return fetch("https://afroaigroup.com/api/v1/widget-chat/" + key, {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({message: "Hello", sessionId: "s_test_123", history: []})
   }); }
 })();`;
 
@@ -67,7 +69,7 @@ test("widget uses same-origin chat, prevents duplicates, caches, and refreshes a
     assert.equal(response.headers.get("cache-control"), "no-store");
     const script = await response.text();
     assert.ok(script.includes('fetch("/api/chatbot-widget/chat", {'));
-    assert.ok(!script.includes('fetch("https://afroaigroup.com/api/widget-chat/'));
+    assert.ok(!script.includes("https://afroaigroup.com/api/"));
     assert.ok(script.includes('getElementById("brightboard-afroai-widget")'));
     await client("/api/chatbot-widget.js");
     assert.equal(calls, 1);
@@ -77,6 +79,58 @@ test("widget uses same-origin chat, prevents duplicates, caches, and refreshes a
   });
 });
 
+test("supported provider versions and formatting changes execute only same-origin chat", async () => {
+  const expressions = [
+    ['fetch("https://afroaigroup.com/api/widget-chat/" + key, {', "/api/widget-chat/"],
+    ['fetch("https://afroaigroup.com/api/v1/widget-chat/" + key, {', "/api/v1/widget-chat/"],
+    ["fetch (\n 'https://afroaigroup.com/api/v1/widget-chat/'\n + key , {", "/api/v1/widget-chat/"],
+    ["fetch(`https://afroaigroup.com/api/v1/widget-chat/${ key }`, {", "/api/v1/widget-chat/"],
+    ['window.fetch("https://afroaigroup.com/api/v1/widget-chat/" + key, {', "/api/v1/widget-chat/"],
+  ];
+  for (const [expression, endpoint] of expressions) {
+    const source = fixtureScript.replace(
+      'fetch("https://afroaigroup.com/api/v1/widget-chat/" + key, {', expression,
+    );
+    let providerPosts = 0;
+    await withWidget(async (url, init) => {
+      const parsed = new URL(String(url));
+      if (parsed.pathname === "/widget.js") return new Response(source);
+      assert.equal(parsed.pathname, endpoint + fixtureKey);
+      assert.equal(init?.method, "POST");
+      providerPosts++;
+      return Response.json({ reply: "A real reply contract" });
+    }, async (client) => {
+      const response = await client("/api/chatbot-widget.js");
+      assert.equal(response.status, 200, expression);
+      const script = await response.text();
+      let markers = 0;
+      let requests = 0;
+      const sandbox = {
+        document: {
+          getElementById: () => markers ? {} : null,
+          createElement: () => ({}),
+          head: { appendChild: () => { markers++; } },
+        },
+        fetch: async (url: string, init: RequestInit) => {
+          assert.equal(url, "/api/chatbot-widget/chat");
+          requests++;
+          return client(url, init);
+        },
+        window: {} as Record<string, unknown>,
+        sendWidgetMessage: undefined as undefined | (() => Promise<Response>),
+      };
+      sandbox.window.fetch = sandbox.fetch;
+      runInNewContext(script, sandbox);
+      runInNewContext(script, sandbox);
+      assert.equal(markers, 1);
+      assert.ok(sandbox.sendWidgetMessage);
+      assert.deepEqual(await (await sandbox.sendWidgetMessage()).json(), { reply: "A real reply contract" });
+      assert.equal(requests, 1);
+      assert.equal(providerPosts, 1);
+    });
+  }
+});
+
 test("missing configuration fails explicitly without contacting the provider", async () => {
   await withWidget(async () => { throw new Error("Unexpected provider request"); }, async (client) => {
     assert.equal((await client("/api/chatbot-widget.js")).status, 503);
@@ -84,15 +138,73 @@ test("missing configuration fails explicitly without contacting the provider", a
   }, "");
 });
 
-test("unexpected provider widget format fails rather than reverting to cross-origin messages", async () => {
-  await withWidget(async () => new Response("unexpected script"), async (client) => {
+test("unknown, partial, and ambiguous provider migrations fail closed for script and chat", async () => {
+  for (const source of [
+    "unexpected script",
+    fixtureScript.replace("/api/v1/", "/api/v2/"),
+    fixtureScript.replace("+ key", "+ renamedKey"),
+    fixtureScript + '\nfetch("https://afroaigroup.com/api/v2/widget-chat/" + key, {});',
+    fixtureScript + '\nfetch("https://afroaigroup.com/api/widget-chat/" + key, {});',
+  ]) {
+    await withWidget(async (url) => {
+      assert.equal(new URL(String(url)).pathname, "/widget.js");
+      return new Response(source);
+    }, async (client) => {
+      const response = await client("/api/chatbot-widget.js");
+      assert.equal(response.status, 502);
+      assert.ok(!(await response.text()).includes("https://afroaigroup.com"));
+      assert.equal((await client("/api/chatbot-widget/chat", chat(validMessage))).status, 502);
+    });
+  }
+});
+
+test("all matching chat call sites are rewritten", async () => {
+  await withWidget(async () => new Response(fixtureScript + fixtureScript), async (client) => {
+    const response = await client("/api/chatbot-widget.js");
+    assert.equal(response.status, 200);
+    const script = await response.text();
+    assert.equal(script.match(/fetch\("\/api\/chatbot-widget\/chat",/g)?.length, 2);
+    assert.ok(!script.includes("https://afroaigroup.com/api/"));
+  });
+});
+
+test("expired cache refreshes provider contract and does not serve stale scripts on failure", async (t) => {
+  let now = Date.now();
+  t.mock.method(Date, "now", () => now);
+  let calls = 0;
+  await withWidget(async () => {
+    calls++;
+    return new Response(calls === 1 ? fixtureScript : "unsupported update");
+  }, async (client) => {
+    assert.equal((await client("/api/chatbot-widget.js")).status, 200);
+    now += 5 * 60_000 + 1;
     assert.equal((await client("/api/chatbot-widget.js")).status, 502);
+    assert.equal(calls, 2);
+  });
+});
+
+test("widget network and HTTP failures are safe and retried rather than cached", async () => {
+  let calls = 0;
+  await withWidget(async () => {
+    calls++;
+    if (calls === 1) throw new Error(`private URL ${fixtureKey}`);
+    if (calls === 2) return new Response("Unavailable", { status: 503 });
+    return new Response(fixtureScript);
+  }, async (client) => {
+    for (let i = 0; i < 2; i++) {
+      const response = await client("/api/chatbot-widget.js");
+      assert.equal(response.status, 502);
+      assert.ok(!(await response.text()).includes(fixtureKey));
+    }
+    assert.equal((await client("/api/chatbot-widget.js")).status, 200);
+    assert.equal(calls, 3);
   });
 });
 
 test("chat uses the configured key, bounds history, and only returns the reply", async () => {
   await withWidget(async (url, init) => {
-    assert.equal(new URL(String(url)).pathname, `/api/widget-chat/${fixtureKey}`);
+    if (new URL(String(url)).pathname === "/widget.js") return new Response(fixtureScript);
+    assert.equal(new URL(String(url)).pathname, `/api/v1/widget-chat/${fixtureKey}`);
     const body = JSON.parse(String(init?.body));
     assert.equal(body.message, "Hello");
     assert.equal(body.sessionId, validMessage.sessionId);
@@ -139,7 +251,10 @@ test("provider failures return safe JSON errors without leaking the key", async 
     new Response("<html>not JSON</html>"),
     Response.json({ reply: "" }),
   ];
-  await withWidget(async () => failures.shift()!, async (client) => {
+  await withWidget(async (url) => {
+    if (new URL(String(url)).pathname === "/widget.js") return new Response(fixtureScript);
+    return failures.shift()!;
+  }, async (client) => {
     for (let i = 0; i < 3; i++) {
       const response = await client("/api/chatbot-widget/chat", chat(validMessage));
       assert.equal(response.status, 502);
