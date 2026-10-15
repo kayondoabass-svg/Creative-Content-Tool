@@ -15,21 +15,29 @@
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const FETCH_TIMEOUT_MS = 10_000; // 10s per model — fail fast, move on
 
-function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...init, signal: controller.signal }).finally(() =>
     clearTimeout(timer)
   );
 }
 
 export async function generateGeminiImage(
-  prompt: string
+  prompt: string,
+  referenceImage?: string,
 ): Promise<{ data: Array<{ b64_json?: string }> }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "missing-key") {
     console.warn("[ImageGen] GEMINI_API_KEY not set");
     return { data: [{}] };
+  }
+
+  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [{ text: prompt }];
+  if (referenceImage) {
+    const match = referenceImage.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,([A-Za-z0-9+/=\r\n]+)$/);
+    if (!match) throw new Error("Invalid reference image. Please attach a PNG, JPG, or WebP image.");
+    parts.push({ inlineData: { mimeType: match[1].replace("image/jpg", "image/jpeg"), data: match[2].replace(/[\r\n]/g, "") } });
   }
 
   // ── 1. Gemini native image models (generateContent + responseModalities) ──
@@ -45,10 +53,10 @@ export async function generateGeminiImage(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          contents: [{ role: "user", parts }],
           generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
         }),
-      });
+      }, referenceImage ? 45_000 : FETCH_TIMEOUT_MS);
 
       if (!resp.ok) {
         const err = await resp.text();
@@ -57,8 +65,8 @@ export async function generateGeminiImage(
       }
 
       const data = await resp.json() as any;
-      const parts = data.candidates?.[0]?.content?.parts || [];
-      const imgPart = parts.find((p: any) => p.inlineData?.data);
+      const responseParts = data.candidates?.[0]?.content?.parts || [];
+      const imgPart = responseParts.find((p: any) => p.inlineData?.data);
       if (imgPart?.inlineData?.data) {
         console.log(`[ImageGen] Success: ${model}`);
         return { data: [{ b64_json: imgPart.inlineData.data }] };
@@ -67,6 +75,11 @@ export async function generateGeminiImage(
     } catch (err: any) {
       console.warn(`[ImageGen] ${model} error: ${err.message?.slice(0, 150)}`);
     }
+  }
+
+  // Imagen's text-only fallback cannot use attachments. Never silently drop a logo.
+  if (referenceImage) {
+    throw new Error("Image generation with your attachment is temporarily unavailable. Please try again.");
   }
 
   // ── 2. Imagen 4.0 via predict endpoint ────────────────────────────────────

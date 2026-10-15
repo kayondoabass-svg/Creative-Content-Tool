@@ -8,3 +8,4 @@
 - [Static screenshot limits](static-screenshot-limits.md) — full-page captures leave offscreen lazy images blank; URL fragments may not scroll a page whose content mounts asynchronously.
 - [Public visibility](public-visibility.md) — keep teacher/resource totals and the rotating showcase off public pages; preserve private owner statistics and creation tools.
 - [Chatbot browser access](chatbot-browser-access.md) — AfroAI server replies can pass while browser preflight fails; preserve same-origin message routing and verify in a browser.
+- [BrightBoard TV scope](brightboard-tv-scope.md) — reserve the TV entry with a B-in-TV icon; the user will provide functional requirements later.

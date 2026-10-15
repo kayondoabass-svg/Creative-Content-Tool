@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch, useLocation, Link } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Image, Presentation, FileText, Film, ClipboardList, Network, MailCheck, X, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { Image, Presentation, FileText, Film, ClipboardList, Network, MailCheck, X, AlertTriangle, GraduationCap } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { ContentTypeCard } from "@/components/content-type-card";
 import { PromptInput } from "@/components/prompt-input";
 import { GeneratedContentDisplay } from "@/components/generated-content-display";
@@ -289,13 +290,10 @@ export default function Home() {
               {t("home.chooseType")}
             </p>
             </div>
-            <Link href="/studio" className="inline-flex items-center gap-2 self-start sm:self-auto text-sm font-semibold text-primary bg-primary/8 hover:bg-primary/12 rounded-xl px-4 py-2.5 transition-colors">
-              Teacher Studio <ArrowUpRight className="w-4 h-4" />
-            </Link>
           </div>
 
           {/* Content Type Selection - Horizontal scroll on mobile */}
-          <div className="overflow-x-auto -mx-6 px-6 pb-2">
+          <div className="overflow-x-auto -mx-4 px-4 md:-mx-6 md:px-6 pb-2">
             <div className="flex gap-3 min-w-max sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:min-w-0">
               {contentTypes.map((ct) => (
                 <ContentTypeCard
@@ -315,6 +313,34 @@ export default function Home() {
                     : undefined}
                 />
               ))}
+              <Link href="/studio" data-testid="card-type-studio" className="block w-[140px] sm:w-auto flex-shrink-0 sm:flex-shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
+                <Card className="h-full p-3 hover-elevate transition-all duration-200 hover:border-primary/50">
+                  <div className="flex flex-col items-center text-center gap-2 sm:flex-row sm:items-start sm:text-left sm:gap-3">
+                    <div className="p-2 rounded-lg bg-violet-600"><GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 text-white" /></div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-xs sm:text-sm">{t("contentTypes.studio")}</h3>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{t("contentTypes.studioDesc")}</p>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+              <Card data-testid="card-type-tv" aria-disabled="true" className="w-[140px] sm:w-auto flex-shrink-0 sm:flex-shrink p-3">
+                <div className="flex flex-col items-center text-center gap-2 sm:flex-row sm:items-start sm:text-left sm:gap-3">
+                  <div className="p-2 rounded-lg bg-cyan-700" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 sm:h-5 sm:w-5 text-white" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m7 2 5 3 5-3" />
+                      <rect x="2" y="5" width="20" height="15" rx="2" />
+                      <path d="M9 23h6" />
+                      <text x="12" y="16" textAnchor="middle" fill="currentColor" stroke="none" fontSize="10" fontWeight="800">B</text>
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-xs sm:text-sm">{t("contentTypes.tv")}</h3>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{t("contentTypes.tvDesc")}</p>
+                    <span className="inline-block mt-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{t("contentTypes.comingSoon")}</span>
+                  </div>
+                </div>
+              </Card>
             </div>
           </div>
 

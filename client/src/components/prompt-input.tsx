@@ -220,6 +220,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const { isPremium } = useSubscription();
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isReadingImage, setIsReadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevSelectedType = useRef(selectedType);
 
@@ -255,10 +256,10 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     resetTranscript,
   } = useSpeechRecognition();
 
-  // Clear image when switching away from presentation
+  // Attachments belong to the selected tool; do not carry them into another tool.
   if (prevSelectedType.current !== selectedType) {
     prevSelectedType.current = selectedType;
-    if (selectedType !== "presentation" && (referenceImage || imagePreview)) {
+    if (referenceImage || imagePreview) {
       setReferenceImage(null);
       setImagePreview(null);
       if (fileInputRef.current) {
@@ -399,15 +400,30 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        alert("Image too large. Please use an image under 10MB.");
+      const formats = selectedType === "image" ? ["image/png", "image/jpeg", "image/webp"] : ["image/png", "image/jpeg", "image/webp", "image/gif"];
+      if (!formats.includes(file.type)) {
+        alert("Please attach a PNG, JPG, or WebP image.");
+        e.target.value = "";
         return;
       }
+      if (file.size > 10 * 1024 * 1024) {
+        alert("Image too large. Please use an image under 10MB.");
+        e.target.value = "";
+        return;
+      }
+      const uploadType = selectedType;
+      setIsReadingImage(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onload = () => {
+        setIsReadingImage(false);
+        if (prevSelectedType.current !== uploadType) return;
         const base64 = reader.result as string;
         setReferenceImage(base64);
         setImagePreview(base64);
+      };
+      reader.onerror = () => {
+        setIsReadingImage(false);
+        alert("Unable to read this image. Please try another file.");
       };
       reader.readAsDataURL(file);
     }
@@ -486,6 +502,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   };
 
   const onSubmit = (values: FormValues) => {
+    if (isReadingImage) return;
     const slideCount = values.slideCount ? parseInt(values.slideCount) : undefined;
     const videoOptions = selectedType === "storyboard" ? {
       length: values.videoLength,
@@ -537,7 +554,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       slideCount,
       videoOptions,
       presentationOptions,
-      selectedType === "presentation" ? referenceImage || undefined : undefined,
+      (selectedType === "presentation" || selectedType === "image") ? referenceImage || undefined : undefined,
       worksheetOptions,
       imageOptions,
       textOptions,
@@ -783,6 +800,25 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                   </FormItem>
                 )}
               />
+            </div>
+          )}
+
+          {selectedType === "image" && (
+            <div className="rounded-lg border border-dashed p-4 space-y-3" data-testid="image-attachment-section">
+              <div>
+                <p className="text-sm font-medium">{t("home.imageAttachmentTitle")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("home.imageAttachmentHint")}</p>
+              </div>
+              <input type="file" ref={fileInputRef} accept="image/png,image/jpeg,image/webp" onChange={handleImageUpload} disabled={isGenerating || isReadingImage} className="hidden" data-testid="input-image-attachment" />
+              {imagePreview ? (
+                <div className="flex items-center gap-3">
+                  <img src={imagePreview} alt="Attached image or logo" className="h-20 w-20 object-contain rounded-lg border bg-white" data-testid="img-image-attachment" />
+                  <Button type="button" variant="outline" size="sm" onClick={clearImage} disabled={isGenerating} data-testid="button-remove-image-attachment"><X className="h-4 w-4 mr-2" />{t("home.removeAttachment")}</Button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isGenerating || isReadingImage} data-testid="button-attach-image"><Upload className="h-4 w-4 mr-2" />{isReadingImage ? t("home.loadingAttachment") : t("home.attachImage")}</Button>
+              )}
+              <p className="text-xs text-muted-foreground">{t("home.imageAttachmentExample")}</p>
             </div>
           )}
 
@@ -1783,7 +1819,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
             </p>
             <Button
               type="submit"
-              disabled={isGenerating || (selectedType === "mindmap" ? !mindmapCentralTopic.trim() : !form.watch("prompt").trim())}
+              disabled={isGenerating || isReadingImage || (selectedType === "mindmap" ? !mindmapCentralTopic.trim() : !form.watch("prompt").trim())}
               className="gap-2 ml-auto"
               data-testid="button-generate"
             >

@@ -3438,7 +3438,7 @@ This should look like it was designed by a world-class branding agency. Make it 
         switch (type) {
           case "image": {
             onProgress("Generating your image with AI...", 30);
-            const imageResult = await generateImage(prompt, gradeLevel, subject, imageOptions);
+            const imageResult = await generateImage(prompt, gradeLevel, subject, imageOptions, referenceImage);
             generatedContent = JSON.stringify(imageResult);
             title = imageResult.title;
             break;
@@ -3865,7 +3865,7 @@ This should look like it was designed by a world-class branding agency. Make it 
 }
 
 // Image generation
-async function generateImage(prompt: string, gradeLevel?: string, subject?: string, options?: ImageOptions) {
+async function generateImage(prompt: string, gradeLevel?: string, subject?: string, options?: ImageOptions, referenceImage?: string) {
   const context = buildContext(gradeLevel, subject);
   const style = options?.style || "animation";
   const quality = options?.quality || "2d";
@@ -3876,13 +3876,13 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
                       quality === "hd" ? "high definition, crisp details" :
                       quality === "3d" ? "3D rendered, dimensional" : "2D flat illustration";
   
-  const enhancedPrompt = `Create a colorful, child-friendly educational illustration: ${prompt}. ${context} Style: bright colors, simple shapes, ${styleDesc}, ${qualityDesc}, engaging for children, no text in the image.`;
+  const enhancedPrompt = `Create a colorful, child-friendly educational illustration: ${prompt}. ${context} Style: bright colors, simple shapes, ${styleDesc}, ${qualityDesc}, engaging for children. ${referenceImage ? "Use the attached image as directed by the user's prompt. If it is a logo, preserve its design, colors, proportions, and lettering faithfully and place it at the position requested. Do not omit the attachment. Keep any requested text and logo lettering legible." : "No text in the image."}`;
 
   // For grid layout, generate 4 images
   const numImages = layout === "grid" ? 4 : 1;
   
   if (numImages === 1) {
-    const response = await generateGeminiImage(enhancedPrompt);
+    const response = await generateGeminiImage(enhancedPrompt, referenceImage);
 
     const imageData = response.data?.[0];
     if (!imageData?.b64_json && !imageData?.url) {
@@ -3900,7 +3900,7 @@ async function generateImage(prompt: string, gradeLevel?: string, subject?: stri
     // Generate 4 images for grid layout
     const images: string[] = [];
     for (let i = 0; i < 4; i++) {
-      const response = await generateGeminiImage(`${enhancedPrompt} (variation ${i + 1})`);
+      const response = await generateGeminiImage(`${enhancedPrompt} (variation ${i + 1})`, referenceImage);
       const imageData = response.data?.[0];
       if (imageData?.b64_json) {
         images.push(imageData.b64_json);
