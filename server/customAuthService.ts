@@ -114,7 +114,7 @@ export async function signUp(
       userId: newUser.id,
     };
   } catch (error) {
-    console.error("Sign up error:", error);
+    console.error("Sign up failed; private authentication diagnostics suppressed.");
     return { success: false, message: "Failed to create account" };
   }
 }
@@ -156,7 +156,7 @@ export async function verifyEmail(
 
     return { success: true, message: "Email verified successfully" };
   } catch (error) {
-    console.error("Email verification error:", error);
+    console.error("Email verification failed; private authentication diagnostics suppressed.");
     return { success: false, message: "Verification failed" };
   }
 }
@@ -298,7 +298,7 @@ export async function verifyEmailByToken(token: string): Promise<{ success: bool
     await db.delete(verificationCodes).where(eq(verificationCodes.id, vc.id));
     return { success: true, userId: user.id, message: "Email verified" };
   } catch (error) {
-    console.error("verifyEmailByToken error:", error);
+    console.error("Email link verification failed; private authentication diagnostics suppressed.");
     return { success: false, message: "Verification failed" };
   }
 }
@@ -337,8 +337,8 @@ export async function requestPasswordReset(
 
     return { success: true, message: "If an account exists, a reset code will be sent" };
   } catch (error: any) {
-    console.error("Password reset request error:", error);
-    return { success: false, message: `Could not send reset email: ${error?.message || error}` };
+    console.error("Password reset request failed; private authentication diagnostics suppressed.");
+    return { success: false, message: "Could not send reset email. Please try again." };
   }
 }
 
@@ -389,7 +389,7 @@ export async function resetPassword(
 
     return { success: true, message: "Password reset successfully" };
   } catch (error) {
-    console.error("Password reset error:", error);
+    console.error("Password reset failed; private authentication diagnostics suppressed.");
     return { success: false, message: "Failed to reset password" };
   }
 }
