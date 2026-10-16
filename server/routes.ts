@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions, type ImageOptions, type TextOptions, type ActivityOptions } from "@shared/schema";
 import { generateGeminiImage } from "./geminiImageService";
+import { generateEducationalImage } from "./educationalImageService";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { PDFExtract } from "pdf.js-extract";
 import sharp from "sharp";
@@ -3867,56 +3868,7 @@ This should look like it was designed by a world-class branding agency. Make it 
 
 // Image generation
 async function generateImage(prompt: string, gradeLevel?: string, subject?: string, options?: ImageOptions, referenceImage?: string) {
-  const context = buildContext(gradeLevel, subject);
-  const style = options?.style || "animation";
-  const quality = options?.quality || "2d";
-  const layout = options?.layout || "single";
-  
-  const styleDesc = style === "animation" ? "cartoon-like, animated style" : "realistic, photorealistic style";
-  const qualityDesc = quality === "4k" ? "ultra high quality, 4K resolution" : 
-                      quality === "hd" ? "high definition, crisp details" :
-                      quality === "3d" ? "3D rendered, dimensional" : "2D flat illustration";
-  
-  const enhancedPrompt = `Create a colorful, child-friendly educational illustration: ${prompt}. ${context} Style: bright colors, simple shapes, ${styleDesc}, ${qualityDesc}, engaging for children. ${referenceImage ? "Use the attached image as directed by the user's prompt. If it is a logo, preserve its design, colors, proportions, and lettering faithfully and place it at the position requested. Do not omit the attachment. Keep any requested text and logo lettering legible." : "No text in the image."}`;
-
-  // For grid layout, generate 4 images
-  const numImages = layout === "grid" ? 4 : 1;
-  
-  if (numImages === 1) {
-    const response = await generateGeminiImage(enhancedPrompt, referenceImage);
-
-    const imageData = response.data?.[0];
-    if (!imageData?.b64_json && !imageData?.url) {
-      throw new Error("Image generation is temporarily unavailable. Please try again in a moment.");
-    }
-
-    return {
-      title: extractTitle(prompt),
-      description: prompt,
-      imageUrl: imageData.url || undefined,
-      b64_json: imageData.b64_json || undefined,
-      options: { style, quality, layout },
-    };
-  } else {
-    // Generate 4 images for grid layout
-    const images: string[] = [];
-    for (let i = 0; i < 4; i++) {
-      const response = await generateGeminiImage(`${enhancedPrompt} (variation ${i + 1})`, referenceImage);
-      const imageData = response.data?.[0];
-      if (imageData?.b64_json) {
-        images.push(imageData.b64_json);
-      } else if (imageData?.url) {
-        images.push(imageData.url);
-      }
-    }
-    
-    return {
-      title: extractTitle(prompt),
-      description: prompt,
-      images,
-      options: { style, quality, layout },
-    };
-  }
+  return generateEducationalImage(prompt, buildContext(gradeLevel, subject), extractTitle(prompt), options, referenceImage);
 }
 
 // ─── GAME PRESENTATION GENERATOR ────────────────────────────────────────────

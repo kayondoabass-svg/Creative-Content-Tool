@@ -12,11 +12,11 @@ import { Sparkles, Loader2, Upload, X, Image as ImageIcon, Lock, Crown, Mic, Mic
 import { useSubscription } from "@/hooks/use-subscription";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useTranslation } from "react-i18next";
-import type { ContentType } from "@shared/schema";
+import type { ContentType, ImageOptions } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; keyPoints?: string[]; documentContext?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string; includeImages?: boolean }, imageOptions?: { style?: string; quality?: string; layout?: string }, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; keyPoints?: string[]; documentContext?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string; includeImages?: boolean }, imageOptions?: ImageOptions, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }) => void;
   isGenerating: boolean;
   defaultGameType?: string | null;
   externalPrompt?: string | null;
@@ -180,9 +180,9 @@ const formSchema = z.object({
   subject: z.string().optional(),
   slideCount: z.string().optional(),
   // Image options
-  imageStyle: z.string().optional(),
-  imageQuality: z.string().optional(),
-  imageLayout: z.string().optional(),
+  imageStyle: z.enum(["animation", "reallife"]).optional(),
+  imageQuality: z.enum(["2d", "3d", "hd", "4k"]).optional(),
+  imageLayout: z.enum(["single", "grid"]).optional(),
   // Text options
   textStyle: z.string().optional(),
   // Game type options
@@ -220,6 +220,10 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const { isPremium } = useSubscription();
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [logoMode, setLogoMode] = useState<"creative" | "exact">("creative");
+  const [logoPosition, setLogoPosition] = useState<NonNullable<ImageOptions["logoPosition"]>>("auto");
+  const [logoWidthPercent, setLogoWidthPercent] = useState(20);
+  const [logoMarginPercent, setLogoMarginPercent] = useState(4);
   const [isReadingImage, setIsReadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevSelectedType = useRef(selectedType);
@@ -262,6 +266,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     if (referenceImage || imagePreview) {
       setReferenceImage(null);
       setImagePreview(null);
+      setLogoMode("creative");
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -432,6 +437,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const clearImage = () => {
     setReferenceImage(null);
     setImagePreview(null);
+    setLogoMode("creative");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -527,10 +533,16 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       includeImages: values.worksheetIncludeImages,
       worksheetType: values.worksheetType || "mixed",
     } : undefined;
-    const imageOptions = selectedType === "image" ? {
+    const imageOptions: ImageOptions | undefined = selectedType === "image" ? {
       style: values.imageStyle,
       quality: values.imageQuality,
       layout: values.imageLayout,
+      ...(referenceImage ? {
+        logoMode,
+        logoPosition,
+        logoWidthPercent,
+        logoMarginPercent,
+      } : {}),
     } : undefined;
     const textOptions = selectedType === "text" ? {
       style: values.textStyle,
@@ -819,6 +831,102 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                 <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isGenerating || isReadingImage} data-testid="button-attach-image"><Upload className="h-4 w-4 mr-2" />{isReadingImage ? t("home.loadingAttachment") : t("home.attachImage")}</Button>
               )}
               <p className="text-xs text-muted-foreground">{t("home.imageAttachmentExample")}</p>
+              {referenceImage && (
+                <div className="space-y-4 rounded-lg border bg-muted/30 p-4" data-testid="image-logo-options">
+                  <div>
+                    <p className="text-sm font-medium">How should this reference be used?</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Choose a creative reference for inspiration, or place the original logo pixels without redrawing them.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setLogoMode("creative")}
+                      aria-pressed={logoMode === "creative"}
+                      data-testid="button-logo-mode-creative"
+                      className={`rounded-md border p-3 text-left transition-colors ${logoMode === "creative" ? "border-primary bg-primary/5" : "hover:border-primary/40"}`}
+                    >
+                      <span className="block text-sm font-medium">Creative reference</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">Use the image as inspiration, as before.</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLogoMode("exact")}
+                      aria-pressed={logoMode === "exact"}
+                      data-testid="button-logo-mode-exact"
+                      className={`rounded-md border p-3 text-left transition-colors ${logoMode === "exact" ? "border-primary bg-primary/5" : "hover:border-primary/40"}`}
+                    >
+                      <span className="block text-sm font-medium">Exact logo</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">Composite the original pixels; do not redraw.</span>
+                    </button>
+                  </div>
+                  {logoMode === "exact" && (
+                    <div className="space-y-4 border-t pt-4" data-testid="exact-logo-controls">
+                      <p className="text-xs text-muted-foreground">
+                        The logo’s aspect ratio and transparency are preserved. PNG transparency is recommended; JPEG files retain their background.
+                      </p>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="space-y-2">
+                          <label htmlFor="exact-logo-position" className="text-xs font-medium">Position</label>
+                          <Select value={logoPosition} onValueChange={(value) => setLogoPosition(value as NonNullable<ImageOptions["logoPosition"]>)}>
+                            <SelectTrigger id="exact-logo-position" data-testid="select-exact-logo-position">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="auto">Auto (follow prompt)</SelectItem>
+                              <SelectItem value="top-left">Top left</SelectItem>
+                              <SelectItem value="top-center">Top center</SelectItem>
+                              <SelectItem value="top-right">Top right</SelectItem>
+                              <SelectItem value="center-left">Center left</SelectItem>
+                              <SelectItem value="center">Center</SelectItem>
+                              <SelectItem value="center-right">Center right</SelectItem>
+                              <SelectItem value="bottom-left">Bottom left</SelectItem>
+                              <SelectItem value="bottom-center">Bottom center</SelectItem>
+                              <SelectItem value="bottom-right">Bottom right</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-[10px] text-muted-foreground">Auto recognises common positions such as “top right” in your prompt; otherwise it uses top right. Choose a position to override it.</p>
+                        </div>
+                        <div className="space-y-2">
+                          <label htmlFor="exact-logo-width" className="flex justify-between text-xs font-medium">
+                            <span>Logo width</span><span>{logoWidthPercent}%</span>
+                          </label>
+                          <input
+                            id="exact-logo-width"
+                            type="range"
+                            min={5}
+                            max={40}
+                            step={1}
+                            value={logoWidthPercent}
+                            onChange={(event) => setLogoWidthPercent(Number(event.target.value))}
+                            className="w-full accent-primary"
+                            data-testid="range-exact-logo-width"
+                          />
+                          <div className="flex justify-between text-[10px] text-muted-foreground"><span>5%</span><span>40%</span></div>
+                        </div>
+                        <div className="space-y-2">
+                          <label htmlFor="exact-logo-margin" className="flex justify-between text-xs font-medium">
+                            <span>Edge margin</span><span>{logoMarginPercent}%</span>
+                          </label>
+                          <input
+                            id="exact-logo-margin"
+                            type="range"
+                            min={0}
+                            max={15}
+                            step={1}
+                            value={logoMarginPercent}
+                            onChange={(event) => setLogoMarginPercent(Number(event.target.value))}
+                            className="w-full accent-primary"
+                            data-testid="range-exact-logo-margin"
+                          />
+                          <div className="flex justify-between text-[10px] text-muted-foreground"><span>0%</span><span>15%</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

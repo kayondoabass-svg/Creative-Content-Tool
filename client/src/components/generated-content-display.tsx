@@ -789,6 +789,30 @@ export function GeneratedContentDisplay({
 function ImageContent({ content }: { content: string }) {
   try {
     const data = JSON.parse(content);
+    if (Array.isArray(data.images) && data.images.length > 0) {
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3" data-testid="image-grid">
+            {data.images.map((image: string, index: number) => (
+              <div className="rounded-lg overflow-hidden border relative" key={index}>
+                <img
+                  src={image.startsWith("http") || image.startsWith("data:") ? image : `data:image/png;base64,${image}`}
+                  alt={`Generated educational image ${index + 1}`}
+                  className="w-full h-auto"
+                  data-testid={`img-generated-${index}`}
+                />
+                {data.options?.logoMode === "exact"
+                  ? <div className="flex justify-end p-2"><BrightBoardLogo show={true} absolute={false} /></div>
+                  : <BrightBoardLogo show={true} />}
+              </div>
+            ))}
+          </div>
+          {data.title && <h3 className="font-semibold text-lg">{data.title}</h3>}
+          {data.description && <p className="text-muted-foreground">{data.description}</p>}
+          <p className="text-xs text-muted-foreground">Download saves all four images in one PNG grid.</p>
+        </div>
+      );
+    }
     if (data.imageUrl || data.b64_json) {
       const imgSrc = data.imageUrl || `data:image/png;base64,${data.b64_json}`;
       return (
@@ -800,7 +824,9 @@ function ImageContent({ content }: { content: string }) {
               className="w-full h-auto"
               data-testid="img-generated"
             />
-            <BrightBoardLogo show={true} />
+            {data.options?.logoMode === "exact"
+              ? <div className="flex justify-end p-2"><BrightBoardLogo show={true} absolute={false} /></div>
+              : <BrightBoardLogo show={true} />}
           </div>
           {data.title && (
             <h3 className="font-semibold text-lg">{data.title}</h3>

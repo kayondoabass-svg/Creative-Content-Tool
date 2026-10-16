@@ -84,6 +84,10 @@ export const imageOptionsSchema = z.object({
   style: z.enum(["animation", "reallife"]).optional(),
   quality: z.enum(["2d", "3d", "hd", "4k"]).optional(),
   layout: z.enum(["single", "grid"]).optional(),
+  logoMode: z.enum(["creative", "exact"]).optional(),
+  logoPosition: z.enum(["auto", "top-left", "top-center", "top-right", "center-left", "center", "center-right", "bottom-left", "bottom-center", "bottom-right"]).optional(),
+  logoWidthPercent: z.number().min(5).max(40).optional(),
+  logoMarginPercent: z.number().min(0).max(15).optional(),
 });
 
 export type ImageOptions = z.infer<typeof imageOptionsSchema>;
@@ -136,6 +140,10 @@ export const generateContentSchema = z.object({
   activityOptions: activityOptionsSchema.optional(),
   mindmapOptions: mindmapOptionsSchema.optional(),
   includeLogo: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  if (data.type === "image" && data.imageOptions?.logoMode === "exact" && !data.referenceImage) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["referenceImage"], message: "Please attach a logo for exact-logo mode." });
+  }
 });
 
 export type GenerateContentRequest = z.infer<typeof generateContentSchema>;
