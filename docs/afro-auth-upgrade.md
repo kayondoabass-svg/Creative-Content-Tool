@@ -62,3 +62,9 @@ Mocks cover the provider contract and session guard, not actual email delivery.
 A real end-to-end confirmation/recovery test needs the new server secret in
 the running environment and access to a test user's inbox. Never use a real
 customer's password or mailbox for testing.
+
+For the repeatable operator-assisted live check, secure configuration, dedicated
+legacy fixture setup, evidence rules and cleanup, see
+[`afro-auth-live-check.md`](afro-auth-live-check.md). Use
+`npm run auth:check:unit` for the separate mocked safety checks. Neither unit
+tests nor `auth:check:live -- --preflight` verifies email delivery.

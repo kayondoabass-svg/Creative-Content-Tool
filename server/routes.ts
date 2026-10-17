@@ -367,7 +367,7 @@ ${pages.map(p => `  <url>
       // Signup is not a login: confirmation must happen before a session exists.
       res.json({ message: result.message, verificationRequired: true, verificationMethod: "link", provider: "afro" });
     } catch (error) {
-      console.error("Signup error:", error);
+      console.error("Signup failed; private authentication diagnostics suppressed.");
       res.status(500).json({ error: "Failed to sign up" });
     }
   });
@@ -405,7 +405,7 @@ ${pages.map(p => `  <url>
       
       res.json({ message: result.message });
     } catch (error) {
-      console.error("Verify email error:", error);
+      console.error("Email verification failed; private authentication diagnostics suppressed.");
       res.status(500).json({ error: "Failed to verify email" });
     }
   });
@@ -423,7 +423,7 @@ ${pages.map(p => `  <url>
       if (!result.ok) return res.status(result.status >= 500 ? 503 : result.status).json({ error: result.error });
       res.json({ message: "If an account needs confirmation, a new confirmation link has been sent.", verificationMethod: "link" });
     } catch (error) {
-      console.error("Resend code error:", error);
+      console.error("Confirmation resend failed; private authentication diagnostics suppressed.");
       res.status(500).json({ error: "Failed to resend code" });
     }
   });
@@ -530,7 +530,7 @@ ${pages.map(p => `  <url>
         },
       });
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Login failed; private authentication diagnostics suppressed.");
       res.status(500).json({ error: "Failed to login" });
     }
   });
@@ -545,14 +545,14 @@ ${pages.map(p => `  <url>
       }
       (req as any).session.destroy((err: any) => {
         if (err) {
-          console.error("Session destroy error:", err);
+          console.error("Session destruction failed; private authentication diagnostics suppressed.");
           return res.status(500).json({ error: "Failed to logout" });
         }
         res.clearCookie("connect.sid");
         res.json({ message: "Logged out successfully" });
       });
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("Logout failed; private authentication diagnostics suppressed.");
       res.status(500).json({ error: "Failed to logout" });
     }
   });
@@ -597,7 +597,7 @@ ${pages.map(p => `  <url>
       if (!result.ok) return res.status(result.status >= 500 ? 503 : result.status).json({ error: result.error });
       res.json({ message: "If an account exists, a password-reset link has been sent. Open it to choose a new password.", verificationMethod: "link" });
     } catch (error) {
-      console.error("Forgot password error:", error);
+      console.error("Password recovery request failed; private authentication diagnostics suppressed.");
       res.status(500).json({ error: "Failed to request password reset" });
     }
   });
@@ -630,7 +630,7 @@ ${pages.map(p => `  <url>
       
       res.json({ message: "Recovery confirmed. Open the Afro Auth confirmation link in your email, then sign in.", verificationMethod: "link" });
     } catch (error) {
-      console.error("Reset password error:", error);
+      console.error("Password reset failed; private authentication diagnostics suppressed.");
       res.status(500).json({ error: "Failed to reset password" });
     }
   });

@@ -8,6 +8,9 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
+    "auth:check:unit": "tsx --test server/afroaiAuthService.test.ts scripts/auth-live/support.test.ts",
+    "auth:check:types": "tsc -p scripts/auth-live/tsconfig.json",
+    "auth:check:live": "tsx scripts/auth-live-check.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
