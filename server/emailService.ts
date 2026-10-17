@@ -1,6 +1,7 @@
 // AfroAI email service for BrightBoard
 import { db } from './db';
 import { expenses } from '@shared/schema';
+import { deliverOwnerAlert, paymentOwnerAlert, referralApplicationOwnerAlert, type OwnerAlert } from './owner-alerts';
 
 const AFROAI_API_URL = "https://afroaigroup.com/api/email-api/send";
 const NOREPLY_SENDER = process.env.AFROAI_EMAIL_FROM || "BrightBoard <noreply@brightboardapp.com>";
@@ -49,7 +50,27 @@ async function sendEmail(to: string, subject: string, html: string, from: string
   }
 
   const data = await res.json() as any;
+  if (data.success === false || data.error) {
+    throw new Error("Email API did not accept the message");
+  }
   return { success: true, messageId: data.messageId };
+}
+
+async function sendFounderAlert(alert: OwnerAlert): Promise<void> {
+  await deliverOwnerAlert(alert, (to, subject, html, text) =>
+    sendEmail(to, subject, html, NOREPLY_SENDER, undefined, text));
+}
+
+export async function sendOwnerPaymentNotification(
+  data: Parameters<typeof paymentOwnerAlert>[0],
+): Promise<void> {
+  await sendFounderAlert(paymentOwnerAlert(data));
+}
+
+export async function sendOwnerReferralApplicationNotification(
+  data: Parameters<typeof referralApplicationOwnerAlert>[0],
+): Promise<void> {
+  await sendFounderAlert(referralApplicationOwnerAlert(data));
 }
 
 async function logEmailExpense(emailType: string, recipient: string): Promise<void> {

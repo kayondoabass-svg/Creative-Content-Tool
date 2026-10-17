@@ -1266,10 +1266,10 @@ ${pages.map(p => `  <url>
 
       // Notify owner
       try {
-        const { sendContactNotification } = await import("./emailService");
-        await sendContactNotification(name, email, "partnership", `New affiliate application:\n\nName: ${name}\nEmail: ${email}\nWebsite: ${website || "N/A"}\nSocial Media: ${socialMedia || "N/A"}\nAudience: ${audience || "N/A"}\nReason: ${reason}`);
+        const { sendOwnerReferralApplicationNotification } = await import("./emailService");
+        await sendOwnerReferralApplicationNotification({ name, email, website, socialMedia, audience, reason });
       } catch (e) {
-        console.error("Failed to send affiliate notification:", e);
+        console.error("Founder referral application alert failed; application remains saved");
       }
 
       res.json({ success: true });
