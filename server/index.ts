@@ -5,6 +5,8 @@ import { createServer } from "http";
 import { setupAuth } from "./replit_integrations/auth";
 import path from "path";
 import { registerChatbotWidget } from "./chatbot-widget";
+import { initializeReferralSchema } from "./referral-store";
+import { startReferralNotificationWorker } from "./referral-notifications";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -60,7 +62,8 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse && !path.startsWith("/api/chatbot-widget/") && !path.startsWith("/api/auth/")) {
+      if (capturedJsonResponse && !path.startsWith("/api/chatbot-widget/") && !path.startsWith("/api/auth/") &&
+        !path.startsWith("/api/referrals") && !path.startsWith("/api/affiliates")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -72,10 +75,12 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await initializeReferralSchema();
   registerChatbotWidget(app);
   await setupAuth(app);
   
   await registerRoutes(httpServer, app);
+  startReferralNotificationWorker();
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

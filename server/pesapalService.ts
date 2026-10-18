@@ -1,6 +1,7 @@
 import { db } from './db';
 import { users, payments } from '@shared/schema';
-import { and, eq, ne } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { recordProviderPaymentStatus } from './referral-store';
 
 const PESAPAL_BASE_URL = 'https://pay.pesapal.com/v3/api';
 
@@ -342,40 +343,7 @@ export async function updatePaymentStatus(
   paymentMethod?: string,
   confirmationCode?: string,
 ): Promise<void> {
-  const updateData: any = { status };
-  if (paymentMethod) updateData.paymentMethod = paymentMethod;
-  if (confirmationCode) updateData.confirmationCode = confirmationCode;
-
-  // Atomically claim the transition. Callback, IPN and owner recheck can arrive
-  // together; only the request that first completes this payment sends an alert.
-  // A late failed/pending callback must not downgrade a confirmed payment.
-  const changed = await db.update(payments)
-    .set(updateData)
-    .where(and(eq(payments.orderId, orderId), ne(payments.status, 'completed')))
-    .returning();
-
-  if (status === 'completed' && changed.length > 0) {
-    const payment = changed[0];
-    try {
-      const [customer] = await db.select().from(users).where(eq(users.id, payment.userId)).limit(1);
-      const { sendOwnerPaymentNotification } = await import('./emailService');
-      await sendOwnerPaymentNotification({
-        orderId: payment.orderId,
-        // Stored amounts are minor units (submitOrder multiplies by 100).
-        amount: payment.amount / 100,
-        currency: payment.currency,
-        tier: payment.tier,
-        customerName: `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim(),
-        customerEmail: customer?.email || '',
-        paymentMethod: payment.paymentMethod,
-        confirmationCode: payment.confirmationCode,
-      });
-    } catch {
-      // An email outage must not turn a paid subscription into a failed payment.
-      // Do not log provider bodies or credentials.
-      console.error(`Founder payment alert failed for payment ${payment.id}; payment remains completed`);
-    }
-  }
+  await recordProviderPaymentStatus(orderId, status, paymentMethod, confirmationCode);
 }
 
 export function isConfigured(): boolean {

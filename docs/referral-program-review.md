@@ -1,5 +1,9 @@
 # Referral program review and recommended plan
 
+> This is the original pre-implementation audit. The new private applicant and
+> founder workspace, commission accounting, payout recording and notification
+> queue are documented in [Referral workspace](referral-workspace.md).
+
 ## Scope
 
 This is a code-based review of the founder dashboard, public affiliate page,

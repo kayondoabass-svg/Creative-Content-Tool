@@ -87,6 +87,8 @@ import { verifyRecaptchaToken } from "./recaptcha/verifyRecaptcha";
 import * as customAuth from "./customAuthService";
 import { afroaiSignup, afroaiLogin, afroaiVerifySession, afroaiSendVerification, afroaiForgotPassword, afroaiLogout, isAfroAuthConfigured, matchesAfroEmail } from "./afroaiAuthService";
 import { afroaiSessionGuard } from "./afroaiSessionGuard";
+import { registerReferralRoutes } from "./referral-routes";
+import { attachSignupReferral, captureReferral } from "./referral-attribution";
 import { db } from "./db";
 import { users, featureUsage, loginEvents, pageViews, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
@@ -207,6 +209,8 @@ export async function registerRoutes(
   // ── Apply general API rate limit to all /api routes ──────────────────────
   app.use("/api", generalApiLimiter);
   app.use("/api", afroaiSessionGuard);
+  app.use(captureReferral);
+  registerReferralRoutes(app);
 
   // ── Health check endpoint (for UptimeRobot / load balancer) ─────────────
   app.get("/api/health", (_req, res) => {
@@ -352,13 +356,9 @@ ${pages.map(p => `  <url>
       }
 
       // ── Step 3: Track referral if provided ─────────────────────────────────
-      if (ref && result.userId) {
+      if (result.userId) {
         try {
-          const affiliate = await db.select().from(affiliates).where(eq(affiliates.referralCode, ref)).limit(1);
-          if (affiliate[0] && affiliate[0].status === "approved") {
-            await db.update(users).set({ referredBy: ref }).where(eq(users.id, result.userId));
-            await db.update(affiliates).set({ totalReferrals: sql`${affiliates.totalReferrals} + 1` }).where(eq(affiliates.id, affiliate[0].id));
-          }
+          await attachSignupReferral(req, result.userId, ref);
         } catch (refErr) {
           console.error("Referral tracking error:", refErr);
         }
@@ -721,6 +721,7 @@ ${pages.map(p => `  <url>
           subscriptionStatus: isOwnerEmail ? "active" : "inactive",
         }).returning();
         existingUser = newUser;
+        await attachSignupReferral(req, newUser.id);
       }
 
       // Set session
@@ -833,6 +834,7 @@ ${pages.map(p => `  <url>
           subscriptionStatus: "inactive",
         }).returning();
         existingUser = newUser;
+        await attachSignupReferral(req, newUser.id);
       }
 
       (req as any).session.userId = existingUser.id;
@@ -926,6 +928,7 @@ ${pages.map(p => `  <url>
           subscriptionStatus: isOwnerEmail ? "active" : "inactive",
         }).returning();
         existingUser = newUser;
+        await attachSignupReferral(req, newUser.id);
       }
 
       (req as any).session.userId = existingUser.id;

@@ -10,3 +10,4 @@
 - [Chatbot browser access](chatbot-browser-access.md) — AfroAI server replies can pass while browser preflight fails; preserve same-origin message routing and verify in a browser.
 - [BrightBoard TV scope](brightboard-tv-scope.md) — reserve the TV entry with a B-in-TV icon; the user will provide functional requirements later.
 - [Afro Auth contract](afro-auth-contract.md) — project connection examples can differ from public docs; website ownership and customer email confirmation are separate.
+- [Referral privacy and policy](referral-program-decisions.md) — applicants see only their own data; commission rules need founder confirmation, not inferred historical debt.

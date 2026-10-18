@@ -5,6 +5,7 @@ import { z } from "zod";
 
 // Re-export auth models (IMPORTANT for Replit Auth)
 export * from "./models/auth";
+export * from "./models/referrals";
 
 // Content generation types
 export const contentTypes = ["image", "presentation", "text", "activity", "storyboard", "worksheet", "mindmap"] as const;
