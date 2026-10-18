@@ -258,6 +258,8 @@ Allow: /affiliate
 Allow: /studio
 Allow: /resources
 Allow: /teaching-tips
+Allow: /brightboardtv
+Disallow: /tv/
 Disallow: /api/
 Disallow: /dashboard
 Disallow: /generate
@@ -301,6 +303,7 @@ Sitemap: https://www.brightboardapp.com/sitemap.xml`
       { url: "/studio", priority: "0.9", changefreq: "weekly" },
       { url: "/resources", priority: "0.9", changefreq: "monthly" },
       { url: "/teaching-tips", priority: "0.8", changefreq: "monthly" },
+      { url: "/brightboardtv", priority: "0.9", changefreq: "monthly" },
       { url: "/features", priority: "0.8", changefreq: "monthly" },
       { url: "/how-it-works", priority: "0.8", changefreq: "monthly" },
       { url: "/pricing", priority: "0.7", changefreq: "weekly" },
