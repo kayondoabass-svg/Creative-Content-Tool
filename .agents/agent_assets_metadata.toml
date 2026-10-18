@@ -60,3 +60,31 @@ mtime_ms = 1792289056792
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/afd930ae-c4b9-4a33-aba9-4a7f58ae978e/f9f2bcba-f46a-407c-89db-7536f8305766"
 storage_version_token = "1792289074116596"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "jRhINBT_f1oGTzge87n9U"
+uri = "file://dist/releases/BrightboardTV-source.zip"
+type = "unspecified"
+title = "BrightboardTV — updated source ZIP"
+description = "Large-lesson saving, direct local-file access with permission, and working Clear/Delete controls. Cloudflare storage is not configured yet."
+logical_id = "f4124f25-0896-495b-96ad-6d0268b1f55c"
+content_hash = "sha256:6960f528a3d425277c4bee8f6a6ff6a729254ffcf3f149d79d3354b11115066a"
+size = 155922
+mtime_ms = 1792297695754
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/f4124f25-0896-495b-96ad-6d0268b1f55c/55e07783-bfb2-4650-a2a4-09778f6e6024"
+storage_version_token = "1792298485024871"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "EqaWw8gF1hg7vJFc4bQ6I"
+uri = "file://dist/releases/BrightboardTV-prebuilt.zip"
+type = "unspecified"
+title = "BrightboardTV — updated prebuilt ZIP"
+description = "Updated standalone build. Direct file saving requires a supported browser and permission; other devices use import/export."
+logical_id = "899cfc4b-7ce4-4b8f-a216-f912901b15dd"
+content_hash = "sha256:006ce75dc91900ca5c189e6ca7adeb8a296ce12ab700c8bc5d03c040d05e6e14"
+size = 1376397
+mtime_ms = 1792297695978
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/899cfc4b-7ce4-4b8f-a216-f912901b15dd/f6acd3c6-4816-44e9-a549-0095bf75bdb3"
+storage_version_token = "1792298488299722"
+content_type = "application/octet-stream"
