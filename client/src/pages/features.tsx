@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Image, Presentation, FileText, Video, FileSpreadsheet, Gamepad2, Sparkles, CheckCircle2, GraduationCap, Globe, Zap, Shield, Clock, Download, Palette, Brain, Volume2, Languages, FileCheck, Layers, Star } from "lucide-react";
 import { Link } from "wouter";
 import { Footer } from "@/components/footer";
+import { BrightboardTVPublicSection } from "@/components/brightboardtv-public-section";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 
@@ -68,7 +69,7 @@ const platformFeatures = [
   { icon: Download, titleKey: "features.platformExportTitle", descKey: "features.platformExportDesc" },
   { icon: Shield, titleKey: "features.platformSafeTitle", descKey: "features.platformSafeDesc" },
   { icon: Clock, titleKey: "features.platformFastTitle", descKey: "features.platformFastDesc" },
-  { icon: Layers, titleKey: "features.platformHistoryTitle", descKey: "features.platformHistoryDesc" },
+  { icon: Layers, titleKey: "features.platformHistoryTitle", descKey: "features.platformHistory24Desc" },
   { icon: Volume2, titleKey: "features.platformVoiceTitle", descKey: "features.platformVoiceDesc" },
 ];
 
@@ -76,9 +77,9 @@ export default function Features() {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = "Features | BrightBoard - AI Content Creation for Teachers";
+    document.title = "Features | BrightBoard AI Tools & BrightboardTV";
     const meta = document.querySelector('meta[name="description"]');
-    const desc = "Explore BrightBoard's powerful features: AI image generation, slide presentations, worksheets, interactive games, video storyboards, and text content for educators.";
+    const desc = "Explore BrightBoard AI teaching tools, Teacher Studio and open-source BrightboardTV: interactive presentations, device imports, QR remotes, downloads and self-hosting.";
     if (meta) meta.setAttribute("content", desc);
     else {
       const m = document.createElement("meta");
@@ -105,6 +106,22 @@ export default function Features() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             {t("features.subtitle")}
           </p>
+        </div>
+
+        <BrightboardTVPublicSection detailed />
+
+        <div className="grid md:grid-cols-2 gap-5 mb-12">
+          <Card className="p-6">
+            <Brain className="w-7 h-7 text-primary mb-3" aria-hidden="true" />
+            <h2 className="text-xl font-bold mb-2">{t("features.mindmapsOverviewTitle", { defaultValue: "Mind maps for connected ideas" })}</h2>
+            <p className="text-sm text-muted-foreground">{t("features.mindmapsOverviewText", { defaultValue: "Organise topics, brainstorm ideas and explore connections with visual mind maps. Use them alongside your lesson materials and presentations." })}</p>
+          </Card>
+          <Card className="p-6">
+            <GraduationCap className="w-7 h-7 text-primary mb-3" aria-hidden="true" />
+            <h2 className="text-xl font-bold mb-2">Teacher Studio</h2>
+            <p className="text-sm text-muted-foreground mb-4">{t("features.studioOverviewText", { defaultValue: "Create teaching CVs, certificates, school logos and report cards, and convert supported document formats in a dedicated professional workspace." })}</p>
+            <Link href="/studio" className="font-semibold text-sm text-primary hover:underline">{t("features.studioLink", { defaultValue: "Explore Teacher Studio →" })}</Link>
+          </Card>
         </div>
 
         <div className="space-y-12 mb-20">

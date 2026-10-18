@@ -18,6 +18,16 @@ from native screen/audio mirroring, which depends on device support. Keep 3D
 exploration and whiteboard tools relevant to classroom and business presentations;
 do not interpret TV as a streaming/video subscription service.
 
+About Us, Features and the footer must explain this wider audience and that
+others can use, modify and build on the open-source presentation core.
+
+**Why:** The user explicitly requested these public-page updates, not just a
+separate BrightboardTV download page. Keep the existing verified founder story.
+
+**How to apply:** Keep public messaging consistent across these pages. Do not
+reduce BrightboardTV to teachers only or imply the whole hosted website is
+included in the independently licensed open-source distribution.
+
 The public source distribution must have its own clean source boundary and no
 history from BrightBoard's private application.
 

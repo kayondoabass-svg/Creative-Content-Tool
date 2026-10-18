@@ -162,9 +162,9 @@ const STATIC_ROUTES: Record<string, RouteMeta> = {
     description: DEFAULT_DESC,
   },
   "/features": {
-    title: "Features | BrightBoard for Teachers",
-    h1: "Powerful AI Features for Educators",
-    description: "Explore BrightBoard's AI features: custom educational images, presentations, printable worksheets, interactive games, video storyboards, and rich text content.",
+    title: "Features | BrightBoard AI Tools & BrightboardTV",
+    h1: "Create, Teach and Present with BrightBoard",
+    description: "Explore BrightBoard AI teaching tools, Teacher Studio and open-source BrightboardTV: interactive presentations, device imports, QR remotes, downloads and self-hosting.",
   },
   "/how-it-works": {
     title: "How BrightBoard Works | AI for Teachers",
@@ -177,9 +177,9 @@ const STATIC_ROUTES: Record<string, RouteMeta> = {
     description: "Start free with BrightBoard. Upgrade to Premium for unlimited AI-generated presentations, worksheets, games, images and more. Localised pricing available.",
   },
   "/about": {
-    title: "About BrightBoard | AI Tools for Teachers",
+    title: "About BrightBoard | AI Teaching Tools & Open-Source Presentations",
     h1: "About BrightBoard",
-    description: "Founded in Uganda, built for teachers worldwide. Our mission is to give every teacher access to professional-quality educational content creation tools.",
+    description: "Meet BrightBoard and BrightboardTV: AI tools for educators and open-source interactive presentations for teachers, speakers, CEOs and teams. Use, customise and contribute.",
   },
   "/blog": {
     title: "Teaching Resources & Insights | BrightBoard",

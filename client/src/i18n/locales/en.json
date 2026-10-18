@@ -445,9 +445,9 @@
   "about": {
     "backHome": "Back to Home",
     "title": "About BrightBoard",
-    "subtitle": "Empowering teachers worldwide with AI-powered content creation",
+    "subtitle": "AI tools for educators. Open-source interactive presentations for classrooms, stages and teams.",
     "missionTitle": "Our Mission",
-    "missionText": "BrightBoard exists to give every teacher access to professional-quality educational content creation tools. We believe that when teachers save time on content preparation, they can invest more energy into what truly matters: inspiring and engaging their students.",
+    "missionText": "BrightBoard helps educators spend less time preparing materials and more time teaching. With BrightboardTV, we also help public speakers, CEOs, managers and teams share ideas through interactive presentations. Our open-source presentation software lets people use, adapt and build on the tools for their own needs.",
     "storyTitle": "Our Story",
     "storyText1": "BrightBoard was born from a simple observation: teachers spend countless hours creating educational materials, often working late nights and weekends to prepare content for their classrooms. We knew AI could change that.",
     "storyText2": "Founded in Uganda, BrightBoard is built with a global perspective. Our platform supports 11 languages and is designed to serve educators across Africa, Asia, Europe, and beyond. We understand the unique challenges teachers face in diverse educational environments.",
@@ -553,7 +553,7 @@
     "contact": "Contact",
     "blog": "Blog & Resources",
     "howItWorks": "How It Works",
-    "description": "AI-powered content creation platform for busy teachers. Create educational images, presentations, activities, worksheets, and video storyboards in seconds."
+    "description": "AI-powered teaching tools and BrightboardTV, our open-source interactive presentation software for educators, speakers and teams."
   },
   "language": {
     "selectLanguage": "Select Language",
@@ -748,8 +748,8 @@
   },
   "features": {
     "backHome": "Back to Home",
-    "title": "Powerful Features for Educators",
-    "subtitle": "Explore every tool BrightBoard offers to transform your lesson preparation. Each feature is purpose-built for classroom use by real teachers.",
+    "title": "Create, Teach and Present with BrightBoard",
+    "subtitle": "Explore AI tools for classroom content, Teacher Studio for professional tasks, and open-source BrightboardTV for lessons, talks and team meetings.",
     "perfectFor": "Perfect for:",
     "keyBenefits": "Key Benefits",
     "seeHowItWorks": "See How It Works",
@@ -812,10 +812,11 @@
     "platformFastTitle": "Lightning Fast Generation",
     "platformFastDesc": "Most content is generated in under 30 seconds. No waiting for renders or processing — your educational materials are ready almost instantly.",
     "platformHistoryTitle": "Content History",
-    "platformHistoryDesc": "All your generated content is saved in your personal history. Access, re-download, or regenerate any previous creation at any time.",
+    "platformHistoryDesc": "New creations stay in your private recent history for 24 hours and survive server restarts. Download or export a copy before they expire.",
+    "platformHistory24Desc": "New creations stay in your private recent history for 24 hours and survive server restarts. Download or export a copy before they expire.",
     "platformVoiceTitle": "Voice Input",
     "platformVoiceDesc": "Describe your content using voice input instead of typing. Perfect for busy teachers who want to create content hands-free.",
-    "ctaTitle": "Start Creating Amazing Educational Content",
-    "ctaText": "Join thousands of teachers worldwide who are saving hours every week. Start free — no credit card required."
+    "ctaTitle": "Create Something Worth Sharing",
+    "ctaText": "Prepare classroom materials with BrightBoard, explore Teacher Studio, or launch BrightboardTV for an interactive presentation. Choose the tools that fit your work."
   }
 }

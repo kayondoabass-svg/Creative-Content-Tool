@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Mail } from "lucide-react";
+import { Mail, Monitor } from "lucide-react";
 import { SiFacebook, SiInstagram } from "react-icons/si";
 
 const FACEBOOK_URL = "https://www.facebook.com/share/1Degjg2YnK/";
@@ -28,9 +28,6 @@ export function Footer() {
             <p className="text-sm text-muted-foreground mb-4">
               {t('footer.description')}
             </p>
-            <Link href="/brightboardtv" className="inline-flex mb-4 font-semibold text-primary hover:underline" data-testid="link-brightboardtv-footer">
-              BrightboardTV
-            </Link>
             <div className="flex items-center gap-3">
               <a
                 href={FACEBOOK_URL}
@@ -66,6 +63,13 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">{t('footer.product')}</h4>
             <ul className="space-y-2 text-sm">
+              <li className="pb-2">
+                <Link href="/brightboardtv" className="inline-flex items-center gap-2 font-semibold text-primary hover:underline" data-testid="link-brightboardtv-footer">
+                  <span className="relative inline-flex w-5 h-5 shrink-0" aria-hidden="true"><Monitor className="w-5 h-5" /><span className="absolute inset-x-0 top-0.5 text-center text-[9px] leading-3 font-bold">B</span></span>
+                  BrightboardTV
+                </Link>
+                <p className="text-xs text-muted-foreground mt-1">{t("footer.tvDescription", { defaultValue: "Open-source presentations. Use, customise and build." })}</p>
+              </li>
               <li>
                 <Link href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-pricing">
                   {t('common.pricing')}

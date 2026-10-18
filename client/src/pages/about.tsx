@@ -1,6 +1,8 @@
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Footer } from "@/components/footer";
+import { BrightboardTVPublicSection } from "@/components/brightboardtv-public-section";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Award, BookOpen, Building2, Check, FileCheck, FileImage, FileText, Globe2, GraduationCap, Heart, Lightbulb, MapPin, Network, Presentation, Shapes, Sparkles, Target, UserRound } from "lucide-react";
 
@@ -24,6 +26,11 @@ const studioTools = [
 export default function About() {
   const { t } = useTranslation();
   const tr = (key: string, fallback: string) => t(key, { defaultValue: fallback });
+  useEffect(() => {
+    document.title = "About BrightBoard | AI Teaching Tools & Open-Source Presentations";
+    document.querySelector('meta[name="description"]')?.setAttribute("content",
+      "Meet BrightBoard and BrightboardTV: AI tools for educators and open-source interactive presentations for teachers, speakers, CEOs and teams. Use, customise and contribute.");
+  }, []);
   return (
     <div className="page-shell min-h-screen flex flex-col">
       <main className="bb-page flex-1 py-8 md:py-12">
@@ -46,11 +53,7 @@ export default function About() {
           </div>
         </header>
 
-        <section className="bb-surface p-7 mb-7">
-          <h2 className="text-2xl font-bold mb-3">Interactive presentations for everyone</h2>
-          <p className="text-muted-foreground leading-relaxed">BrightBoard supports educators—and BrightboardTV extends interactive presenting to public speakers, CEOs, managers, trainers and anyone who wants to make a compelling interactive presentation. Draw, explore 3D, share ideas and use your phone or tablet as a presenter remote.</p>
-          <Link href="/brightboardtv" className="inline-flex mt-4 font-semibold text-primary hover:underline">Meet the open-source BrightboardTV →</Link>
-        </section>
+        <BrightboardTVPublicSection />
         <section className="grid md:grid-cols-[.82fr_1.18fr] gap-5 mb-7">
           <article className="bb-surface p-7 md:p-8">
             <div className="w-11 h-11 rounded-xl bg-accent/10 text-accent grid place-items-center mb-5"><Target className="w-5 h-5" /></div>
