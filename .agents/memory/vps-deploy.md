@@ -23,9 +23,14 @@ The built `dist/` folder (dist/index.cjs, dist/public/) is committed to the repo
 ## node_modules corruption
 If npm install fails with ENOTEMPTY, run:
 ```bash
-find node_modules -maxdepth 3 -name '.*-????????' -type d -exec rm -rf {} + 2>/dev/null
+find node_modules -depth -type d -name '.*-????????' -exec rm -rf -- {} +
 npm install --omit=dev --ignore-scripts --no-audit
 ```
+
+**Why:** Scoped dependencies can place stale installer folders more than three
+levels down. A depth-limited cleanup misses those folders and repeats ENOTEMPTY.
+Search all levels inside node_modules only; do not delete unrelated application
+files or suppress cleanup errors.
 
 ## pm2 logs flood base64
 pm2 logs output floods terminal with base64 image data. Use `--nostream` and `--lines N`. Press `q` or Ctrl+C to escape if stuck.
