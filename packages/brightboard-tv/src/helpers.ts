@@ -1,5 +1,6 @@
 import type { Lesson, Page, StageState } from "./types";
 import { initialState, newLesson } from "./types";
+import { assertPageLimit, FREE_PAGE_LIMIT } from "./page-limits";
 
 export const MAX_FILE = 25 * 1024 * 1024;
 export const MAX_LESSON_FILE = 64 * 1024 * 1024;
@@ -32,10 +33,8 @@ export function lessonFromJSON(input: string): Lesson {
   if (!validLesson(value)) throw new Error("This file is not a valid BrightboardTV lesson.");
   return value;
 }
-export function mergeLessonPages(current: Lesson, imported: Lesson, createId: () => string = () => crypto.randomUUID()): Lesson {
-  if (current.pages.length + imported.pages.length > 60) {
-    throw new Error(`This merge would exceed the 60-page presentation limit. Your presentation has ${current.pages.length} pages and the imported lesson has ${imported.pages.length}.`);
-  }
+export function mergeLessonPages(current: Lesson, imported: Lesson, createId: () => string = () => crypto.randomUUID(), pageLimit = FREE_PAGE_LIMIT): Lesson {
+  assertPageLimit(current.pages.length + imported.pages.length, pageLimit);
   const pages = imported.pages.map(page => ({
     ...page,
     id: createId(),

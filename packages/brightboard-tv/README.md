@@ -110,6 +110,13 @@ payment or private BrightBoard service.
 
 ### Large lessons and local files
 
+Presentations allow **10 pages free** or **20 pages with a verified paid
+BrightBoard subscription**. The independent standalone defaults to 10 pages,
+without requiring an account. Limits apply to new/duplicated pages, imports,
+merges and presentation sharing. Older larger documents are never truncated:
+they remain available for editing down or backup export, but must fit the current
+limit before presenting. An imported PDF can replace the untouched empty starter.
+
 Drafts and the device library use IndexedDB, not the small localStorage quota.
 Existing localStorage drafts, saved lessons and names migrate automatically;
 the original copies are removed only after migration has committed successfully.

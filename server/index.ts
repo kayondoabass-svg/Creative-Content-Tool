@@ -8,6 +8,8 @@ import { registerChatbotWidget } from "./chatbot-widget";
 import { initializeReferralSchema } from "./referral-store";
 import { startReferralNotificationWorker } from "./referral-notifications";
 import { createTvRelay } from "../packages/brightboard-tv/server/relay";
+import { getUserById } from "./customAuthService";
+import { canSaveTVLibrary } from "./tv-library-access";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -77,8 +79,10 @@ app.use((req, res, next) => {
 
 (async () => {
   await initializeReferralSchema();
-  const tvRelay = createTvRelay({ hostedLibrary: true });
-  app.use("/api/tv", tvRelay.router);
+  const tvRelay = createTvRelay({ hostedLibrary: true, pageLimitForRequest: async (req: any) => {
+    const user = req.session?.userId ? await getUserById(req.session.userId) : null;
+    return canSaveTVLibrary(user) ? 20 : 10;
+  } });
   httpServer.on("close", () => tvRelay.close());
   const tvDirectory = process.env.NODE_ENV === "production"
     ? path.resolve("dist/public/tv") : path.resolve("packages/brightboard-tv/dist");
@@ -87,6 +91,7 @@ app.use((req, res, next) => {
   app.use("/tv-assets", express.static(path.join(tvDirectory, "tv-assets")));
   registerChatbotWidget(app);
   await setupAuth(app);
+  app.use("/api/tv", tvRelay.router);
   
   await registerRoutes(httpServer, app);
   startReferralNotificationWorker();

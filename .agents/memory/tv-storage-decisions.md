@@ -9,6 +9,12 @@ The user requested Cloudflare file storage for the hosted application and direct
 
 **How to apply:** Use private Cloudflare storage for hosted presentation files, without moving the existing account database or exposing other customers' files. Keep standalone independent of cloud credentials. Browser access to actual local files must require explicit permission; unsupported devices need visible import/export fallbacks. Durable browser drafts need a large-object store, migration must commit before old copies are removed, and a save indicator must report persistence success rather than network availability.
 
+BrightboardTV presentations must have a maximum of 10 pages for free users and 20 for paid users.
+
+**Why:** The user explicitly requested these limits to help reduce presentation storage problems.
+
+**How to apply:** Check current paid entitlement on the hosted server, apply the total to page creation, duplication, imports, merges and sharing, and preserve older oversized documents for recovery rather than truncating them. Standalone remains usable without account dependencies and defaults to the free limit.
+
 Destructive page actions need visible in-app confirmations, not native browser confirmation popups.
 
 **Why:** Clear and Delete were reported as doing nothing in the user's embedded/browser environment. A full device reset must be clearly distinguished from editing one page.

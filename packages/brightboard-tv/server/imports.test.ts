@@ -28,7 +28,7 @@ test("an oversized merge rejects the whole operation without changing either les
   const current = freshLesson();
   const imported = freshLesson();
   imported.pages = Array.from({ length: 60 }, () => ({ ...imported.pages[0] }));
-  assert.throws(() => mergeLessonPages(current, imported), /60-page/);
+  assert.throws(() => mergeLessonPages(current, imported), /10-page/);
   assert.equal(current.pages.length, 1);
   assert.equal(imported.pages.length, 60);
 });

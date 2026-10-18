@@ -1,4 +1,5 @@
 import type { Lesson, Page, BoardObject } from "../../../packages/brightboard-tv/src/types";
+import { assertPageLimit, FREE_PAGE_LIMIT, PAID_PAGE_LIMIT, LEGACY_PAGE_LIMIT } from "../../../packages/brightboard-tv/src/page-limits";
 const object = (text: string, y: number, fontSize = 32): BoardObject =>
   ({ id: crypto.randomUUID(), type: "text", x: .07, y, width: .86, height: .12, text, color: "#183a40", fontSize });
 function page(title: string, body = "", notes = ""): Page {
@@ -24,13 +25,13 @@ function lines(value: unknown): string {
     .map(([k, v]) => `${k}: ${lines(v)}`).join("\n");
   return value === undefined || value === null ? "" : String(value);
 }
-export async function buildBrightboardTVLesson(type: string, content: string): Promise<Lesson> {
+export async function buildBrightboardTVLesson(type: string, content: string, pageLimit = LEGACY_PAGE_LIMIT): Promise<Lesson> {
   let data: any;
   try { data = JSON.parse(content); } catch { data = content; }
   const pages: Page[] = [];
   if (type === "image") {
     const images = Array.isArray(data?.images) ? data.images : [data?.imageUrl || (data?.b64_json ? `data:image/png;base64,${data.b64_json}` : typeof data === "string" ? data : "")];
-    if (images.length > 12) throw new Error("Export supports up to 12 generated images at once.");
+    assertPageLimit(images.length, pageLimit);
     for (let i = 0; i < images.length; i++) {
       const source = images[i];
       if (typeof source !== "string" || !source) continue;
@@ -40,8 +41,8 @@ export async function buildBrightboardTVLesson(type: string, content: string): P
   } else if (type === "presentation") {
     const slides = Array.isArray(data) ? data : data?.slides;
     if (!Array.isArray(slides) || !slides.length) throw new Error("This presentation has no supported slides.");
-    if (slides.length > 60) throw new Error("This presentation exceeds the 60-page limit.");
-    for (const slide of slides.slice(0, 60)) {
+    assertPageLimit(slides.length, pageLimit);
+    for (const slide of slides) {
       const text = lines(slide.content || slide.facts || slide.tableRows || slide.stats || "");
       const p = page(slide.title || "Slide", text, slide.notes || "");
       const src = slide.image || slide.images?.[0];
@@ -54,7 +55,7 @@ export async function buildBrightboardTVLesson(type: string, content: string): P
   } else if (type === "storyboard") {
     const frames = Array.isArray(data) ? data : data?.frames;
     if (!Array.isArray(frames) || !frames.length) throw new Error("This storyboard has no supported frames.");
-    if (frames.length > 60) throw new Error("This storyboard exceeds the 60-page limit.");
+    assertPageLimit(frames.length, pageLimit);
     for (let index = 0; index < frames.length; index++) {
       const frame = frames[index];
       const body = [frame.description, frame.action && `Action: ${frame.action}`, frame.dialogue && `Dialogue: ${frame.dialogue}`].filter(Boolean).join("\n");
@@ -72,7 +73,7 @@ export async function buildBrightboardTVLesson(type: string, content: string): P
     if (!full.trim()) throw new Error("This creation has no supported content.");
     const title = data?.title || (type === "mindmap" ? data?.centralTopic : "") || "BrightBoard creation";
     const chunks = full.match(/[\s\S]{1,900}(?:\n|$)|[\s\S]{1,900}/g) || [full];
-    if (chunks.length > 60) throw new Error("This creation exceeds the 60-page presentation limit.");
+    assertPageLimit(chunks.length, pageLimit);
     chunks.forEach((chunk, i) => pages.push(page(i ? `${title} · ${i + 1}` : title, chunk)));
   }
   const lesson: Lesson = { format: "brightboard-tv", version: 1, id: crypto.randomUUID(), title: pages[0].title, pages, updatedAt: new Date().toISOString() };
@@ -80,7 +81,11 @@ export async function buildBrightboardTVLesson(type: string, content: string): P
 }
 
 export async function openInBrightboardTV(type: string, content: string, mergeFromDevice = false) {
-  const lesson = await buildBrightboardTVLesson(type, content);
+  const response = await fetch("/api/tv/library-access", { credentials: "include", headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error("Could not verify your BrightboardTV page limit. Keep this creation and retry when connected.");
+  const access = await response.json();
+  const pageLimit = access.canSaveLibrary === true && access.maxPages === PAID_PAGE_LIMIT ? PAID_PAGE_LIMIT : FREE_PAGE_LIMIT;
+  const lesson = await buildBrightboardTVLesson(type, content, pageLimit);
   try { localStorage.setItem("brightboard-tv-import", JSON.stringify({ lesson })); }
   catch { throw new Error("This presentation is too large for the transfer buffer. Download its images or PDF and import them in BrightboardTV."); }
   location.assign(`/tv/?import=brightboard${mergeFromDevice ? "&merge=device" : ""}`);

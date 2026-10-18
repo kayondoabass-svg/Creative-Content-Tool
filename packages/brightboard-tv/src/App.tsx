@@ -12,6 +12,7 @@ import { useRelay } from "./useRelay";
 import { workspaceStorage } from "./workspace-storage";
 import { useConfirmation } from "./useConfirmation";
 import { chooseLocalLessonFile, openLocalLesson, supportsLocalFiles, writeLessonFile, type LocalLessonFile } from "./local-files";
+import { assertPageLimit, FREE_PAGE_LIMIT, PAID_PAGE_LIMIT, replacesEmptyStarter } from "./page-limits";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 type Tool = "pen" | "highlighter" | "eraser" | "text" | "rect" | "ellipse" | "arrow" | "line" | "select" | "move";
@@ -152,6 +153,11 @@ function App() {
   const [library, setLibrary] = useState<Lesson[]>(readLibrary);
   const [libraryAccess, setLibraryAccess] = useState<LibraryAccessStatus>("checking");
   const [hostedLibrary, setHostedLibrary] = useState<boolean | null>(null);
+  const [pageLimit, setPageLimit] = useState(FREE_PAGE_LIMIT);
+  const livePageLimit = useRef(pageLimit);
+  livePageLimit.current = pageLimit;
+  const liveLesson = useRef(lesson);
+  liveLesson.current = lesson;
   const [deviceImportMode, setDeviceImportMode] = useState<DeviceImportMode>("open");
   const [isOnline, setOnline] = useState(navigator.onLine);
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
@@ -206,6 +212,7 @@ function App() {
   }, []);
   const checkLibraryAccess = useCallback(async () => {
     setLibraryAccess("checking");
+    setPageLimit(FREE_PAGE_LIMIT);
     setHostedLibrary(null);
     try {
       const healthResponse = await fetch("/api/tv/health", { credentials: "include", headers: { Accept: "application/json" } });
@@ -219,9 +226,10 @@ function App() {
       setHostedLibrary(true);
       const accessResponse = await fetch("/api/tv/library-access", { credentials: "include", headers: { Accept: "application/json" } });
       if (!accessResponse.ok) throw new Error("Could not verify lesson library access.");
-      const access = await accessResponse.json() as { canSaveLibrary?: unknown };
+      const access = await accessResponse.json() as { canSaveLibrary?: unknown; maxPages?: unknown };
       if (typeof access.canSaveLibrary !== "boolean") throw new Error("Library access response was incomplete.");
       setLibraryAccess(access.canSaveLibrary ? "allowed" : "restricted");
+      setPageLimit(access.canSaveLibrary && access.maxPages === PAID_PAGE_LIMIT ? PAID_PAGE_LIMIT : FREE_PAGE_LIMIT);
     } catch {
       setLibraryAccess("unavailable");
     }
@@ -247,15 +255,16 @@ function App() {
   }, []);
   useEffect(() => {
     const importFlag = params.get("import") === "brightboard";
-    if (!importFlag || importHandled.current) return;
+    if (!importFlag || importHandled.current || libraryAccess === "checking") return;
     importHandled.current = true;
     void (async () => { try {
       const raw = localStorage.getItem("brightboard-tv-import");
       const envelope = raw ? JSON.parse(raw) : null;
       const candidate = envelope?.lesson || envelope;
       if (validLesson(candidate)) {
+        assertPageLimit(candidate.pages.length, pageLimit);
         // Keep the previous autosaved draft before a cross-app import replaces it.
-        const prior = workspaceStorage.workspace();
+        const prior = liveLesson.current;
         setLibrary(await workspaceStorage.switchWorkspace(candidate, prior && prior.id !== candidate.id ? prior : undefined));
         setLesson(candidate); setCurrentIndex(0); setStage(asStage(candidate));
         localStorage.removeItem("brightboard-tv-import");
@@ -267,9 +276,9 @@ function App() {
         }
       }
       else notify("The BrightBoard import is missing or invalid.", true);
-    } catch { notify("Could not save the BrightBoard import. Your previous draft has been kept.", true); } })();
+    } catch (error) { importHandled.current = false; notify(error instanceof Error ? error.message : "Could not save the BrightBoard import. Your previous draft has been kept.", true); } })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [libraryAccess, pageLimit]);
   useEffect(() => {
     if (!editor) return;
     let active = true;
@@ -317,7 +326,11 @@ function App() {
     if (!redoStack.length) return;
     setUndoStack(s => [...s, lesson]); restoreLesson(redoStack[redoStack.length - 1]); setRedoStack(s => s.slice(0, -1));
   };
-  const addPage = () => { const p = blankPage(`Page ${lesson.pages.length + 1}`); updateLesson(l => ({ ...l, pages: [...l.pages.slice(0, currentIndex + 1), p, ...l.pages.slice(currentIndex + 1)] })); setCurrentIndex(currentIndex + 1); };
+  const canGrow = (count = 1) => {
+    try { assertPageLimit(lesson.pages.length + count, pageLimit); return true; }
+    catch (error) { notify((error as Error).message, true); return false; }
+  };
+  const addPage = () => { if (!canGrow()) return; const p = blankPage(`Page ${lesson.pages.length + 1}`); updateLesson(l => ({ ...l, pages: [...l.pages.slice(0, currentIndex + 1), p, ...l.pages.slice(currentIndex + 1)] })); setCurrentIndex(currentIndex + 1); };
   const deletePage = () => requestConfirmation({
     title: "Delete this page?", confirmLabel: "Delete page",
     description: `Delete “${page.title}” and its content? ${lesson.pages.length === 1 ? "The last page will be replaced with a blank page." : "Other pages will stay."} You can use Undo while this editor remains open.`,
@@ -408,16 +421,19 @@ function App() {
         : "Library access could not be verified. Download a .bbtv backup, reconnect, and retry the access check.", true);
       return;
     }
-    try { setLibrary(await workspaceStorage.saveLibrary(lesson)); notify("Saved to your lesson library."); }
-    catch { notify("Could not save to library. Export a backup or remove large images.", true); }
+    try { assertPageLimit(lesson.pages.length, pageLimit); setLibrary(await workspaceStorage.saveLibrary(lesson)); notify("Saved to your lesson library."); }
+    catch (error) { notify(error instanceof Error ? error.message : "Could not save to library. Export a backup or remove large images.", true); }
   };
   const exportLesson = () => downloadBlob(new Blob([JSON.stringify(lesson, null, 2)], { type: "application/json" }), `${safeName(lesson.title)}.bbtv`);
   const loadLesson = async (selected: Lesson) => {
+    const previous = liveLesson.current;
+    if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
     // Opening a file must not silently discard the presentation being edited.
-    if (selected !== lesson) {
+    if (selected !== previous) {
       try {
-        setLibrary(await workspaceStorage.switchWorkspace(selected, lesson));
+        setLibrary(await workspaceStorage.switchWorkspace(selected, previous));
       } catch {
+        setSaveStatus(previous === workspaceStorage.workspace() ? "saved" : "error");
         notify("Could not back up your current presentation. Export it or free browser storage before opening another file.", true);
         return false;
       }
@@ -431,6 +447,7 @@ function App() {
     setFileBusy(true);
     try {
       const opened = await openLocalLesson();
+      assertPageLimit(opened.lesson.pages.length, livePageLimit.current);
       if (await loadLesson(opened.lesson)) {
         linkedFile.current = { handle: opened.handle, lessonId: opened.lesson.id };
         setLocalFileName(opened.handle.name);
@@ -463,8 +480,9 @@ function App() {
     if (file.size > MAX_LESSON_FILE) { notify("Lesson files must be 64 MB or smaller.", true); return; }
     try {
       const imported = lessonFromJSON(await file.text());
+      assertPageLimit(imported.pages.length, livePageLimit.current);
       if (importMode === "merge") {
-        const merged = mergeLessonPages(lesson, imported);
+        const merged = mergeLessonPages(liveLesson.current, imported, undefined, livePageLimit.current);
         updateLesson(() => merged);
         setModal(null);
         notify(`Merged ${imported.pages.length} page${imported.pages.length === 1 ? "" : "s"} into “${lesson.title}”.`);
@@ -490,8 +508,8 @@ function App() {
     setPdfProgress("Opening PDF…");
     try {
       const bytes = await file.arrayBuffer(), pdf = await getDocument({ data: bytes }).promise;
-      if (pdf.numPages > 40) throw new Error("PDF import is limited to 40 pages.");
-      if (lesson.pages.length + pdf.numPages > 60) throw new Error(`This PDF would exceed the 60-page presentation limit. The lesson has ${lesson.pages.length} pages and the PDF has ${pdf.numPages}.`);
+      const starter = replacesEmptyStarter(lesson);
+      assertPageLimit((starter ? 0 : lesson.pages.length) + pdf.numPages, pageLimit);
       const rendered: Page[] = [];
       for (let i = 1; i <= pdf.numPages; i++) {
         setPdfProgress(`Rendering PDF page ${i} of ${pdf.numPages}…`);
@@ -503,8 +521,12 @@ function App() {
         pg.objects.push({ ...makeObject("image", 0, 0, "#183a40"), width: 1, height: 1, src });
         rendered.push(pg);
       }
-      updateLesson(l => ({ ...l, pages: [...l.pages.slice(0, currentIndex + 1), ...rendered, ...l.pages.slice(currentIndex + 1)] }));
-      setCurrentIndex(currentIndex + 1); setModal(null); notify(`Added ${rendered.length} PDF page${rendered.length === 1 ? "" : "s"} after your current page.`);
+      const latest = liveLesson.current;
+      const replaceStarter = replacesEmptyStarter(latest);
+      assertPageLimit((replaceStarter ? 0 : latest.pages.length) + rendered.length, livePageLimit.current);
+      const insertionIndex = Math.min(currentIndex + 1, latest.pages.length);
+      updateLesson(() => ({ ...latest, pages: replaceStarter ? rendered : [...latest.pages.slice(0, insertionIndex), ...rendered, ...latest.pages.slice(insertionIndex)] }));
+      setCurrentIndex(replaceStarter ? 0 : insertionIndex); setModal(null); notify(`Added ${rendered.length} PDF page${rendered.length === 1 ? "" : "s"}.`);
     } catch (e) { notify(e instanceof Error ? e.message : "PDF import failed.", true); }
     finally { setPdfProgress(""); }
   };
@@ -617,10 +639,11 @@ function App() {
     setModelResetKey(key => key + 1);
   };
   const duplicatePage = () => {
+    if (!canGrow()) return;
     const clone: Page = JSON.parse(JSON.stringify(page)); clone.id = crypto.randomUUID(); clone.title = `${page.title} copy`;
     updateLesson(l => ({ ...l, pages: [...l.pages.slice(0, currentIndex + 1), clone, ...l.pages.slice(currentIndex + 1)] })); setCurrentIndex(currentIndex + 1);
   };
-  const openShare = async () => { if (!relay.session) await relay.create({ ...stage, lesson, pageIndex: currentIndex }); setModal("share"); };
+  const openShare = async () => { try { assertPageLimit(lesson.pages.length, pageLimit); } catch (error) { notify((error as Error).message, true); return; } if (!relay.session) await relay.create({ ...stage, lesson, pageIndex: currentIndex }); setModal("share"); };
   const joinSession = async (role: "controller" | "display") => {
     const result = await relay.join(joinIdInput.trim(), joinCodeInput.trim(), deviceName.trim() || "My device", role);
     if (result) { setJoinStatus(result.status); notify(result.status === "pending" ? "Request sent. Ask the presenter to approve this device." : "Connected to presentation."); }
@@ -659,6 +682,7 @@ function App() {
   };
   const fullscreen = () => { const target = mode === "display" ? document.documentElement : canvasRef.current; if (document.fullscreenElement) void document.exitFullscreen(); else void target?.requestFullscreen?.(); };
   const openLocalPresentation = async () => {
+    try { assertPageLimit(lesson.pages.length, pageLimit); } catch (error) { notify((error as Error).message, true); return; }
     // Open synchronously to retain the user's browser popup permission.
     const target = window.open("about:blank", "_blank");
     if (!target) { notify("Allow a presentation tab for BrightboardTV, then try Present again.", true); return; }
@@ -794,9 +818,10 @@ function App() {
       </div>
     </header>
     {relay.error && <div className="notice" style={{ padding: "7px 18px", background: "#fff0e9", color: "#a54838" }}>{relay.error} <button className="button small" onClick={() => relay.clear()}>Dismiss session</button></div>}
+    {lesson.pages.length > pageLimit && <div role="alert" className="notice" style={{ padding: "10px 18px", background: "#fff0e9", color: "#a54838" }}>This existing presentation has {lesson.pages.length} pages; your limit is {pageLimit} (10 free / 20 paid). All pages are kept. Remove pages or export a backup and split the lesson before presenting or adding more.</div>}
     {saveStatus === "error" && <div role="alert" className="notice" style={{ padding: "10px 18px", background: "#fff0e9", color: "#a54838" }}>This draft is not saved on this device. Keep the editor open and <button className="button small" onClick={exportLesson}>Download .bbtv backup</button></div>}
     <main className="workspace">
-      <aside className="rail"><div className="rail-heading"><span>Pages · {lesson.pages.length}</span><button className="button icon small" aria-label="Add page" onClick={addPage}><Plus size={17} /></button></div>
+      <aside className="rail"><div className="rail-heading"><span>Pages · {lesson.pages.length}/{pageLimit}</span><button className="button icon small" aria-label="Add page" disabled={lesson.pages.length >= pageLimit} title={`${pageLimit}-page limit`} onClick={addPage}><Plus size={17} /></button></div>
         <div className="page-list">{lesson.pages.map(pageThumb)}</div>
         <div className="rail-bottom"><button className="button library-button" onClick={() => setModal("library")}><BookOpen size={16} /> Saved lessons <ChevronRight size={15} style={{ marginLeft: "auto" }} /></button></div>
       </aside>
@@ -817,7 +842,7 @@ function App() {
             <button className="tool-button" title="Insert image" aria-label="Insert image" onClick={handleFiles}><ImagePlus size={17} /></button>
             <button className="tool-button" title="Insert PDF" aria-label="Insert PDF" onClick={() => pdfRef.current?.click()}><FileText size={17} /></button>
             <button className="tool-button" title="3D model library" aria-label="3D model library" onClick={() => setModal("model")}><Maximize2 size={17} /></button>
-            <button className="tool-button" title="Add page" aria-label="Add page" onClick={addPage}><FilePlus2 size={17} /></button>
+            <button className="tool-button" title={`Add page (${pageLimit}-page limit)`} aria-label="Add page" disabled={lesson.pages.length >= pageLimit} onClick={addPage}><FilePlus2 size={17} /></button>
           </div>
           <div className="tool-group"><button className="tool-button" title="Undo" aria-label="Undo" onClick={undo} disabled={!undoStack.length}><Undo2 size={17} /></button><button className="tool-button" title="Redo" aria-label="Redo" onClick={redo} disabled={!redoStack.length}><Redo2 size={17} /></button></div>
           <button className="tool-button" title="Clear current page" aria-label="Clear current page" onClick={clearBoard}><Eraser size={17} /></button>
@@ -835,7 +860,7 @@ function App() {
           <button className="button icon" aria-label="Next page" onClick={() => choosePage(Math.min(lesson.pages.length - 1, currentIndex + 1))}><ChevronRight size={18} /></button>
           <button className="button small hide-mobile" onClick={() => movePage(-1)} disabled={currentIndex === 0}><ArrowUp size={14} /> Reorder</button>
           <button className="button small hide-mobile" title="Move page later" onClick={() => movePage(1)} disabled={currentIndex === lesson.pages.length - 1}><ArrowDown size={14} /></button>
-          <button className="button small" onClick={duplicatePage}><Copy size={14} /> <span className="hide-mobile">Duplicate</span></button>
+          <button className="button small" disabled={lesson.pages.length >= pageLimit} title={`${pageLimit}-page limit`} onClick={duplicatePage}><Copy size={14} /> <span className="hide-mobile">Duplicate</span></button>
           <button className="button icon danger" aria-label="Delete page" onClick={deletePage}><Trash2 size={16} /></button>
         </div>
       </section>
@@ -876,7 +901,7 @@ function App() {
         <button className="button" onClick={exportLesson}><Download size={15} /> Export current</button>
       </div>
         <p className="notice" role="status">{deviceImportMode === "merge" ? "Merge selected: .bbtv/JSON lesson pages append to your current presentation; its title, notes, models, assets and existing pages stay in place." : "Open selected: a .bbtv/JSON lesson opens as the presentation, with the current lesson backed up in Saved lessons first."}</p>
-        <p className="notice">Supported files: .bbtv or JSON lessons (up to 64 MB), PDFs (up to 40 pages), and PNG, JPEG, WebP, or GIF images. Individual PDFs, images and models must be 25 MB or smaller. PDF pages are added after the current page; an image is placed on the current page. Merge is only for lesson files. A merge that would exceed 60 total pages is rejected without changing your lesson.</p>
+        <p className="notice">Your limit is {pageLimit} pages: 10 free / 20 paid. Imports and merges cannot exceed that total. Supported files: .bbtv or JSON lessons (up to 64 MB), PDFs, and PNG, JPEG, WebP, or GIF images. Individual PDFs, images and models must be 25 MB or smaller. PDF pages are added after the current page, or replace an unused blank starter. An image is placed on the current page. Oversized imports are rejected without removing existing pages.</p>
       </div>
     </ModalShell>}
     {modal === "share" && <ModalShell title="Connect presentation screens" close={() => setModal(null)}><p className="notice">Pair a phone as a remote controller or a connected TV/browser as a read-only display. This syncs this presentation only; it does not mirror other apps or audio.</p>{relay.pending && !relay.session ? <div className="empty">Creating a secure room…</div> : relay.session?.role === "host" ? <div className="split"><div className="phone-card" style={{ textAlign: "center" }}>{qr ? <img className="qr" src={qr} alt="Scan to join BrightboardTV remote" /> : <div className="empty">QR unavailable. Use the link or join code below.</div>}<p className="notice">Scan with your phone camera</p></div><div className="stack"><div className="phone-card"><div className="section-title">Room join code</div><strong style={{ font: "24px DM Mono", letterSpacing: ".15em" }}>{relay.joinCode || "••••••"}</strong><p className="notice">Share the code with trusted devices. No keys are placed in the link.</p><button className="button small" onClick={() => void copyText(relay.joinCode)}><Copy size={14} /> Copy code</button><button className="button small" onClick={() => void rotateCode()}><RotateCcw size={14} /> Rotate code</button></div><div className="phone-card"><div className="section-title">Join URL</div><button className="button small" onClick={() => void copyText(`${location.origin}${location.pathname}?mode=remote#id=${relay.session?.id}&code=${relay.joinCode}`)}><Link2 size={14} /> Copy pairing link</button><p className="notice">QR contains room ID and join code only, not your secret host key.</p></div></div></div> : <div className="empty">Could not create a relay room. {relay.error || "Check your connection and try again."}<button className="button small" onClick={() => void relay.create(asStage(lesson))}>Retry</button></div>}
@@ -888,7 +913,7 @@ function App() {
     {modal === "timer" && <ModalShell title="Set a stage timer" close={() => setModal(null)}><label className="field-label">Duration in minutes</label><input className="input" type="number" min="1" max="240" value={Math.round(timerSeconds / 60)} onChange={e => setTimerSeconds(Math.min(14400, Math.max(60, Number(e.target.value) * 60)))} /><div className="row" style={{ marginTop: 16 }}><button className="button primary" onClick={() => { dispatchCommand({ type: "timer", seconds: timerSeconds, running: true }); setModal(null); }}>Start timer</button><button className="button" onClick={() => { dispatchCommand({ type: "timer", seconds: timerSeconds, running: false }); setModal(null); }}>Set without starting</button></div></ModalShell>}
     {modal === "names" && <ModalShell title="People & groups" close={() => setModal(null)}><p className="notice">Names stay on this device. Clear them from the local workspace controls when finished.</p><textarea className="textarea" placeholder={"Add names, one per line\nAvery\nSam"} value={names} onChange={e => setNames(e.target.value)} /><div className="row wrap" style={{ marginTop: 12 }}><label className="field-label">Group size <input className="width-select" type="number" min="1" max="20" value={groupSize} onChange={e => setGroupSize(Math.max(1, Number(e.target.value)))} /></label><button className="button primary" onClick={randomPick}>Pick names</button><button className="button" onClick={createGroups}>Make groups</button><button className="button small" onClick={namesSaved}><Save size={14} /> Save names</button></div>{picked.length > 0 && <div className="phone-card">{picked.map((name, i) => <div key={`${name}-${i}`} style={{ padding: 7, borderBottom: "1px solid var(--line)" }}>{name}</div>)}</div>}</ModalShell>}
     {modal === "model" && <ModalShell title="3D model library" close={() => setModal(null)}><p className="notice">Schematic educational visuals. Not medical models. Library assets are provided by the BrightboardTV host; uploaded models are embedded into your lesson backup.</p><div className="library-grid">{MODEL_LIBRARY.map(model => <button className="library-card" key={model.id} onClick={() => addModel(model.id)}><strong>{model.name}</strong><span className="notice">{model.description}</span><span className="notice" style={{ display: "block", marginTop: 8 }}>{model.attribution} · {model.license}</span></button>)}</div>{!MODEL_LIBRARY.length && <div className="empty">No bundled models were found in this build.</div>}<div className="row" style={{ marginTop: 14 }}><button className="button" onClick={() => document.getElementById("model-file")?.click()}><Upload size={15} /> Import .glb model</button><input id="model-file" type="file" accept=".glb,model/gltf-binary" hidden onChange={uploadModel} /></div>{page.model && <div className="phone-card"><strong>Current scene: {page.model.name}</strong><p className="notice">Close this library and tap a visible model surface to add a hotspot. A hit position and normal are required; no guessed location is saved.</p><button className="button small danger" onClick={() => updatePage(p => ({ ...p, model: undefined }))}>Remove current</button></div>}</ModalShell>}
-    {modal === "settings" && <ModalShell title="Workspace tools" close={() => setModal(null)}><div className="library-grid">
+    {modal === "settings" && <ModalShell title="Workspace tools" close={() => setModal(null)}><p className="notice">Your presentation limit: {pageLimit} pages. Free: 10 pages. Paid: 20 pages.</p><div className="library-grid">
       <button className="library-card" onClick={() => setModal("library")}><strong><BookOpen size={16} /> Saved lessons & import</strong><span className="notice">Open the library or import from this device.</span></button>
       <button className="library-card" onClick={clearBoard}><strong><Eraser size={16} /> Clear current page</strong><span className="notice">Remove page content with confirmation. Undo remains available.</span></button>
       <button className="library-card" onClick={exportLesson}><strong><Download size={16} /> Download .bbtv backup</strong><span className="notice">Keep a portable copy even if browser saving fails.</span></button>

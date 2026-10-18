@@ -1455,7 +1455,7 @@ ${pages.map(p => `  <url>
     try {
       const user = req.session?.userId ? await customAuth.getUserById(req.session.userId) : null;
       const canSaveLibrary = canSaveTVLibrary(user);
-      res.json({ canSaveLibrary });
+      res.json({ canSaveLibrary, maxPages: canSaveLibrary ? 20 : 10 });
     } catch (error) {
       console.error("[TV library] Could not verify subscription", error);
       res.status(503).json({ error: "Unable to verify library access." });

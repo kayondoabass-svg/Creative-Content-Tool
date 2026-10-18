@@ -16,6 +16,16 @@ test("generated slides preserve speaker notes and reject silent truncation", asy
   assert.match(lesson.pages[0].objects[1].text!, /First\nSecond/);
   await assert.rejects(buildBrightboardTVLesson("presentation", JSON.stringify({ slides: Array.from({ length: 61 }, () => ({ title: "Page" })) })), /60-page/);
 });
+
+test("BrightBoard export respects the verified 10/20-page plan without truncating generated slides", async () => {
+  for (const limit of [10, 20]) {
+    const slides = Array.from({ length: limit }, (_, index) => ({ title: `Slide ${index + 1}`, content: "Preserve this content" }));
+    assert.equal((await buildBrightboardTVLesson("presentation", JSON.stringify({ slides }), limit)).pages.length, limit);
+    slides.push({ title: "Overflow", content: "Do not silently discard me" });
+    await assert.rejects(buildBrightboardTVLesson("presentation", JSON.stringify({ slides }), limit), new RegExp(`${limit}-page`));
+    assert.equal(slides.length, limit + 1);
+  }
+});
 test("storyboard frames preserve descriptions, actions and dialogue", async () => {
   const lesson = await buildBrightboardTVLesson("storyboard", JSON.stringify([
     { frameNumber: 1, description: "A classroom", action: "Point to the board", dialogue: "Hello class" },

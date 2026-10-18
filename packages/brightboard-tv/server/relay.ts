@@ -2,6 +2,7 @@ import { Router, type Response, type Request } from "express";
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import type { StageState, Command, RelayRole, Peer } from "../src/types";
+import { FREE_PAGE_LIMIT, PAID_PAGE_LIMIT } from "../src/page-limits";
 
 const n = z.number().finite();
 const unit = n.min(0).max(1);
@@ -54,6 +55,7 @@ export const commandSchema = z.discriminatedUnion("type", [
 type Member = Peer & { digest: string };
 type Waiter = { res: Response; key: string; timeout: ReturnType<typeof setTimeout> };
 type Room = {
+  pageLimit: number;
   id: string; host: string; joinCode: string; expiresAt: number; revision: number;
   state: StageState; peers: Map<string, Member>; waiters: Set<Waiter>; bytes: number;
 };
@@ -62,7 +64,7 @@ const secret = () => randomBytes(32).toString("hex");
 const equal = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
 /** No database, account service, telemetry or provider credentials are needed. */
-export function createTvRelay(options: { now?: () => number; ttl?: number; maxRooms?: number; hostedLibrary?: boolean } = {}) {
+export function createTvRelay(options: { now?: () => number; ttl?: number; maxRooms?: number; hostedLibrary?: boolean; pageLimitForRequest?: (req: Request) => Promise<number> } = {}) {
   const now = options.now || Date.now;
   const ttl = options.ttl || 4 * 60 * 60 * 1000;
   const rooms = new Map<string, Room>();
@@ -125,8 +127,8 @@ export function createTvRelay(options: { now?: () => number; ttl?: number; maxRo
     if (limited(`all:${req.ip}`, 1400)) return res.status(429).json({ error: "Too many pairing requests. Wait one minute." });
     next();
   });
-  const wrap = (fn: (req: Request, res: Response) => unknown) => (req: Request, res: Response) => {
-    try { return fn(req, res); }
+  const wrap = (fn: (req: Request, res: Response) => unknown) => async (req: Request, res: Response) => {
+    try { return await fn(req, res); }
     catch (error) {
       return res.status(error instanceof z.ZodError ? 400 : 500).json({
         error: error instanceof z.ZodError ? "Invalid presentation data or command." : "Presentation request failed.",
@@ -153,14 +155,21 @@ export function createTvRelay(options: { now?: () => number; ttl?: number; maxRo
     return stateSchema.parse(body) as StageState;
   }
   router.get("/health", (_req, res) => res.json({ ok: true, transport: "https-long-poll", offlinePairing: false, hostedLibrary: options.hostedLibrary === true }));
-  router.post("/sessions", wrap((req, res) => {
+  router.post("/sessions", wrap(async (req, res) => {
     if (limited(`create:${req.ip}`, 10)) return res.status(429).json({ error: "Wait one minute before creating another session." });
     if (rooms.size >= (options.maxRooms || 30) || roomBytes() > 64 * 1024 * 1024)
       return res.status(503).json({ error: "Presentation service is at capacity. Try again later." });
     const state = parseState(req.body?.state);
     if (!state) return res.status(413).json({ error: "Presentation is too large to share (12 MB limit). Export it or reduce image sizes." });
+    const verifiedLimit = options.hostedLibrary && options.pageLimitForRequest ? await options.pageLimitForRequest(req) : FREE_PAGE_LIMIT;
+    const pageLimit = verifiedLimit === PAID_PAGE_LIMIT ? PAID_PAGE_LIMIT : FREE_PAGE_LIMIT;
+    if (state.lesson.pages.length > pageLimit) return res.status(403).json({ error: `Your presentation limit is ${pageLimit} pages (10 free / 20 paid).` });
+    // Subscription lookup is asynchronous; recheck capacity before allocating.
+    if (rooms.size >= (options.maxRooms || 30) || roomBytes() > 64 * 1024 * 1024)
+      return res.status(503).json({ error: "Presentation service is at capacity. Try again later." });
     const id = randomBytes(16).toString("hex"), hostKey = secret();
     const room: Room = {
+      pageLimit,
       id, host: digest(hostKey), joinCode: String(randomInt(100000, 1000000)), expiresAt: now() + ttl,
       revision: 0, state, peers: new Map(), waiters: new Set(), bytes: Buffer.byteLength(JSON.stringify(state)),
     };
@@ -194,6 +203,7 @@ export function createTvRelay(options: { now?: () => number; ttl?: number; maxRo
     const a = access(req, res, true); if (!a) return;
     const state = parseState(req.body?.state);
     if (!state) return res.status(413).json({ error: "Presentation is too large to share (12 MB limit)." });
+    if (state.lesson.pages.length > a.room.pageLimit) return res.status(403).json({ error: `This room's presentation limit is ${a.room.pageLimit} pages.` });
     const bytes = Buffer.byteLength(JSON.stringify(state));
     if (roomBytes() - a.room.bytes + bytes > 80 * 1024 * 1024) return res.status(503).json({ error: "Sharing storage is full. Reduce presentation size." });
     a.room.state = state; a.room.bytes = bytes; changed(a.room);
