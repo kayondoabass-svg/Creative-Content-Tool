@@ -1,10 +1,19 @@
 ---
-name: BrightBoard TV scope
-description: The user reserved a TV entry and will provide its functional requirements later
+name: BrightboardTV classroom product scope
+description: Open-source classroom software, GitHub distribution, and website documentation requirements
 ---
 
-BrightBoard TV is a reserved workspace entry, not yet a defined video product. Its icon is a television with the letter B inside.
+BrightboardTV is intended as open-source software for teachers to use in class
+directly through Brightboardapp. The user wants the software pushed to GitHub,
+a footer link called “BrightboardTV”, and a page fully explaining the software,
+its open-source status, installation and use. Preserve the television icon with
+the letter B inside.
 
-**Why:** The user asked for this entry and said, "I will then tell you things to build in it."
+**Why:** The user has now supplied the purpose of the previously reserved TV
+entry: “build and open source software” that “will be used by teachers in class
+directly through brightboardapp.” The icon was explicitly requested earlier.
 
-**How to apply:** Keep it clearly marked as coming soon until the user supplies the feature requirements. Do not invent streaming, publishing, subscriptions, or other TV functionality.
+**How to apply:** Keep classroom teaching, open-source distribution and clear
+installation/use documentation central. The reference screenshots show 3D
+model exploration and interactive whiteboard teaching; do not interpret the TV
+name as a request for streaming, broadcasting or a video subscription service.

@@ -8,6 +8,6 @@
 - [Static screenshot limits](static-screenshot-limits.md) — full-page captures leave offscreen lazy images blank; URL fragments may not scroll a page whose content mounts asynchronously.
 - [Public visibility](public-visibility.md) — keep teacher/resource totals and the rotating showcase off public pages; preserve private owner statistics and creation tools.
 - [Chatbot browser access](chatbot-browser-access.md) — AfroAI server replies can pass while browser preflight fails; preserve same-origin message routing and verify in a browser.
-- [BrightBoard TV scope](brightboard-tv-scope.md) — reserve the TV entry with a B-in-TV icon; the user will provide functional requirements later.
+- [BrightboardTV scope](brightboard-tv-scope.md) — open-source classroom software distributed on GitHub, used through Brightboardapp, with footer documentation and installation guidance.
 - [Afro Auth contract](afro-auth-contract.md) — project connection examples can differ from public docs; website ownership and customer email confirmation are separate.
 - [Referral privacy and policy](referral-program-decisions.md) — applicants see only their own data; commission rules need founder confirmation, not inferred historical debt.
