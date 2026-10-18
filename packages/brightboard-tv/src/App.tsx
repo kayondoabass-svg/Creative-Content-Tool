@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import QRCode from "qrcode";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
+import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import "@google/model-viewer";
 import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Check, ChevronLeft, ChevronRight, Circle, Clock3, Copy, Download, Eraser, Eye, FileImage, FilePlus2, FileText, Focus, Fullscreen, Hand, Highlighter, ImagePlus, Import, Link2, Lock, Maximize2, MoreHorizontal, Move, PanelRight, Pause, Play, Plus, Presentation, Redo2, RotateCcw, Save, ScanLine, Settings2, Share2, Sparkles, Square, Timer, Trash2, Undo2, Unlock, Upload, Users, X, ZoomIn } from "lucide-react";
 import type { Background, BoardObject, Command, Hotspot, Ink, Lesson, Page, Point, StageState } from "./types";
 import { blankPage, initialState, newLesson } from "./types";
-import { downloadBlob, fileToDataUrl, fileToModelDataUrl, lessonFromJSON, MAX_FILE, safeName, validLesson } from "./helpers";
+import { downloadBlob, fileToDataUrl, fileToModelDataUrl, lessonFromJSON, MAX_FILE, mergeLessonPages, safeName, validLesson } from "./helpers";
 import { MODEL_LIBRARY } from "./models";
 import { useRelay } from "./useRelay";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 type Tool = "pen" | "highlighter" | "eraser" | "text" | "rect" | "ellipse" | "arrow" | "line" | "select" | "move";
 type Modal = "library" | "share" | "timer" | "names" | "model" | "settings" | "help" | null;
+type LibraryAccessStatus = "checking" | "allowed" | "restricted" | "unavailable";
+type DeviceImportMode = "open" | "merge";
 const colors = ["#183a40", "#197b70", "#d56b51", "#e6a737", "#5368a9", "#805fa2", "#27323a", "#f6fbf4"];
 const STORAGE_KEY = "brightboard-tv-workspace";
 const LIBRARY_KEY = "brightboard-tv-library";
@@ -141,6 +143,9 @@ function App() {
   const [undoStack, setUndoStack] = useState<Lesson[]>([]);
   const [redoStack, setRedoStack] = useState<Lesson[]>([]);
   const [library, setLibrary] = useState<Lesson[]>(readLibrary);
+  const [libraryAccess, setLibraryAccess] = useState<LibraryAccessStatus>("checking");
+  const [hostedLibrary, setHostedLibrary] = useState<boolean | null>(null);
+  const [deviceImportMode, setDeviceImportMode] = useState<DeviceImportMode>("open");
   const [isOnline, setOnline] = useState(navigator.onLine);
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [qr, setQr] = useState("");
@@ -163,6 +168,8 @@ function App() {
   const fileRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
   const jsonRef = useRef<HTMLInputElement>(null);
+  const libraryImportRef = useRef<HTMLInputElement>(null);
+  const deviceImportModeRef = useRef<DeviceImportMode>("open");
   const lastLaserAt = useRef(0);
   const lastCameraAt = useRef(0);
   const lastRemoteCameraAt = useRef(0);
@@ -190,10 +197,33 @@ function App() {
     window.setTimeout(() => setToast(""), 2800);
     if (error) setCameraWarning(message);
   }, []);
+  const checkLibraryAccess = useCallback(async () => {
+    setLibraryAccess("checking");
+    setHostedLibrary(null);
+    try {
+      const healthResponse = await fetch("/api/tv/health", { credentials: "include", headers: { Accept: "application/json" } });
+      if (!healthResponse.ok) throw new Error("Could not verify BrightBoard hosting status.");
+      const health = await healthResponse.json() as { hostedLibrary?: unknown };
+      if (health.hostedLibrary !== true) {
+        setHostedLibrary(false);
+        setLibraryAccess("allowed");
+        return;
+      }
+      setHostedLibrary(true);
+      const accessResponse = await fetch("/api/tv/library-access", { credentials: "include", headers: { Accept: "application/json" } });
+      if (!accessResponse.ok) throw new Error("Could not verify lesson library access.");
+      const access = await accessResponse.json() as { canSaveLibrary?: unknown };
+      if (typeof access.canSaveLibrary !== "boolean") throw new Error("Library access response was incomplete.");
+      setLibraryAccess(access.canSaveLibrary ? "allowed" : "restricted");
+    } catch {
+      setLibraryAccess("unavailable");
+    }
+  }, []);
   useEffect(() => {
     const fn = (event: Event) => notify(String((event as CustomEvent).detail));
     window.addEventListener("bbtv-toast", fn); return () => window.removeEventListener("bbtv-toast", fn);
   }, [notify]);
+  useEffect(() => { void checkLibraryAccess(); }, [checkLibraryAccess]);
   useEffect(() => { const online = () => setOnline(true), offline = () => setOnline(false);
     window.addEventListener("online", online); window.addEventListener("offline", offline);
     const install = (e: Event) => { e.preventDefault?.(); setInstallPrompt(e); };
@@ -231,6 +261,11 @@ function App() {
         setLesson(candidate); setCurrentIndex(0); setStage(asStage(candidate));
         localStorage.removeItem("brightboard-tv-import");
         notify("BrightBoard presentation imported. Previous draft kept in the library.");
+        if (params.get("merge") === "device") {
+          deviceImportModeRef.current = "merge";
+          setDeviceImportMode("merge");
+          setModal("library");
+        }
       }
       else notify("The BrightBoard import is missing or invalid.", true);
     } catch { notify("Could not read the BrightBoard import.", true); }
@@ -357,26 +392,61 @@ function App() {
   const toggleLock = () => updatePage(p => ({ ...p, objects: p.objects.map(o => o.id === selectedId ? { ...o, locked: !o.locked } : o) }));
   const removeSelected = () => { updatePage(p => ({ ...p, objects: p.objects.filter(o => o.id !== selectedId) })); setSelectedId(null); };
   const saveToLibrary = () => {
+    if (libraryAccess !== "allowed") {
+      notify(libraryAccess === "restricted"
+        ? "Saved lesson library saving is part of a paid BrightBoard plan. Download a .bbtv backup to keep a copy."
+        : "Library access could not be verified. Download a .bbtv backup, reconnect, and retry the access check.", true);
+      return;
+    }
     const next = [lesson, ...library.filter(l => l.id !== lesson.id)];
     try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(next)); setLibrary(next); notify("Saved to your lesson library."); }
     catch { notify("Could not save to library. Export a backup or remove large images.", true); }
   };
   const exportLesson = () => downloadBlob(new Blob([JSON.stringify(lesson, null, 2)], { type: "application/json" }), `${safeName(lesson.title)}.bbtv`);
-  const loadLesson = (selected: Lesson) => { setUndoStack([]); setRedoStack([]); restoreLesson(selected); setStage(asStage(selected)); setModal(null); notify("Presentation opened."); };
+  const loadLesson = (selected: Lesson) => {
+    // Opening a file must not silently discard the presentation being edited.
+    if (JSON.stringify(selected) !== JSON.stringify(lesson)) {
+      try {
+        const next = [lesson, ...library.filter(l => l.id !== lesson.id)];
+        localStorage.setItem(LIBRARY_KEY, JSON.stringify(next));
+        setLibrary(next);
+      } catch {
+        notify("Could not back up your current presentation. Export it or free browser storage before opening another file.", true);
+        return;
+      }
+    }
+    setUndoStack([]); setRedoStack([]); restoreLesson(selected); setStage(asStage(selected)); setModal(null);
+    notify("Presentation opened. Your previous presentation is kept in the saved library.");
+  };
   const removeFromLibrary = (id: string) => { const next = library.filter(l => l.id !== id); setLibrary(next); localStorage.setItem(LIBRARY_KEY, JSON.stringify(next)); };
-  const handleImportJSON = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleImportJSON = async (event: ChangeEvent<HTMLInputElement>, importMode: DeviceImportMode = "open") => {
     const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
+    if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+      notify("For PDFs, use the device importer in the saved lesson library or Insert PDF in the toolbar.", true);
+      return;
+    }
     if (file.size > MAX_FILE) { notify("Lesson files must be 25 MB or smaller.", true); return; }
-    try { loadLesson(lessonFromJSON(await file.text())); } catch (e) { notify(e instanceof Error ? e.message : "Invalid lesson file.", true); }
+    try {
+      const imported = lessonFromJSON(await file.text());
+      if (importMode === "merge") {
+        const merged = mergeLessonPages(lesson, imported);
+        updateLesson(() => merged);
+        setModal(null);
+        notify(`Merged ${imported.pages.length} page${imported.pages.length === 1 ? "" : "s"} into “${lesson.title}”.`);
+      } else loadLesson(imported);
+    } catch (e) { notify(e instanceof Error ? e.message : "Invalid lesson file.", true); }
   };
   const importImage = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
     try {
-      if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) throw new Error("Choose a PNG, JPEG, WebP or GIF image.");
+      const extensionOnlyImage = !file.type && /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+      if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type) && !extensionOnlyImage) throw new Error("Choose a PNG, JPEG, WebP or GIF image.");
+      if (page.objects.length >= 1000) throw new Error("This page has reached its 1,000-object limit. Add the image to another page.");
       const src = await fileToDataUrl(file); const image = new Image(); image.src = src;
       await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = () => reject(new Error("This image could not be decoded.")); });
       const ratio = image.width / image.height; const w = Math.min(.7, .62 * ratio), h = Math.min(.7, .62 / ratio);
       updatePage(p => ({ ...p, objects: [...p.objects, { ...makeObject("image", (.5 - w / 2), (.5 - h / 2), color), width: w, height: h, src }] }));
+      setModal(null);
     } catch (e) { notify(e instanceof Error ? e.message : "Image import failed.", true); }
   };
   const importPDF = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -386,6 +456,7 @@ function App() {
     try {
       const bytes = await file.arrayBuffer(), pdf = await getDocument({ data: bytes }).promise;
       if (pdf.numPages > 40) throw new Error("PDF import is limited to 40 pages.");
+      if (lesson.pages.length + pdf.numPages > 60) throw new Error(`This PDF would exceed the 60-page presentation limit. The lesson has ${lesson.pages.length} pages and the PDF has ${pdf.numPages}.`);
       const rendered: Page[] = [];
       for (let i = 1; i <= pdf.numPages; i++) {
         setPdfProgress(`Rendering PDF page ${i} of ${pdf.numPages}…`);
@@ -397,10 +468,30 @@ function App() {
         pg.objects.push({ ...makeObject("image", 0, 0, "#183a40"), width: 1, height: 1, src });
         rendered.push(pg);
       }
-      updateLesson(l => ({ ...l, pages: [...l.pages.slice(0, currentIndex), ...rendered, ...l.pages.slice(currentIndex + 1)] }));
-      setCurrentIndex(currentIndex); notify(`Imported ${rendered.length} PDF page${rendered.length === 1 ? "" : "s"}.`);
+      updateLesson(l => ({ ...l, pages: [...l.pages.slice(0, currentIndex + 1), ...rendered, ...l.pages.slice(currentIndex + 1)] }));
+      setCurrentIndex(currentIndex + 1); setModal(null); notify(`Added ${rendered.length} PDF page${rendered.length === 1 ? "" : "s"} after your current page.`);
     } catch (e) { notify(e instanceof Error ? e.message : "PDF import failed.", true); }
     finally { setPdfProgress(""); }
+  };
+  const importFromDevice = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) { event.target.value = ""; return; }
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".bbtv") || name.endsWith(".json") || file.type === "application/json" || file.type === "text/json") {
+      void handleImportJSON(event, deviceImportModeRef.current);
+    } else if (name.endsWith(".pdf") || file.type === "application/pdf") {
+      void importPDF(event);
+    } else if (/\.(png|jpe?g|webp|gif)$/.test(name) || /^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
+      void importImage(event);
+    } else {
+      event.target.value = "";
+      notify("Unsupported file. Choose a .bbtv or JSON lesson, PDF, or PNG, JPEG, WebP, or GIF image.", true);
+    }
+  };
+  const chooseDeviceImport = (importMode: DeviceImportMode) => {
+    deviceImportModeRef.current = importMode;
+    setDeviceImportMode(importMode);
+    libraryImportRef.current?.click();
   };
   const canvasSource = async (pg: Page, showInk = true, includeModel = true): Promise<HTMLCanvasElement> => {
     const canvas = document.createElement("canvas"); canvas.width = 1600; canvas.height = 900;
@@ -591,12 +682,40 @@ function App() {
   const pageThumb = (p: Page, i: number) => <button key={p.id} className={`page-item ${currentIndex === i ? "selected" : ""}`} onClick={() => choosePage(i)} onDoubleClick={() => { const name = window.prompt("Rename page", p.title); if (name) updateLesson(l => ({ ...l, pages: l.pages.map((x, idx) => idx === i ? { ...x, title: name } : x) })); }}>
     <div className={`thumb ${p.background}`}><span className="thumb-count">{String(i + 1).padStart(2, "0")}</span><div className="thumb-content">{p.objects.find(o => o.type === "text")?.text || p.title}{p.model ? ` · ${p.model.name}` : ""}</div></div><span className="page-name">{p.title}</span>
   </button>;
+  const libraryAccessHelp = libraryAccess === "restricted" && hostedLibrary === true
+    ? <p className="notice library-access-help">Saved lesson library saving is included with paid BrightBoard plans. Free and anonymous accounts can still download backups. <a className="button small" href="/pricing">View plans</a></p>
+    : libraryAccess === "unavailable"
+      ? <div className="notice library-access-help" role="status">Couldn’t verify library access, so saving is paused to protect your work. Download a .bbtv backup, reconnect, then retry. <button className="button small" onClick={() => void checkLibraryAccess()}>Retry access check</button></div>
+      : libraryAccess === "checking"
+        ? <p className="notice library-access-help" role="status">Checking library access. Manual saving stays disabled until verified; download a backup if you need a copy now.</p>
+        : null;
+  const librarySaveDisabled = libraryAccess !== "allowed";
+  const librarySaveDisabledReason = libraryAccess === "restricted"
+    ? "Saved lesson library is available with paid BrightBoard plans."
+    : libraryAccess === "unavailable"
+      ? "Library access could not be verified. Download a backup and retry the check."
+      : libraryAccess === "checking" ? "Checking library access." : undefined;
 
   if (mode === "display") {
     if (!remoteStage && !relay.session && params.get("local") !== "1") return <div className="remote-shell"><JoinScreen role="display" code={joinCodeInput} setCode={setJoinCodeInput} id={joinIdInput} setId={setJoinIdInput} deviceName={deviceName} setDeviceName={setDeviceName} join={() => void joinSession("display")} error={relay.error} busy={relay.pending} /></div>;
     const displayState = currentState || stage;
     const remotePage = getPage(displayState.lesson, displayState.pageIndex);
-    return <div className="display-shell" onClick={() => {}}><div className={`display-stage canvas ${remotePage.background}${displayState.blank ? " blank" : ""}`}>{displayState.blank ? null : <>{modelFor(remotePage, false)}{remotePage.objects.map(o => <DisplayObject key={o.id} object={o} />)}<svg className="ink-layer" viewBox="0 0 1600 900">{remotePage.ink.map(s => <path key={s.id} d={svgPath(s.points, 1600, 900)} stroke={s.color} strokeWidth={s.width * 2} fill="none" strokeLinecap="round" strokeLinejoin="round" />)}</svg></>}{displayState.spotlight && <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle 130px at ${displayState.pointer.x * 100}% ${displayState.pointer.y * 100}%, transparent 0, #132f34b8 140px)` }} />}{displayState.pointer.visible && <div style={{ position: "absolute", left: `${displayState.pointer.x * 100}%`, top: `${displayState.pointer.y * 100}%`, width: 16, height: 16, borderRadius: "50%", background: "#df735a", transform: "translate(-50%,-50%)" }} />}</div><div className="display-controls"><button className="button icon" aria-label="Previous page" onClick={() => dispatchCommand({ type: "previous" })}><ChevronLeft /></button><span className="page-counter">{displayState.pageIndex + 1} / {displayState.lesson.pages.length}</span><button className="button icon" aria-label="Next page" onClick={() => dispatchCommand({ type: "next" })}><ChevronRight /></button><TimerControl state={displayState} onCommand={() => {}} readOnly /><button className="button icon" aria-label="Fullscreen" onClick={fullscreen}><Fullscreen /></button><span className="status-pill">{relay.session ? relay.connected ? "LIVE" : "CONNECTING" : "LOCAL"}</span></div>{relay.error && <div className="toast error">{relay.error}</div>}</div>;
+    const localDisplay = params.get("local") === "1" && !relay.session;
+    const returnToEditor = async () => {
+      try { if (document.fullscreenElement) await document.exitFullscreen(); }
+      finally { window.location.assign(location.pathname); }
+    };
+    const leavePairedDisplay = async () => {
+      try { if (document.fullscreenElement) await document.exitFullscreen(); }
+      finally {
+        if (relay.session?.role !== "host") relay.clear();
+        window.location.assign(`${location.pathname}?mode=display`);
+      }
+    };
+    return <div className="display-shell" onClick={() => {}}>{localDisplay
+      ? <button className="button display-local-exit" aria-label="Back to editor" onClick={() => void returnToEditor()}><ChevronLeft size={17} /> Back to editor</button>
+      : <button className="button display-local-exit" aria-label="Leave paired display" onClick={() => void leavePairedDisplay()}><ChevronLeft size={17} /> Leave display</button>}
+      <div className={`display-stage canvas ${remotePage.background}${displayState.blank ? " blank" : ""}`}>{displayState.blank ? null : <>{modelFor(remotePage, false)}{remotePage.objects.map(o => <DisplayObject key={o.id} object={o} />)}<svg className="ink-layer" viewBox="0 0 1600 900">{remotePage.ink.map(s => <path key={s.id} d={svgPath(s.points, 1600, 900)} stroke={s.color} strokeWidth={s.width * 2} fill="none" strokeLinecap="round" strokeLinejoin="round" />)}</svg></>}{displayState.spotlight && <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle 130px at ${displayState.pointer.x * 100}% ${displayState.pointer.y * 100}%, transparent 0, #132f34b8 140px)` }} />}{displayState.pointer.visible && <div style={{ position: "absolute", left: `${displayState.pointer.x * 100}%`, top: `${displayState.pointer.y * 100}%`, width: 16, height: 16, borderRadius: "50%", background: "#df735a", transform: "translate(-50%,-50%)" }} />}</div><div className="display-controls"><button className="button icon" aria-label="Previous page" onClick={() => dispatchCommand({ type: "previous" })}><ChevronLeft /></button><span className="page-counter">{displayState.pageIndex + 1} / {displayState.lesson.pages.length}</span><button className="button icon" aria-label="Next page" onClick={() => dispatchCommand({ type: "next" })}><ChevronRight /></button><TimerControl state={displayState} onCommand={() => {}} readOnly /><button className="button icon" aria-label="Fullscreen" onClick={fullscreen}><Fullscreen /></button><span className="status-pill">{relay.session ? relay.connected ? "LIVE" : "CONNECTING" : "LOCAL"}</span></div>{relay.error && <div className="toast error">{relay.error}</div>}</div>;
   }
   if (mode === "remote") {
     if (!relay.session) return <div className="remote-shell"><JoinScreen role="controller" code={joinCodeInput} setCode={setJoinCodeInput} id={joinIdInput} setId={setJoinIdInput} deviceName={deviceName} setDeviceName={setDeviceName} join={() => void joinSession("controller")} error={relay.error} busy={relay.pending} /></div>;
@@ -678,13 +797,13 @@ function App() {
         <section className="panel-section"><div className="section-title">Private presenter notes <Lock size={14} color="#618779" /></div><textarea className="textarea" value={page.notes} placeholder="Talking points, reminders, questions…" onChange={e => updatePage(p => ({ ...p, notes: e.target.value }), false)} /><p className="notice">Only you and approved controller remotes receive these notes. They never appear on the display.</p></section>
         <section className="panel-section"><div className="section-title">Stage clock <Clock3 size={15} /></div><TimerControl state={stage} onCommand={dispatchCommand} open={() => setModal("timer")} /><StopwatchControl /></section>
         {page.model && <section className="panel-section"><div className="section-title">3D scene <Maximize2 size={15} /></div><p className="notice">{page.model.name} · {page.model.attribution} · {page.model.license}</p><div className="row wrap"><button className="button small" onClick={saveCurrentCamera}><Save size={14} /> Save view</button><button className="button small" onClick={resetCameraView}><RotateCcw size={14} /> Reset view</button><button className="button small danger" onClick={() => updatePage(p => ({ ...p, model: undefined }))}><Trash2 size={14} /> Remove model</button></div><p className="notice">Rotate in Select or Move mode. To add a hotspot, close dialogs and tap a point on the model surface. Ink tools pause model gestures.</p>{page.model.hotspots.map(h => <p className="notice" key={h.id}>{h.label} <button className="button small danger" onClick={() => updatePage(p => p.model ? { ...p, model: { ...p.model, hotspots: p.model.hotspots.filter(x => x.id !== h.id) } } : p)}>Remove</button></p>)}</section>}
-        <section className="panel-section"><div className="section-title">Export & backup</div><div className="stack"><button className="button" onClick={saveToLibrary}><Save size={15} /> Save to lesson library</button><button className="button" onClick={exportLesson}><Download size={15} /> Download .bbtv backup</button><div className="row"><button className="button small" onClick={() => void exportPNG()}><FileImage size={14} /> PNG</button><button className="button small" onClick={() => void exportPDF()}><FileText size={14} /> PDF</button></div><button className="button small" onClick={() => jsonRef.current?.click()}><Import size={14} /> Import lesson file</button></div></section>
+        <section className="panel-section"><div className="section-title">Export & backup</div><div className="stack"><button className="button" onClick={saveToLibrary} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={15} /> Save to lesson library</button>{libraryAccessHelp}<button className="button" onClick={exportLesson}><Download size={15} /> Download .bbtv backup</button><div className="row"><button className="button small" onClick={() => void exportPNG()}><FileImage size={14} /> PNG</button><button className="button small" onClick={() => void exportPDF()}><FileText size={14} /> PDF</button></div><button className="button small" onClick={() => jsonRef.current?.click()}><Import size={14} /> Import lesson file</button></div></section>
         <section className="panel-section"><div className="section-title">Offline & install</div><p className="notice">{isOnline ? "Your draft saves locally as you work." : "Offline mode: local editing and exports are available. Pairing needs internet."} Browser data can be removed by device settings—download a backup.</p><div className="stack"><button className="button small" onClick={() => void prepareOffline()}><Download size={14} /> Prepare offline</button><button className="button small" onClick={() => void installApp()}><Plus size={14} /> Install BrightboardTV</button>{installMessage && <p className="notice">{installMessage}</p>}</div></section>
         <section className="panel-section"><button className="button small danger" onClick={clearLocal}><Trash2 size={14} /> Clear local workspace & names</button></section>
       </aside>
     </main>
-    <input ref={fileRef} type="file" accept="image/*" hidden onChange={importImage} /><input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden onChange={importPDF} /><input ref={jsonRef} type="file" accept=".bbtv,.json,application/json" hidden onChange={handleImportJSON} />
-    {modal === "library" && <ModalShell title="Saved lesson library" close={() => setModal(null)}><div className="row spread" style={{ marginBottom: 14 }}><p className="notice">Stored only in this browser. Download backups before clearing site data.</p><button className="button primary small" onClick={saveToLibrary}><Save size={14} /> Save current</button></div>{library.length ? <div className="library-grid">{library.map(l => <div key={l.id} className="library-card"><button style={{ border: 0, background: "transparent", padding: 0, color: "inherit", textAlign: "left", width: "100%" }} onClick={() => loadLesson(l)}><strong>{l.title}</strong><span className="notice">{l.pages.length} pages · Updated {new Date(l.updatedAt).toLocaleDateString()}</span></button><div className="row" style={{ marginTop: 12 }}><button className="button small" onClick={() => loadLesson(l)}>Open</button><button className="button small" onClick={() => downloadBlob(new Blob([JSON.stringify(l, null, 2)], { type: "application/json" }), `${safeName(l.title)}.bbtv`)}><Download size={14} /></button><button className="button small danger" onClick={() => { if (window.confirm(`Delete “${l.title}” from this device?`)) removeFromLibrary(l.id); }}><Trash2 size={14} /></button></div></div>)}</div> : <div className="empty">Your lesson shelf is ready. Save a presentation to keep it here.</div>}<div className="row" style={{ marginTop: 14 }}><button className="button" onClick={() => jsonRef.current?.click()}><Import size={15} /> Import .bbtv file</button><button className="button" onClick={exportLesson}><Download size={15} /> Export current</button></div></ModalShell>}
+    <input ref={fileRef} type="file" accept="image/*" hidden onChange={importImage} /><input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden onChange={importPDF} /><input ref={jsonRef} type="file" accept=".bbtv,.json,application/json" hidden onChange={handleImportJSON} /><input ref={libraryImportRef} type="file" accept=".bbtv,.json,application/json,application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif" hidden onChange={importFromDevice} />
+    {modal === "library" && <ModalShell title="Saved lesson library" close={() => setModal(null)}><div className="row spread" style={{ marginBottom: 14 }}><p className="notice">Stored only in this browser. Download backups before clearing site data.</p><button className="button primary small" onClick={saveToLibrary} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={14} /> Save current</button></div>{libraryAccessHelp}{library.length ? <div className="library-grid">{library.map(l => <div key={l.id} className="library-card"><button style={{ border: 0, background: "transparent", padding: 0, color: "inherit", textAlign: "left", width: "100%" }} onClick={() => loadLesson(l)}><strong>{l.title}</strong><span className="notice">{l.pages.length} pages · Updated {new Date(l.updatedAt).toLocaleDateString()}</span></button><div className="row" style={{ marginTop: 12 }}><button className="button small" onClick={() => loadLesson(l)}>Open</button><button className="button small" aria-label={`Download ${l.title}`} onClick={() => downloadBlob(new Blob([JSON.stringify(l, null, 2)], { type: "application/json" }), `${safeName(l.title)}.bbtv`)}><Download size={14} /></button><button className="button small danger" aria-label={`Delete ${l.title}`} onClick={() => { if (window.confirm(`Delete “${l.title}” from this device?`)) removeFromLibrary(l.id); }}><Trash2 size={14} /></button></div></div>)}</div> : <div className="empty">Your lesson shelf is ready. Save a presentation to keep it here.</div>}<div className="device-import-panel"><div className="row"><button className="button" onClick={() => chooseDeviceImport("open")}><Import size={15} /> Choose file to open</button><button className="button primary" onClick={() => chooseDeviceImport("merge")}><Import size={15} /> Choose file to merge</button><button className="button" onClick={exportLesson}><Download size={15} /> Export current</button></div><p className="notice" role="status">{deviceImportMode === "merge" ? "Merge selected: .bbtv/JSON lesson pages append to your current presentation; its title, notes, models, assets and existing pages stay in place." : "Open selected: a .bbtv/JSON lesson opens as the presentation, with the current lesson backed up in Saved lessons first."}</p><p className="notice">Supported files: .bbtv or JSON lessons, PDFs (up to 40 pages), and PNG, JPEG, WebP, or GIF images. Files must be 25 MB or smaller. PDF pages are added after the current page; an image is placed on the current page. Merge is only for lesson files. A merge that would exceed 60 total pages is rejected without changing your lesson.</p></div></ModalShell>}
     {modal === "share" && <ModalShell title="Connect presentation screens" close={() => setModal(null)}><p className="notice">Pair a phone as a remote controller or a connected TV/browser as a read-only display. This syncs this presentation only; it does not mirror other apps or audio.</p>{relay.pending && !relay.session ? <div className="empty">Creating a secure room…</div> : relay.session?.role === "host" ? <div className="split"><div className="phone-card" style={{ textAlign: "center" }}>{qr ? <img className="qr" src={qr} alt="Scan to join BrightboardTV remote" /> : <div className="empty">QR unavailable. Use the link or join code below.</div>}<p className="notice">Scan with your phone camera</p></div><div className="stack"><div className="phone-card"><div className="section-title">Room join code</div><strong style={{ font: "24px DM Mono", letterSpacing: ".15em" }}>{relay.joinCode || "••••••"}</strong><p className="notice">Share the code with trusted devices. No keys are placed in the link.</p><button className="button small" onClick={() => void copyText(relay.joinCode)}><Copy size={14} /> Copy code</button><button className="button small" onClick={() => void rotateCode()}><RotateCcw size={14} /> Rotate code</button></div><div className="phone-card"><div className="section-title">Join URL</div><button className="button small" onClick={() => void copyText(`${location.origin}${location.pathname}?mode=remote#id=${relay.session?.id}&code=${relay.joinCode}`)}><Link2 size={14} /> Copy pairing link</button><p className="notice">QR contains room ID and join code only, not your secret host key.</p></div></div></div> : <div className="empty">Could not create a relay room. {relay.error || "Check your connection and try again."}<button className="button small" onClick={() => void relay.create(asStage(lesson))}>Retry</button></div>}
       {relay.session?.role === "host" && <><div className="section-title" style={{ marginTop: 16 }}>Connected devices · approval required</div>{relay.peers.length ? relay.peers.map(peer => <div className="phone-card row spread" key={peer.id}><div><strong>{peer.name}</strong><div className="notice">{peer.role} · {peer.status}</div></div>{peer.status === "pending" ? <div className="row"><button className="button small primary" onClick={() => void relay.peerAction(peer.id, true)}><Check size={14} /> Approve</button><button className="button small danger" onClick={() => void relay.peerAction(peer.id, false)}>Deny</button></div> : <button className="button small danger" onClick={() => void relay.peerAction(peer.id, false)}>Revoke</button>}</div>) : <div className="empty">No devices yet. A controller request appears here for your approval; displays join read-only.</div>}<div className="row spread" style={{ marginTop: 15 }}><span className="notice">Room expires after 4 hours. Session exists in memory only.</span><button className="button small danger" onClick={() => { if (window.confirm("End this room for all connected devices? Your local draft remains safe.")) { void relay.end(); setModal(null); } }}>End room</button></div></>}
       <div className="phone-card"><div className="section-title">Joining another device</div><div className="split"><div><label className="field-label">Room ID</label><input className="input" value={joinIdInput} onChange={e => setJoinIdInput(e.target.value)} placeholder="Paste room ID" /><label className="field-label">Join code</label><input className="input" value={joinCodeInput} onChange={e => setJoinCodeInput(e.target.value)} placeholder="6-digit code" /></div><div><label className="field-label">Device name</label><input className="input" value={deviceName} onChange={e => setDeviceName(e.target.value)} /><button className="button small" style={{ marginTop: 10 }} onClick={() => void joinSession("controller")}>Join as controller</button><button className="button small" style={{ marginTop: 10 }} onClick={() => void joinSession("display")}>Join read-only display</button></div></div><p className="notice">A remote control request must be approved by the presenter. Read-only displays join immediately.</p></div>

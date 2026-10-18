@@ -674,10 +674,14 @@ export function GeneratedContentDisplay({
           {type}
         </Badge>
         <div className="flex items-center gap-2 flex-wrap">
-          {["image", "presentation", "mindmap", "worksheet", "text"].includes(type) && <Button variant="outline" size="sm" data-testid="button-open-brightboardtv" onClick={async () => {
+          {["image", "presentation", "mindmap", "worksheet", "text", "storyboard", "activity"].includes(type) && <><Button variant="outline" size="sm" data-testid="button-open-brightboardtv" onClick={async () => {
             try { await openInBrightboardTV(type, content); }
             catch (error) { toast({ title: "Could not open BrightboardTV", description: error instanceof Error ? error.message : "Import failed.", variant: "destructive" }); }
-          }}>Open in BrightboardTV</Button>}
+          }}>Export to BrightboardTV</Button>
+          <Button variant="outline" size="sm" data-testid="button-merge-brightboardtv" onClick={async () => {
+            try { await openInBrightboardTV(type, content, true); }
+            catch (error) { toast({ title: "Could not merge in BrightboardTV", description: error instanceof Error ? error.message : "Import failed.", variant: "destructive" }); }
+          }}>Merge with file from device</Button></>}
           {onRegenerate && (
             <Button variant="outline" size="sm" onClick={onRegenerate} data-testid="button-regenerate">
               <RefreshCw className="h-4 w-4 mr-1.5" />

@@ -1,5 +1,6 @@
 import type { GeneratedContent, InsertGeneratedContent, OrganizationSettings } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { RecentContentStore } from "./content-retention";
 
 export interface IStorage {
   getContentByUser(userId: string): Promise<GeneratedContent[]>;
@@ -59,4 +60,14 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Organization preferences keep their existing behavior; only recent creations
+// move from volatile memory to the application's existing PostgreSQL database.
+export class DatabaseStorage extends MemStorage {
+  private recent = new RecentContentStore();
+  getContentByUser(userId: string) { return this.recent.getContentByUser(userId); }
+  getContent(id: number) { return this.recent.getContent(id); }
+  createContent(content: InsertGeneratedContent) { return this.recent.createContent(content); }
+  deleteContent(id: number, userId?: string) { return this.recent.deleteContent(id, userId); }
+  purgeExpired() { return this.recent.purgeExpired(); }
+}
+export const storage = new DatabaseStorage();

@@ -114,7 +114,12 @@ export default function Home() {
   const [queuePosition, setQueuePosition] = useState(0);
 
   const { data: history = [] } = useQuery<GeneratedContent[]>({
-    queryKey: ["/api/content"],
+    queryKey: ["/api/content", user?.id],
+    queryFn: async () => (await apiRequest("GET", "/api/content")).json(),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
   });
 
   const { data: usageData } = useQuery<{ isPremium: boolean; remaining?: Record<string, number>; totalGenerations?: number }>({
@@ -416,6 +421,7 @@ export default function Home() {
       <div className="w-72 border-l bg-card/50 hidden lg:flex flex-col h-full overflow-hidden">
         <div className="p-4 border-b shrink-0">
           <h2 className="font-semibold text-sm">{t("home.recentCreations")}</h2>
+          <p className="text-xs text-muted-foreground mt-1">Recent creations are saved for 24 hours. Download or export to BrightboardTV to keep a copy.</p>
         </div>
         <div className="flex-1 min-h-0">
           <HistorySidebar

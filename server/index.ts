@@ -77,7 +77,7 @@ app.use((req, res, next) => {
 
 (async () => {
   await initializeReferralSchema();
-  const tvRelay = createTvRelay();
+  const tvRelay = createTvRelay({ hostedLibrary: true });
   app.use("/api/tv", tvRelay.router);
   httpServer.on("close", () => tvRelay.close());
   const tvDirectory = process.env.NODE_ENV === "production"

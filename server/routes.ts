@@ -15,6 +15,9 @@ import fs from "fs";
 import path from "path";
 import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
+import { registerTVDownloadRoutes } from "./tv-downloads";
+import { startContentCleanup } from "./content-retention";
+import { canSaveTVLibrary } from "./tv-library-access";
 
 // ── Rate limiters ────────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
@@ -1445,6 +1448,21 @@ ${pages.map(p => `  <url>
     return next();
   }
 
+  registerTVDownloadRoutes(app, isOwnerMiddleware);
+  const stopContentCleanup = startContentCleanup(storage);
+  app.get("/api/tv/library-access", async (req: any, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    try {
+      const user = req.session?.userId ? await customAuth.getUserById(req.session.userId) : null;
+      const canSaveLibrary = canSaveTVLibrary(user);
+      res.json({ canSaveLibrary });
+    } catch (error) {
+      console.error("[TV library] Could not verify subscription", error);
+      res.status(503).json({ error: "Unable to verify library access." });
+    }
+  });
+  httpServer.on("close", stopContentCleanup);
+
   // Shared handler for activation email batch send
   async function handleSendActivationEmails(_req: any, res: any) {
     try {
@@ -2107,6 +2125,7 @@ ${pages.map(p => `  <url>
 
   // Get all generated content
   app.get("/api/content", async (req: any, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
     try {
       const userId = req.session?.userId;
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
@@ -2120,13 +2139,14 @@ ${pages.map(p => `  <url>
 
   // Get single content item
   app.get("/api/content/:id", async (req: any, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
     try {
       const userId = req.session?.userId;
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
       const id = parseInt(req.params.id);
       const content = await storage.getContent(id);
       if (!content) return res.status(404).json({ error: "Content not found" });
-      if (content.userId && content.userId !== userId) return res.status(403).json({ error: "Access denied" });
+      if (content.userId !== userId) return res.status(403).json({ error: "Access denied" });
       res.json(content);
     } catch (error) {
       console.error("Error fetching content:", error);
@@ -2141,7 +2161,7 @@ ${pages.map(p => `  <url>
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
       const id = parseInt(req.params.id);
       const item = await storage.getContent(id);
-      if (item && item.userId && item.userId !== userId) return res.status(403).json({ error: "Access denied" });
+      if (item && item.userId !== userId) return res.status(403).json({ error: "Access denied" });
       await storage.deleteContent(id, userId);
       res.status(204).send();
     } catch (error) {

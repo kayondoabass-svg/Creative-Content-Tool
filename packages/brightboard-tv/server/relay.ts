@@ -62,7 +62,7 @@ const secret = () => randomBytes(32).toString("hex");
 const equal = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
 /** No database, account service, telemetry or provider credentials are needed. */
-export function createTvRelay(options: { now?: () => number; ttl?: number; maxRooms?: number } = {}) {
+export function createTvRelay(options: { now?: () => number; ttl?: number; maxRooms?: number; hostedLibrary?: boolean } = {}) {
   const now = options.now || Date.now;
   const ttl = options.ttl || 4 * 60 * 60 * 1000;
   const rooms = new Map<string, Room>();
@@ -152,7 +152,7 @@ export function createTvRelay(options: { now?: () => number; ttl?: number; maxRo
     if (Buffer.byteLength(JSON.stringify(body) || "") > 12 * 1024 * 1024) return null;
     return stateSchema.parse(body) as StageState;
   }
-  router.get("/health", (_req, res) => res.json({ ok: true, transport: "https-long-poll", offlinePairing: false }));
+  router.get("/health", (_req, res) => res.json({ ok: true, transport: "https-long-poll", offlinePairing: false, hostedLibrary: options.hostedLibrary === true }));
   router.post("/sessions", wrap((req, res) => {
     if (limited(`create:${req.ip}`, 10)) return res.status(429).json({ error: "Wait one minute before creating another session." });
     if (rooms.size >= (options.maxRooms || 30) || roomBytes() > 64 * 1024 * 1024)

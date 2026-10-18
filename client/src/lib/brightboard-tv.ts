@@ -20,17 +20,19 @@ function lines(value: unknown): string {
   if (typeof value === "string") return value;
   if (Array.isArray(value)) return value.map(lines).filter(Boolean).join("\n");
   if (value && typeof value === "object") return Object.entries(value).filter(([k]) =>
-    !/image|logo|prompt|style|quality|color|layout|id|grade|language/i.test(k))
+    !/image|logo|prompt|style|quality|color|layout|^id$|grade|language/i.test(k))
     .map(([k, v]) => `${k}: ${lines(v)}`).join("\n");
   return value === undefined || value === null ? "" : String(value);
 }
-export async function openInBrightboardTV(type: string, content: string) {
+export async function buildBrightboardTVLesson(type: string, content: string): Promise<Lesson> {
   let data: any;
   try { data = JSON.parse(content); } catch { data = content; }
   const pages: Page[] = [];
   if (type === "image") {
     const images = Array.isArray(data?.images) ? data.images : [data?.imageUrl || (data?.b64_json ? `data:image/png;base64,${data.b64_json}` : typeof data === "string" ? data : "")];
-    for (const [i, source] of images.slice(0, 12).entries()) {
+    if (images.length > 12) throw new Error("Export supports up to 12 generated images at once.");
+    for (let i = 0; i < images.length; i++) {
+      const source = images[i];
       if (typeof source !== "string" || !source) continue;
       const p = page(`Image ${i + 1}`); p.objects = [{ id: crypto.randomUUID(), type: "image", x: .04, y: .04, width: .92, height: .92, color: "#183a40", src: await raster(source) }]; pages.push(p);
     }
@@ -38,6 +40,7 @@ export async function openInBrightboardTV(type: string, content: string) {
   } else if (type === "presentation") {
     const slides = Array.isArray(data) ? data : data?.slides;
     if (!Array.isArray(slides) || !slides.length) throw new Error("This presentation has no supported slides.");
+    if (slides.length > 60) throw new Error("This presentation exceeds the 60-page limit.");
     for (const slide of slides.slice(0, 60)) {
       const text = lines(slide.content || slide.facts || slide.tableRows || slide.stats || "");
       const p = page(slide.title || "Slide", text, slide.notes || "");
@@ -45,6 +48,20 @@ export async function openInBrightboardTV(type: string, content: string) {
       if (src) {
         const image = await raster(src); p.objects[1] && (p.objects[1].width = .48);
         p.objects.push({ id: crypto.randomUUID(), type: "image", x: .58, y: .24, width: .36, height: .65, color: "#183a40", src: image });
+      }
+      pages.push(p);
+    }
+  } else if (type === "storyboard") {
+    const frames = Array.isArray(data) ? data : data?.frames;
+    if (!Array.isArray(frames) || !frames.length) throw new Error("This storyboard has no supported frames.");
+    if (frames.length > 60) throw new Error("This storyboard exceeds the 60-page limit.");
+    for (let index = 0; index < frames.length; index++) {
+      const frame = frames[index];
+      const body = [frame.description, frame.action && `Action: ${frame.action}`, frame.dialogue && `Dialogue: ${frame.dialogue}`].filter(Boolean).join("\n");
+      const p = page(`Frame ${frame.frameNumber || index + 1}`, body);
+      if (frame.image) {
+        if (p.objects[1]) p.objects[1].width = .48;
+        p.objects.push({ id: crypto.randomUUID(), type: "image", x: .58, y: .24, width: .36, height: .65, color: "#183a40", src: await raster(frame.image) });
       }
       pages.push(p);
     }
@@ -59,7 +76,12 @@ export async function openInBrightboardTV(type: string, content: string) {
     chunks.forEach((chunk, i) => pages.push(page(i ? `${title} · ${i + 1}` : title, chunk)));
   }
   const lesson: Lesson = { format: "brightboard-tv", version: 1, id: crypto.randomUUID(), title: pages[0].title, pages, updatedAt: new Date().toISOString() };
+  return lesson;
+}
+
+export async function openInBrightboardTV(type: string, content: string, mergeFromDevice = false) {
+  const lesson = await buildBrightboardTVLesson(type, content);
   try { localStorage.setItem("brightboard-tv-import", JSON.stringify({ lesson })); }
   catch { throw new Error("This presentation is too large for the transfer buffer. Download its images or PDF and import them in BrightboardTV."); }
-  location.assign("/tv/?import=brightboard");
+  location.assign(`/tv/?import=brightboard${mergeFromDevice ? "&merge=device" : ""}`);
 }

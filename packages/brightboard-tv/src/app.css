@@ -28,3 +28,13 @@
 }
 .model-status{position:absolute;z-index:4;left:12px;top:12px;max-width:min(78%,520px);padding:7px 10px;border-radius:8px;background:#f6fbf1eF;color:#47645c;font-size:12px;line-height:1.4;pointer-events:none}
 .hotspot-description{position:absolute;z-index:6;left:12px;bottom:12px;max-width:min(86%,440px);display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid var(--line);border-radius:11px;background:#f8fbf8f2;color:var(--ink);box-shadow:var(--shadow);font-size:12px}
+.display-local-exit{position:fixed;top:16px;left:16px;z-index:25;background:#f8fbf8;color:var(--ink);box-shadow:0 5px 20px #102d3044}
+.display-local-exit:hover{background:#eaf3ee}
+.button.primary:disabled{background:#e1e5e3;border-color:#d0d6d3;color:#69746e;opacity:1}
+@media(max-width:600px){.display-local-exit{top:8px;left:8px;min-height:40px}}
+.device-import-panel{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.device-import-panel .row{flex-wrap:wrap}
+.device-import-panel .notice{margin:9px 0 0}
+.library-access-help{padding:10px 12px;border-radius:9px;background:#edf5f0}
+.library-access-help .button{margin-left:6px}
+@media(max-width:600px){.device-import-panel{padding:11px}.device-import-panel .row .button{flex:1 1 100%}.library-access-help .button{margin:8px 0 0}}

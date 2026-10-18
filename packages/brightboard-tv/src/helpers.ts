@@ -17,7 +17,7 @@ export function validLesson(value: unknown): value is Lesson {
         ["text", "image", "rect", "ellipse", "line", "arrow"].includes(o.type) && unit(o.x) && unit(o.y) &&
         typeof o.width === "number" && Number.isFinite(o.width) && o.width >= 0 && o.width <= 1 &&
         typeof o.height === "number" && Number.isFinite(o.height) && o.height >= 0 && o.height <= 1 &&
-        /^#[\da-f]{6}$/i.test(o.color) && (o.type !== "image" || embeddedAsset(o.src, /^data:image\/(?:png|jpeg|webp);base64,/)) &&
+        /^#[\da-f]{6}$/i.test(o.color) && (o.type !== "image" || embeddedAsset(o.src, /^data:image\/(?:png|jpeg|webp|gif);base64,/)) &&
         (o.fontSize === undefined || Number.isFinite(o.fontSize)) && (o.text === undefined || typeof o.text === "string")) &&
       typeof p.notes === "string" && p.notes.length <= 20000 &&
       (p.model === undefined || (p.model && typeof p.model.src === "string" &&
@@ -30,6 +30,22 @@ export function lessonFromJSON(input: string): Lesson {
   const value = JSON.parse(input);
   if (!validLesson(value)) throw new Error("This file is not a valid BrightboardTV lesson.");
   return value;
+}
+export function mergeLessonPages(current: Lesson, imported: Lesson, createId: () => string = () => crypto.randomUUID()): Lesson {
+  if (current.pages.length + imported.pages.length > 60) {
+    throw new Error(`This merge would exceed the 60-page presentation limit. Your presentation has ${current.pages.length} pages and the imported lesson has ${imported.pages.length}.`);
+  }
+  const pages = imported.pages.map(page => ({
+    ...page,
+    id: createId(),
+    ink: page.ink.map(stroke => ({ ...stroke, id: createId(), points: stroke.points.map(point => ({ ...point })) })),
+    objects: page.objects.map(object => ({ ...object, id: createId() })),
+    model: page.model ? {
+      ...page.model,
+      hotspots: page.model.hotspots.map(hotspot => ({ ...hotspot, id: createId() })),
+    } : undefined,
+  }));
+  return { ...current, pages: [...current.pages, ...pages] };
 }
 export function stageFor(lesson: Lesson): StageState { return initialState(lesson); }
 export function downloadBlob(blob: Blob, name: string) {

@@ -19,6 +19,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { ReferralOwner } from "@/components/referral-owner";
+import { TVDownloadsOwner } from "@/components/tv-downloads-owner";
 
 interface OwnerStats {
   users: {
@@ -840,6 +841,8 @@ export default function OwnerDashboard() {
           loading={loading}
         />
       </div>
+
+      <TVDownloadsOwner />
 
       <ActivitySection />
 

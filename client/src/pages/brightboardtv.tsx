@@ -12,6 +12,8 @@ export default function BrightboardTVPage() {
       <div className="flex flex-wrap gap-3 mt-8">
         <a href="/tv/" className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold inline-flex items-center gap-2">Launch BrightboardTV <ArrowRight className="w-4 h-4" /></a>
         <a href={repo} target="_blank" rel="noopener noreferrer" className="bb-surface px-6 py-3 rounded-xl font-semibold inline-flex items-center gap-2"><Github className="w-4 h-4" />Source on GitHub</a>
+        <a href="/api/brightboardtv/download/source" className="bb-surface px-6 py-3 rounded-xl font-semibold inline-flex items-center gap-2"><Download className="w-4 h-4" />Download source ZIP</a>
+        <a href="/api/brightboardtv/download/prebuilt" className="bb-surface px-6 py-3 rounded-xl font-semibold inline-flex items-center gap-2"><Download className="w-4 h-4" />Download prebuilt ZIP</a>
         <a href="#install" className="px-5 py-3 font-semibold text-primary">Installation guide</a>
       </div>
       <section className="grid md:grid-cols-3 gap-5 my-14" aria-label="Presentation features">
@@ -20,7 +22,7 @@ export default function BrightboardTVPage() {
           [Box, "Explore in three dimensions", "Rotate, zoom and label original schematic models. Save a camera view or upload a compatible GLB. Every starter model includes its source and licence."],
           [Smartphone, "Present from anywhere in the room", "Pair your phone or tablet with a QR code. Approve the controller, change pages, use the laser pointer, manage a countdown and read your private notes."],
           [Presentation, "Built for a real audience", "A clean display mode hides editor controls and speaker notes. An ordinary TV or projector works when connected to a computer."],
-          [Download, "Take your work with you", "Local autosave, a saved lesson library, portable .bbtv files, and PNG/PDF exports. Prepare selected local assets before teaching or presenting offline."],
+          [Download, "Take your work with you", "Local autosave, portable .bbtv files, and PNG/PDF exports. Saving to the hosted lesson library requires a paid BrightBoard plan; the standalone open-source app remains independent and free."],
           [Users, "Keep the room engaged", "Countdown timer, device-local stopwatch, random name picker, group maker and spotlight tools. No audience accounts are required."],
         ].map(([Icon, title, detail]) => {
           const FeatureIcon = Icon as typeof PenTool;
