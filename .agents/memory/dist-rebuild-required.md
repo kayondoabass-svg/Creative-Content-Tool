@@ -17,3 +17,18 @@ For this pre-built VPS deployment, validate the committed artifacts before rollo
 **Why:** The VPS does not use the GitHub runner's build output. Replit-generated lockfiles can also contain internal package-registry URLs that external runners cannot reach; an incomplete npm installation can then misleadingly report a missing build tool.
 
 **How to apply:** Keep building before pushing application changes. If a future deployment genuinely needs a fresh external CI build, first make dependency resolutions portable and verify a clean installation outside Replit.
+
+## Lockfile portability is a release requirement
+
+Production and open-source exports must not contain dependency download addresses
+for Replit's internal package firewall, even when installation succeeds here.
+
+**Why:** VPS installation can appear hung while npm retries internal-only hosts.
+A successful npm dry run and a build using already-installed packages do not prove
+that another machine can download the dependencies.
+
+**How to apply:** Before distributing lockfiles after dependency changes, check
+their resolved hosts. Preserve exact versions and integrity hashes when replacing
+internal proxy addresses with public npm tarball addresses, and verify public
+registry integrity metadata. Check the independent open-source lockfile and ZIP
+contents too; fixing only the host application's lockfile leaves downloads broken.
