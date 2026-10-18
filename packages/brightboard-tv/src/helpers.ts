@@ -2,6 +2,7 @@ import type { Lesson, Page, StageState } from "./types";
 import { initialState, newLesson } from "./types";
 
 export const MAX_FILE = 25 * 1024 * 1024;
+export const MAX_LESSON_FILE = 64 * 1024 * 1024;
 const unit = (n: unknown) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1;
 const embeddedAsset = (src: unknown, pattern: RegExp) => typeof src === "string" && pattern.test(src) && dataUrlBytes(src) <= MAX_FILE;
 export function validLesson(value: unknown): value is Lesson {

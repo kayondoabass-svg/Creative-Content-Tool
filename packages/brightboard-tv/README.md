@@ -108,6 +108,37 @@ storage quotas/cleanup/private mode may remove local data: keep `.bbtv` backups.
 The service worker deliberately does not cache `/api/` responses or any account,
 payment or private BrightBoard service.
 
+### Large lessons and local files
+
+Drafts and the device library use IndexedDB, not the small localStorage quota.
+Existing localStorage drafts, saved lessons and names migrate automatically;
+the original copies are removed only after migration has committed successfully.
+The header reports the actual save result. If saving fails, keep the editor open
+and download a `.bbtv` backup before closing it.
+
+For direct access to a file on your computer, open **More tools**:
+
+1. Choose **Open local .bbtv file** to select an existing presentation, or
+   **Save directly to local file** to choose a new file.
+2. Grant the browser permission when prompted. Further saves of that presentation
+   update the chosen file; this is an explicit save, not continuous file autosave.
+3. Opening another lesson does not overwrite the previously linked file.
+
+Direct file pickers require a supported browser, typically desktop Chrome or Edge,
+and HTTPS or `http://localhost`. On unsupported phones, tablets, browsers or plain
+HTTP LAN addresses, use **Saved lessons & import** and **Download .bbtv backup**.
+The standalone app never gains unrestricted access to your disk. File saving and
+exports remain free; paid BrightBoard library controls do not apply to standalone.
+Portable lesson imports are limited to 64 MB; individual PDFs, images and models
+retain their 25 MB limit.
+
+**Clear current page** asks for confirmation and removes its drawings, text,
+images and model while preserving private notes and other pages. **Delete page**
+also asks for confirmation; deleting the last page creates a blank replacement.
+Undo can restore these page edits. **Clear local data** is a separate,
+non-undoable reset of the device workspace; it never deletes an account or a
+file saved outside the browser.
+
 ## Privacy and security
 
 - Documents live in your browser unless you explicitly share them.

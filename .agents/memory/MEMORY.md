@@ -9,6 +9,7 @@
 - [Public visibility](public-visibility.md) — keep teacher/resource totals and the rotating showcase off public pages; preserve private owner statistics and creation tools.
 - [Chatbot browser access](chatbot-browser-access.md) — AfroAI server replies can pass while browser preflight fails; preserve same-origin message routing and verify in a browser.
 - [BrightboardTV scope](brightboard-tv-scope.md) — open-source presentations for teachers and business speakers; QR remote control, clear casting limits and private-source separation.
+- [TV file storage](tv-storage-decisions.md) — hosted Cloudflare files; standalone permission-based local files; large-lesson recovery and explicit destructive actions.
 - [Creation retention](content-retention-policy.md) — generated content stays private and available for 24 hours across restarts; exported copies are separate.
 - [Afro Auth contract](afro-auth-contract.md) — project connection examples can differ from public docs; website ownership and customer email confirmation are separate.
 - [Referral privacy and policy](referral-program-decisions.md) — applicants see only their own data; commission rules need founder confirmation, not inferred historical debt.

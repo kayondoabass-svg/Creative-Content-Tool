@@ -6,9 +6,12 @@ import "@google/model-viewer";
 import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Check, ChevronLeft, ChevronRight, Circle, Clock3, Copy, Download, Eraser, Eye, FileImage, FilePlus2, FileText, Focus, Fullscreen, Hand, Highlighter, ImagePlus, Import, Link2, Lock, Maximize2, MoreHorizontal, Move, PanelRight, Pause, Play, Plus, Presentation, Redo2, RotateCcw, Save, ScanLine, Settings2, Share2, Sparkles, Square, Timer, Trash2, Undo2, Unlock, Upload, Users, X, ZoomIn } from "lucide-react";
 import type { Background, BoardObject, Command, Hotspot, Ink, Lesson, Page, Point, StageState } from "./types";
 import { blankPage, initialState, newLesson } from "./types";
-import { downloadBlob, fileToDataUrl, fileToModelDataUrl, lessonFromJSON, MAX_FILE, mergeLessonPages, safeName, validLesson } from "./helpers";
+import { downloadBlob, fileToDataUrl, fileToModelDataUrl, lessonFromJSON, MAX_FILE, MAX_LESSON_FILE, mergeLessonPages, safeName, validLesson } from "./helpers";
 import { MODEL_LIBRARY } from "./models";
 import { useRelay } from "./useRelay";
+import { workspaceStorage } from "./workspace-storage";
+import { useConfirmation } from "./useConfirmation";
+import { chooseLocalLessonFile, openLocalLesson, supportsLocalFiles, writeLessonFile, type LocalLessonFile } from "./local-files";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 type Tool = "pen" | "highlighter" | "eraser" | "text" | "rect" | "ellipse" | "arrow" | "line" | "select" | "move";
@@ -16,18 +19,15 @@ type Modal = "library" | "share" | "timer" | "names" | "model" | "settings" | "h
 type LibraryAccessStatus = "checking" | "allowed" | "restricted" | "unavailable";
 type DeviceImportMode = "open" | "merge";
 const colors = ["#183a40", "#197b70", "#d56b51", "#e6a737", "#5368a9", "#805fa2", "#27323a", "#f6fbf4"];
-const STORAGE_KEY = "brightboard-tv-workspace";
-const LIBRARY_KEY = "brightboard-tv-library";
 const getPage = (lesson: Lesson, index: number) => lesson.pages[Math.max(0, Math.min(index, lesson.pages.length - 1))];
 const makeObject = (type: BoardObject["type"], x: number, y: number, color: string): BoardObject =>
   ({ id: crypto.randomUUID(), type, x, y, width: type === "text" ? .32 : .18, height: type === "text" ? .1 : .15, color, text: type === "text" ? "Double-click to edit" : undefined, fontSize: 38 });
 const asStage = (lesson: Lesson): StageState => ({ ...initialState(lesson), pageIndex: 0 });
 function loadWorkspace(): Lesson {
-  try { const data = localStorage.getItem(STORAGE_KEY); if (data) { const lesson = lessonFromJSON(data); return lesson; } } catch { /* invalid autosave falls back to a fresh workspace */ }
-  return newLesson();
+  return workspaceStorage.workspace() || newLesson();
 }
 function readLibrary(): Lesson[] {
-  try { const value = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "[]"); return Array.isArray(value) ? value.filter(validLesson) : []; } catch { return []; }
+  return workspaceStorage.library();
 }
 function svgPath(points: Point[], width: number, height: number) {
   return points.map((p, i) => `${i ? "L" : "M"} ${p.x * width} ${p.y * height}`).join(" ");
@@ -130,7 +130,14 @@ function App() {
   const params = new URLSearchParams(location.search);
   const mode = params.get("mode") || "edit";
   const [lesson, setLesson] = useState<Lesson>(loadWorkspace);
-  const [stage, setStage] = useState<StageState>(() => asStage(loadWorkspace()));
+  const [stage, setStage] = useState<StageState>(() => asStage(lesson));
+  const [saveStatus, setSaveStatus] = useState<"saving" | "saved" | "error">("saving");
+  const autosaveTimer = useRef<number | null>(null);
+  const importHandled = useRef(false);
+  const linkedFile = useRef<{ handle: LocalLessonFile; lessonId: string } | null>(null);
+  const [localFileName, setLocalFileName] = useState("");
+  const [fileBusy, setFileBusy] = useState(false);
+  const { requestConfirmation, confirmationDialog, confirmationOpen } = useConfirmation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [tool, setTool] = useState<Tool>("select");
   const [moveMode, setMoveMode] = useState(false);
@@ -240,24 +247,16 @@ function App() {
   }, []);
   useEffect(() => {
     const importFlag = params.get("import") === "brightboard";
-    if (!importFlag) return;
-    try {
+    if (!importFlag || importHandled.current) return;
+    importHandled.current = true;
+    void (async () => { try {
       const raw = localStorage.getItem("brightboard-tv-import");
       const envelope = raw ? JSON.parse(raw) : null;
       const candidate = envelope?.lesson || envelope;
       if (validLesson(candidate)) {
         // Keep the previous autosaved draft before a cross-app import replaces it.
-        const previous = localStorage.getItem(STORAGE_KEY);
-        if (previous) {
-          const prior = JSON.parse(previous);
-          if (validLesson(prior) && prior.id !== candidate.id) {
-            const saved = JSON.parse(localStorage.getItem(LIBRARY_KEY) || "[]");
-            if (!Array.isArray(saved)) throw new Error("Saved library needs recovery before import.");
-            const next = [prior, ...saved.filter((item: Lesson) => item.id !== prior.id)];
-            localStorage.setItem(LIBRARY_KEY, JSON.stringify(next)); setLibrary(next);
-          }
-        }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(candidate));
+        const prior = workspaceStorage.workspace();
+        setLibrary(await workspaceStorage.switchWorkspace(candidate, prior && prior.id !== candidate.id ? prior : undefined));
         setLesson(candidate); setCurrentIndex(0); setStage(asStage(candidate));
         localStorage.removeItem("brightboard-tv-import");
         notify("BrightBoard presentation imported. Previous draft kept in the library.");
@@ -268,16 +267,18 @@ function App() {
         }
       }
       else notify("The BrightBoard import is missing or invalid.", true);
-    } catch { notify("Could not read the BrightBoard import.", true); }
+    } catch { notify("Could not save the BrightBoard import. Your previous draft has been kept.", true); } })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     if (!editor) return;
-    const id = window.setTimeout(() => {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...lesson, updatedAt: new Date().toISOString() })); }
-      catch { notify("Autosave storage is full. Export a backup and remove large images.", true); }
+    let active = true;
+    setSaveStatus("saving");
+    const id = autosaveTimer.current = window.setTimeout(() => {
+      void workspaceStorage.saveWorkspace(lesson).then(() => { if (active) setSaveStatus("saved"); })
+        .catch(() => { if (active) { setSaveStatus("error"); notify("Device storage could not save this draft. Download a .bbtv backup; your open presentation is still here.", true); } });
     }, 300);
-    return () => window.clearTimeout(id);
+    return () => { active = false; window.clearTimeout(id); };
   }, [lesson, editor, notify]);
   useEffect(() => {
     if (editor && relay.session?.role === "host") {
@@ -317,16 +318,21 @@ function App() {
     setUndoStack(s => [...s, lesson]); restoreLesson(redoStack[redoStack.length - 1]); setRedoStack(s => s.slice(0, -1));
   };
   const addPage = () => { const p = blankPage(`Page ${lesson.pages.length + 1}`); updateLesson(l => ({ ...l, pages: [...l.pages.slice(0, currentIndex + 1), p, ...l.pages.slice(currentIndex + 1)] })); setCurrentIndex(currentIndex + 1); };
-  const deletePage = () => { if (lesson.pages.length === 1) { notify("A presentation needs at least one page."); return; }
-    if (!window.confirm(`Delete “${page.title}”? This cannot be undone after closing the workspace.`)) return;
-    updateLesson(l => ({ ...l, pages: l.pages.filter((_, i) => i !== currentIndex) })); setCurrentIndex(Math.max(0, currentIndex - 1));
-  };
+  const deletePage = () => requestConfirmation({
+    title: "Delete this page?", confirmLabel: "Delete page",
+    description: `Delete “${page.title}” and its content? ${lesson.pages.length === 1 ? "The last page will be replaced with a blank page." : "Other pages will stay."} You can use Undo while this editor remains open.`,
+    run: () => {
+      const id = page.id;
+      updateLesson(l => { const remaining = l.pages.filter(p => p.id !== id); return { ...l, pages: remaining.length ? remaining : [blankPage("Page 1")] }; });
+      setSelectedId(null); setCurrentIndex(Math.max(0, currentIndex - 1)); notify("Page deleted. Use Undo to restore it.");
+    },
+  });
   const movePage = (direction: number) => {
     const target = currentIndex + direction; if (target < 0 || target >= lesson.pages.length) return;
     updateLesson(l => { const pages = [...l.pages]; [pages[currentIndex], pages[target]] = [pages[target], pages[currentIndex]]; return { ...l, pages }; });
     setCurrentIndex(target);
   };
-  const choosePage = (i: number) => { setCurrentIndex(i); if (relay.session?.role === "host") void relay.command({ type: "page", index: i }); };
+  const choosePage = (i: number) => { setSelectedId(null); setCurrentIndex(i); if (relay.session?.role === "host") void relay.command({ type: "page", index: i }); };
   const renamePage = (title: string) => updatePage(p => ({ ...p, title }), false);
   const addObject = (type: BoardObject["type"]) => {
     const obj = makeObject(type, .38, .37, color);
@@ -386,46 +392,75 @@ function App() {
     drawing.current = null; draggedObject.current = null; lastErasePoint.current = null;
     if (laser) { setStage(s => ({ ...s, pointer: { ...s.pointer, visible: false } })); if (relay.session?.role === "host") void relay.command({ type: "pointer", x: stage.pointer.x, y: stage.pointer.y, visible: false }); }
   };
-  const clearBoard = () => { if (!window.confirm("Clear all ink and objects from this page?")) return; updatePage(p => ({ ...p, ink: [], objects: [] })); };
+  const clearBoard = () => requestConfirmation({
+    title: "Clear this page?", confirmLabel: "Clear page",
+    description: "Remove drawings, text, images and the 3D model from this page? Private notes and other pages stay. You can use Undo to restore the content.",
+    run: () => { updatePage(p => ({ ...p, ink: [], objects: [], model: undefined })); setSelectedId(null); setReveal(false); notify("Page cleared. Use Undo to restore it."); },
+  });
   const editText = (obj: BoardObject) => { const text = window.prompt("Edit text", obj.text || ""); if (text !== null) updatePage(p => ({ ...p, objects: p.objects.map(o => o.id === obj.id ? { ...o, text } : o) })); };
   const resizeSelected = (direction: number) => updatePage(p => ({ ...p, objects: p.objects.map(o => o.id === selectedId ? { ...o, width: Math.max(.04, Math.min(.9, o.width + direction * .03)), height: Math.max(.04, Math.min(.9, o.height + direction * .02)) } : o) }));
   const toggleLock = () => updatePage(p => ({ ...p, objects: p.objects.map(o => o.id === selectedId ? { ...o, locked: !o.locked } : o) }));
   const removeSelected = () => { updatePage(p => ({ ...p, objects: p.objects.filter(o => o.id !== selectedId) })); setSelectedId(null); };
-  const saveToLibrary = () => {
+  const saveToLibrary = async () => {
     if (libraryAccess !== "allowed") {
       notify(libraryAccess === "restricted"
         ? "Saved lesson library saving is part of a paid BrightBoard plan. Download a .bbtv backup to keep a copy."
         : "Library access could not be verified. Download a .bbtv backup, reconnect, and retry the access check.", true);
       return;
     }
-    const next = [lesson, ...library.filter(l => l.id !== lesson.id)];
-    try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(next)); setLibrary(next); notify("Saved to your lesson library."); }
+    try { setLibrary(await workspaceStorage.saveLibrary(lesson)); notify("Saved to your lesson library."); }
     catch { notify("Could not save to library. Export a backup or remove large images.", true); }
   };
   const exportLesson = () => downloadBlob(new Blob([JSON.stringify(lesson, null, 2)], { type: "application/json" }), `${safeName(lesson.title)}.bbtv`);
-  const loadLesson = (selected: Lesson) => {
+  const loadLesson = async (selected: Lesson) => {
     // Opening a file must not silently discard the presentation being edited.
-    if (JSON.stringify(selected) !== JSON.stringify(lesson)) {
+    if (selected !== lesson) {
       try {
-        const next = [lesson, ...library.filter(l => l.id !== lesson.id)];
-        localStorage.setItem(LIBRARY_KEY, JSON.stringify(next));
-        setLibrary(next);
+        setLibrary(await workspaceStorage.switchWorkspace(selected, lesson));
       } catch {
         notify("Could not back up your current presentation. Export it or free browser storage before opening another file.", true);
-        return;
+        return false;
       }
     }
     setUndoStack([]); setRedoStack([]); restoreLesson(selected); setStage(asStage(selected)); setModal(null);
     notify("Presentation opened. Your previous presentation is kept in the saved library.");
+    return true;
   };
-  const removeFromLibrary = (id: string) => { const next = library.filter(l => l.id !== id); setLibrary(next); localStorage.setItem(LIBRARY_KEY, JSON.stringify(next)); };
+  const openLocalFile = async () => {
+    if (!supportsLocalFiles()) { notify("Direct file access is unavailable here. Use the device importer and download .bbtv backups instead.", true); return; }
+    setFileBusy(true);
+    try {
+      const opened = await openLocalLesson();
+      if (await loadLesson(opened.lesson)) {
+        linkedFile.current = { handle: opened.handle, lessonId: opened.lesson.id };
+        setLocalFileName(opened.handle.name);
+      }
+    } catch (error) { if ((error as Error).name !== "AbortError") notify((error as Error).message || "Could not open the local file.", true); }
+    finally { setFileBusy(false); }
+  };
+  const saveLocalFile = async () => {
+    if (!supportsLocalFiles()) { exportLesson(); return; }
+    setFileBusy(true);
+    try {
+      const handle = linkedFile.current?.lessonId === lesson.id ? linkedFile.current.handle : await chooseLocalLessonFile(lesson);
+      await writeLessonFile(handle, lesson);
+      linkedFile.current = { handle, lessonId: lesson.id }; setLocalFileName(handle.name);
+      notify(`Presentation snapshot saved directly to ${handle.name}.`);
+    } catch (error) { if ((error as Error).name !== "AbortError") notify((error as Error).message || "Could not save the local file. Your open presentation is unchanged.", true); }
+    finally { setFileBusy(false); }
+  };
+  const removeFromLibrary = (id: string) => requestConfirmation({
+    title: "Delete saved lesson?", confirmLabel: "Delete saved lesson",
+    description: "Remove this saved copy from this device? The presentation currently open in the editor is not deleted. Download a backup first if you want to keep the saved copy.",
+    run: async () => { setLibrary(await workspaceStorage.deleteLibrary(id)); notify("Saved lesson deleted."); },
+  });
   const handleImportJSON = async (event: ChangeEvent<HTMLInputElement>, importMode: DeviceImportMode = "open") => {
     const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
     if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
       notify("For PDFs, use the device importer in the saved lesson library or Insert PDF in the toolbar.", true);
       return;
     }
-    if (file.size > MAX_FILE) { notify("Lesson files must be 25 MB or smaller.", true); return; }
+    if (file.size > MAX_LESSON_FILE) { notify("Lesson files must be 64 MB or smaller.", true); return; }
     try {
       const imported = lessonFromJSON(await file.text());
       if (importMode === "merge") {
@@ -433,7 +468,7 @@ function App() {
         updateLesson(() => merged);
         setModal(null);
         notify(`Merged ${imported.pages.length} page${imported.pages.length === 1 ? "" : "s"} into “${lesson.title}”.`);
-      } else loadLesson(imported);
+      } else await loadLesson(imported);
     } catch (e) { notify(e instanceof Error ? e.message : "Invalid lesson file.", true); }
   };
   const importImage = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -463,7 +498,7 @@ function App() {
         const pdfPage = await pdf.getPage(i), viewport = pdfPage.getViewport({ scale: Math.min(2, 1600 / pdfPage.getViewport({ scale: 1 }).width) });
         const canvas = document.createElement("canvas"); canvas.width = viewport.width; canvas.height = viewport.height;
         await pdfPage.render({ canvas, canvasContext: canvas.getContext("2d")!, viewport }).promise;
-        const src = canvas.toDataURL("image/png");
+        const src = canvas.toDataURL("image/jpeg", .9);
         const pg = blankPage(`${file.name.replace(/\.pdf$/i, "")} · ${i}`);
         pg.objects.push({ ...makeObject("image", 0, 0, "#183a40"), width: 1, height: 1, src });
         rendered.push(pg);
@@ -592,12 +627,18 @@ function App() {
   };
   const copyText = async (text: string) => { try { await navigator.clipboard.writeText(text); notify("Copied to clipboard."); } catch { notify(text); } };
   const rotateCode = async () => { const code = await relay.rotate(); if (code) notify("A new join code is active."); };
-  const clearLocal = () => {
-    if (!window.confirm("Clear this device's BrightboardTV workspace, saved lessons, relay credentials and saved name list? Export any lesson you want to keep first.")) return;
-    localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LIBRARY_KEY); localStorage.removeItem("brightboard-tv-names");
-    const fresh = newLesson();
-    relay.clear(); setLibrary([]); setNames(""); setPicked([]); setLesson(fresh); setStage(asStage(fresh)); setCurrentIndex(0); notify("Local workspace cleared.");
-  };
+  const clearLocal = () => requestConfirmation({
+    title: "Clear this device's workspace?", confirmLabel: "Clear local data",
+    description: "This removes this device's draft, local saved lessons, relay credentials and saved names. It does not delete your account or cloud files. Download a .bbtv backup before continuing. This full reset cannot be undone.",
+    run: async () => {
+      if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
+      const fresh = newLesson();
+      await workspaceStorage.clear(fresh);
+      relay.clear(); setLibrary([]); setNames(""); setPicked([]); setUndoStack([]); setRedoStack([]); setSelectedId(null); setReveal(false);
+      linkedFile.current = null; setLocalFileName("");
+      setLesson(fresh); setStage(asStage(fresh)); setCurrentIndex(0); setModal(null); setCameraWarning(""); notify("Local workspace cleared.");
+    },
+  });
   const prepareOffline = async () => {
     try {
       if (!("caches" in window) || !("serviceWorker" in navigator)) throw new Error("Offline cache storage is not available in this browser.");
@@ -617,10 +658,15 @@ function App() {
     else setInstallMessage(/iPhone|iPad|iPod/.test(navigator.userAgent) ? "In Safari, tap Share, then Add to Home Screen." : "Use your browser’s Install app or Add to Home Screen option.");
   };
   const fullscreen = () => { const target = mode === "display" ? document.documentElement : canvasRef.current; if (document.fullscreenElement) void document.exitFullscreen(); else void target?.requestFullscreen?.(); };
-  const openLocalPresentation = () => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lesson)); }
-    catch { notify("Could not save the latest draft before opening the stage. Export a backup.", true); return; }
-    window.open(`${location.pathname}?mode=display&local=1`, "_blank", "noopener");
+  const openLocalPresentation = async () => {
+    // Open synchronously to retain the user's browser popup permission.
+    const target = window.open("about:blank", "_blank");
+    if (!target) { notify("Allow a presentation tab for BrightboardTV, then try Present again.", true); return; }
+    target.opener = null;
+    try {
+      await workspaceStorage.saveWorkspace(lesson); setSaveStatus("saved");
+      target.location.replace(`${location.origin}${location.pathname}?mode=display&local=1`);
+    } catch { target.close(); setSaveStatus("error"); notify("Device storage could not save the presentation. Export a .bbtv backup; your editor is unchanged.", true); }
   };
   const dispatchCommand = (cmd: Command) => {
     if (relay.session?.role === "host") void relay.command(cmd);
@@ -639,14 +685,16 @@ function App() {
   };
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement || (e.target as HTMLElement)?.isContentEditable) return;
+      if (confirmationOpen) return;
+      if (editor && !modal && selectedId && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); removeSelected(); return; }
       if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); if (mode === "display") dispatchCommand({ type: "next" }); else choosePage(Math.min(currentIndex + 1, lesson.pages.length - 1)); }
       if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); if (mode === "display") dispatchCommand({ type: "previous" }); else choosePage(Math.max(0, currentIndex - 1)); }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       if (e.key === "Escape") setModal(null);
     };
     window.addEventListener("keydown", key); return () => window.removeEventListener("keydown", key);
-  }, [mode, currentIndex, lesson.pages.length, undoStack, redoStack]);
+  }, [mode, currentIndex, lesson, undoStack, redoStack, selectedId, modal, confirmationOpen]);
   const changeBackground = (background: Background) => updatePage(p => ({ ...p, background }));
   const randomPick = () => {
     const pool = names.split(/\n|,/).map(x => x.trim()).filter(Boolean);
@@ -660,8 +708,8 @@ function App() {
     pool.forEach((name, i) => { const index = i % Math.max(1, Math.ceil(pool.length / groupSize)); (groups[index] ||= []).push(name); });
     setPicked(groups.map((g, i) => `Group ${i + 1}: ${g.join(", ")}`));
   };
-  const namesSaved = () => { localStorage.setItem("brightboard-tv-names", names); notify("Names are saved on this device."); };
-  useEffect(() => { setNames(localStorage.getItem("brightboard-tv-names") || ""); }, []);
+  const namesSaved = async () => { try { await workspaceStorage.saveNames(names); notify("Names are saved on this device."); } catch { notify("Names could not be saved. Device storage is unavailable.", true); } };
+  useEffect(() => { setNames(workspaceStorage.names()); }, []);
   const modelFor = (pg: Page, frozen: boolean) => pg.model ? <ModelViewer page={pg} frozen={frozen} resetKey={modelResetKey} onOrbit={frozen ? undefined : saveOrbit} onHotspot={editor && tool === "select" ? addHotspot : undefined} /> : null;
   const drawCanvas = (pg: Page, editable: boolean, blank = false, includeNotes = false) => <div ref={editable ? canvasRef : undefined} className={`canvas ${pg.background}${blank ? " blank" : ""}${editable && ["pen", "highlighter", "eraser"].includes(tool) ? " drawing" : ""}`} onPointerDown={editable ? onPointerDown : undefined} onPointerMove={editable ? onPointerMove : undefined} onPointerUp={editable ? onPointerUp : undefined} onPointerCancel={editable ? onPointerUp : undefined} onDoubleClick={e => {
     const target = e.target as HTMLElement, id = target.closest<HTMLElement>(".board-object")?.dataset.objectId;
@@ -737,15 +785,16 @@ function App() {
   return <div className="app">
     <header className="topbar"><a className="brand" href={location.pathname} aria-label="BrightboardTV workspace"><span className="brand-mark"><Presentation size={18} /></span>Brightboard<span style={{ color: "var(--teal)" }}>TV</span></a><div className="top-divider" />
       <input aria-label="Presentation title" className="lesson-title" value={lesson.title} onChange={e => updateLesson(l => ({ ...l, title: e.target.value }), false)} />
-      <div className="top-actions"><span className="status-pill"><i />{isOnline ? "SAVED ON THIS DEVICE" : "OFFLINE · LOCAL TOOLS"}</span>
+      <div className="top-actions"><span className="status-pill" role="status"><i />{saveStatus === "saved" ? `SAVED ON THIS DEVICE${isOnline ? "" : " · OFFLINE"}` : saveStatus === "saving" ? "SAVING…" : "NOT SAVED · EXPORT BACKUP"}</span>
         <button className="button icon hide-mobile" aria-label="Undo" title="Undo" onClick={undo} disabled={!undoStack.length}><Undo2 size={17} /></button><button className="button icon hide-mobile" aria-label="Redo" title="Redo" onClick={redo} disabled={!redoStack.length}><Redo2 size={17} /></button>
         <button className="button hide-mobile" onClick={() => setModal("library")}><BookOpen size={16} /> Library</button>
         <button className="button" onClick={() => void openShare()}><Share2 size={16} /> <span className="hide-mobile">Pair</span></button>
-        <button className="button primary" onClick={openLocalPresentation}><Play size={16} /> Present</button>
+        <button className="button primary" onClick={() => void openLocalPresentation()}><Play size={16} /> Present</button>
         <button className="button icon mobile-tools" aria-label="More options" onClick={() => setModal("settings")}><MoreHorizontal size={20} /></button>
       </div>
     </header>
     {relay.error && <div className="notice" style={{ padding: "7px 18px", background: "#fff0e9", color: "#a54838" }}>{relay.error} <button className="button small" onClick={() => relay.clear()}>Dismiss session</button></div>}
+    {saveStatus === "error" && <div role="alert" className="notice" style={{ padding: "10px 18px", background: "#fff0e9", color: "#a54838" }}>This draft is not saved on this device. Keep the editor open and <button className="button small" onClick={exportLesson}>Download .bbtv backup</button></div>}
     <main className="workspace">
       <aside className="rail"><div className="rail-heading"><span>Pages · {lesson.pages.length}</span><button className="button icon small" aria-label="Add page" onClick={addPage}><Plus size={17} /></button></div>
         <div className="page-list">{lesson.pages.map(pageThumb)}</div>
@@ -771,6 +820,8 @@ function App() {
             <button className="tool-button" title="Add page" aria-label="Add page" onClick={addPage}><FilePlus2 size={17} /></button>
           </div>
           <div className="tool-group"><button className="tool-button" title="Undo" aria-label="Undo" onClick={undo} disabled={!undoStack.length}><Undo2 size={17} /></button><button className="tool-button" title="Redo" aria-label="Redo" onClick={redo} disabled={!redoStack.length}><Redo2 size={17} /></button></div>
+          <button className="tool-button" title="Clear current page" aria-label="Clear current page" onClick={clearBoard}><Eraser size={17} /></button>
+          <button className="tool-button" title="Delete selected object" aria-label="Delete selected object" disabled={!selectedId} onClick={removeSelected}><Trash2 size={17} /></button>
           <button className={`tool-button ${laser ? "active" : ""}`} title="Laser pointer" aria-label="Laser pointer" onClick={() => { setLaser(x => !x); if (laser && relay.session?.role === "host") void relay.command({ type: "pointer", x: .5, y: .5, visible: false }); }}><ScanLine size={17} /></button>
           <button className="tool-button" title="More tools" aria-label="More tools" onClick={() => setModal("settings")}><Settings2 size={17} /></button>
         </div>
@@ -803,16 +854,46 @@ function App() {
       </aside>
     </main>
     <input ref={fileRef} type="file" accept="image/*" hidden onChange={importImage} /><input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden onChange={importPDF} /><input ref={jsonRef} type="file" accept=".bbtv,.json,application/json" hidden onChange={handleImportJSON} /><input ref={libraryImportRef} type="file" accept=".bbtv,.json,application/json,application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif" hidden onChange={importFromDevice} />
-    {modal === "library" && <ModalShell title="Saved lesson library" close={() => setModal(null)}><div className="row spread" style={{ marginBottom: 14 }}><p className="notice">Stored only in this browser. Download backups before clearing site data.</p><button className="button primary small" onClick={saveToLibrary} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={14} /> Save current</button></div>{libraryAccessHelp}{library.length ? <div className="library-grid">{library.map(l => <div key={l.id} className="library-card"><button style={{ border: 0, background: "transparent", padding: 0, color: "inherit", textAlign: "left", width: "100%" }} onClick={() => loadLesson(l)}><strong>{l.title}</strong><span className="notice">{l.pages.length} pages · Updated {new Date(l.updatedAt).toLocaleDateString()}</span></button><div className="row" style={{ marginTop: 12 }}><button className="button small" onClick={() => loadLesson(l)}>Open</button><button className="button small" aria-label={`Download ${l.title}`} onClick={() => downloadBlob(new Blob([JSON.stringify(l, null, 2)], { type: "application/json" }), `${safeName(l.title)}.bbtv`)}><Download size={14} /></button><button className="button small danger" aria-label={`Delete ${l.title}`} onClick={() => { if (window.confirm(`Delete “${l.title}” from this device?`)) removeFromLibrary(l.id); }}><Trash2 size={14} /></button></div></div>)}</div> : <div className="empty">Your lesson shelf is ready. Save a presentation to keep it here.</div>}<div className="device-import-panel"><div className="row"><button className="button" onClick={() => chooseDeviceImport("open")}><Import size={15} /> Choose file to open</button><button className="button primary" onClick={() => chooseDeviceImport("merge")}><Import size={15} /> Choose file to merge</button><button className="button" onClick={exportLesson}><Download size={15} /> Export current</button></div><p className="notice" role="status">{deviceImportMode === "merge" ? "Merge selected: .bbtv/JSON lesson pages append to your current presentation; its title, notes, models, assets and existing pages stay in place." : "Open selected: a .bbtv/JSON lesson opens as the presentation, with the current lesson backed up in Saved lessons first."}</p><p className="notice">Supported files: .bbtv or JSON lessons, PDFs (up to 40 pages), and PNG, JPEG, WebP, or GIF images. Files must be 25 MB or smaller. PDF pages are added after the current page; an image is placed on the current page. Merge is only for lesson files. A merge that would exceed 60 total pages is rejected without changing your lesson.</p></div></ModalShell>}
+    {modal === "library" && <ModalShell title="Saved lesson library" close={() => setModal(null)}>
+      <div className="row spread" style={{ marginBottom: 14 }}>
+        <p className="notice">Stored only in this browser. Download backups before clearing site data.</p>
+        <button className="button primary small" onClick={saveToLibrary} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={14} /> Save current</button>
+      </div>
+      {libraryAccessHelp}
+      {library.length ? <div className="library-grid">{library.map(l => <div key={l.id} className="library-card">
+        <button style={{ border: 0, background: "transparent", padding: 0, color: "inherit", textAlign: "left", width: "100%" }} onClick={() => void loadLesson(l)}>
+          <strong>{l.title}</strong><span className="notice">{l.pages.length} pages · Updated {new Date(l.updatedAt).toLocaleDateString()}</span>
+        </button>
+        <div className="row" style={{ marginTop: 12 }}>
+          <button className="button small" onClick={() => void loadLesson(l)}>Open</button>
+          <button className="button small" aria-label={`Download ${l.title}`} onClick={() => downloadBlob(new Blob([JSON.stringify(l, null, 2)], { type: "application/json" }), `${safeName(l.title)}.bbtv`)}><Download size={14} /></button>
+          <button className="button small danger" aria-label={`Delete ${l.title}`} onClick={() => removeFromLibrary(l.id)}><Trash2 size={14} /></button>
+        </div>
+      </div>)}</div> : <div className="empty">Your lesson shelf is ready. Save a presentation to keep it here.</div>}
+      <div className="device-import-panel"><div className="row">
+        <button className="button" onClick={() => chooseDeviceImport("open")}><Import size={15} /> Choose file to open</button>
+        <button className="button primary" onClick={() => chooseDeviceImport("merge")}><Import size={15} /> Choose file to merge</button>
+        <button className="button" onClick={exportLesson}><Download size={15} /> Export current</button>
+      </div>
+        <p className="notice" role="status">{deviceImportMode === "merge" ? "Merge selected: .bbtv/JSON lesson pages append to your current presentation; its title, notes, models, assets and existing pages stay in place." : "Open selected: a .bbtv/JSON lesson opens as the presentation, with the current lesson backed up in Saved lessons first."}</p>
+        <p className="notice">Supported files: .bbtv or JSON lessons (up to 64 MB), PDFs (up to 40 pages), and PNG, JPEG, WebP, or GIF images. Individual PDFs, images and models must be 25 MB or smaller. PDF pages are added after the current page; an image is placed on the current page. Merge is only for lesson files. A merge that would exceed 60 total pages is rejected without changing your lesson.</p>
+      </div>
+    </ModalShell>}
     {modal === "share" && <ModalShell title="Connect presentation screens" close={() => setModal(null)}><p className="notice">Pair a phone as a remote controller or a connected TV/browser as a read-only display. This syncs this presentation only; it does not mirror other apps or audio.</p>{relay.pending && !relay.session ? <div className="empty">Creating a secure room…</div> : relay.session?.role === "host" ? <div className="split"><div className="phone-card" style={{ textAlign: "center" }}>{qr ? <img className="qr" src={qr} alt="Scan to join BrightboardTV remote" /> : <div className="empty">QR unavailable. Use the link or join code below.</div>}<p className="notice">Scan with your phone camera</p></div><div className="stack"><div className="phone-card"><div className="section-title">Room join code</div><strong style={{ font: "24px DM Mono", letterSpacing: ".15em" }}>{relay.joinCode || "••••••"}</strong><p className="notice">Share the code with trusted devices. No keys are placed in the link.</p><button className="button small" onClick={() => void copyText(relay.joinCode)}><Copy size={14} /> Copy code</button><button className="button small" onClick={() => void rotateCode()}><RotateCcw size={14} /> Rotate code</button></div><div className="phone-card"><div className="section-title">Join URL</div><button className="button small" onClick={() => void copyText(`${location.origin}${location.pathname}?mode=remote#id=${relay.session?.id}&code=${relay.joinCode}`)}><Link2 size={14} /> Copy pairing link</button><p className="notice">QR contains room ID and join code only, not your secret host key.</p></div></div></div> : <div className="empty">Could not create a relay room. {relay.error || "Check your connection and try again."}<button className="button small" onClick={() => void relay.create(asStage(lesson))}>Retry</button></div>}
       {relay.session?.role === "host" && <><div className="section-title" style={{ marginTop: 16 }}>Connected devices · approval required</div>{relay.peers.length ? relay.peers.map(peer => <div className="phone-card row spread" key={peer.id}><div><strong>{peer.name}</strong><div className="notice">{peer.role} · {peer.status}</div></div>{peer.status === "pending" ? <div className="row"><button className="button small primary" onClick={() => void relay.peerAction(peer.id, true)}><Check size={14} /> Approve</button><button className="button small danger" onClick={() => void relay.peerAction(peer.id, false)}>Deny</button></div> : <button className="button small danger" onClick={() => void relay.peerAction(peer.id, false)}>Revoke</button>}</div>) : <div className="empty">No devices yet. A controller request appears here for your approval; displays join read-only.</div>}<div className="row spread" style={{ marginTop: 15 }}><span className="notice">Room expires after 4 hours. Session exists in memory only.</span><button className="button small danger" onClick={() => { if (window.confirm("End this room for all connected devices? Your local draft remains safe.")) { void relay.end(); setModal(null); } }}>End room</button></div></>}
       <div className="phone-card"><div className="section-title">Joining another device</div><div className="split"><div><label className="field-label">Room ID</label><input className="input" value={joinIdInput} onChange={e => setJoinIdInput(e.target.value)} placeholder="Paste room ID" /><label className="field-label">Join code</label><input className="input" value={joinCodeInput} onChange={e => setJoinCodeInput(e.target.value)} placeholder="6-digit code" /></div><div><label className="field-label">Device name</label><input className="input" value={deviceName} onChange={e => setDeviceName(e.target.value)} /><button className="button small" style={{ marginTop: 10 }} onClick={() => void joinSession("controller")}>Join as controller</button><button className="button small" style={{ marginTop: 10 }} onClick={() => void joinSession("display")}>Join read-only display</button></div></div><p className="notice">A remote control request must be approved by the presenter. Read-only displays join immediately.</p></div>
       {relay.error && <p className="notice" style={{ color: "#a54838" }}>{relay.error}</p>}
       </ModalShell>}
+    {confirmationDialog}
     {modal === "timer" && <ModalShell title="Set a stage timer" close={() => setModal(null)}><label className="field-label">Duration in minutes</label><input className="input" type="number" min="1" max="240" value={Math.round(timerSeconds / 60)} onChange={e => setTimerSeconds(Math.min(14400, Math.max(60, Number(e.target.value) * 60)))} /><div className="row" style={{ marginTop: 16 }}><button className="button primary" onClick={() => { dispatchCommand({ type: "timer", seconds: timerSeconds, running: true }); setModal(null); }}>Start timer</button><button className="button" onClick={() => { dispatchCommand({ type: "timer", seconds: timerSeconds, running: false }); setModal(null); }}>Set without starting</button></div></ModalShell>}
     {modal === "names" && <ModalShell title="People & groups" close={() => setModal(null)}><p className="notice">Names stay on this device. Clear them from the local workspace controls when finished.</p><textarea className="textarea" placeholder={"Add names, one per line\nAvery\nSam"} value={names} onChange={e => setNames(e.target.value)} /><div className="row wrap" style={{ marginTop: 12 }}><label className="field-label">Group size <input className="width-select" type="number" min="1" max="20" value={groupSize} onChange={e => setGroupSize(Math.max(1, Number(e.target.value)))} /></label><button className="button primary" onClick={randomPick}>Pick names</button><button className="button" onClick={createGroups}>Make groups</button><button className="button small" onClick={namesSaved}><Save size={14} /> Save names</button></div>{picked.length > 0 && <div className="phone-card">{picked.map((name, i) => <div key={`${name}-${i}`} style={{ padding: 7, borderBottom: "1px solid var(--line)" }}>{name}</div>)}</div>}</ModalShell>}
     {modal === "model" && <ModalShell title="3D model library" close={() => setModal(null)}><p className="notice">Schematic educational visuals. Not medical models. Library assets are provided by the BrightboardTV host; uploaded models are embedded into your lesson backup.</p><div className="library-grid">{MODEL_LIBRARY.map(model => <button className="library-card" key={model.id} onClick={() => addModel(model.id)}><strong>{model.name}</strong><span className="notice">{model.description}</span><span className="notice" style={{ display: "block", marginTop: 8 }}>{model.attribution} · {model.license}</span></button>)}</div>{!MODEL_LIBRARY.length && <div className="empty">No bundled models were found in this build.</div>}<div className="row" style={{ marginTop: 14 }}><button className="button" onClick={() => document.getElementById("model-file")?.click()}><Upload size={15} /> Import .glb model</button><input id="model-file" type="file" accept=".glb,model/gltf-binary" hidden onChange={uploadModel} /></div>{page.model && <div className="phone-card"><strong>Current scene: {page.model.name}</strong><p className="notice">Close this library and tap a visible model surface to add a hotspot. A hit position and normal are required; no guessed location is saved.</p><button className="button small danger" onClick={() => updatePage(p => ({ ...p, model: undefined }))}>Remove current</button></div>}</ModalShell>}
     {modal === "settings" && <ModalShell title="Workspace tools" close={() => setModal(null)}><div className="library-grid">
+      <button className="library-card" onClick={() => setModal("library")}><strong><BookOpen size={16} /> Saved lessons & import</strong><span className="notice">Open the library or import from this device.</span></button>
+      <button className="library-card" onClick={clearBoard}><strong><Eraser size={16} /> Clear current page</strong><span className="notice">Remove page content with confirmation. Undo remains available.</span></button>
+      <button className="library-card" onClick={exportLesson}><strong><Download size={16} /> Download .bbtv backup</strong><span className="notice">Keep a portable copy even if browser saving fails.</span></button>
+      <button className="library-card" disabled={fileBusy || !supportsLocalFiles()} onClick={() => void openLocalFile()}><strong><Import size={16} /> Open local .bbtv file</strong><span className="notice">Allow access to a file on your computer in a supported browser.</span></button>
+      <button className="library-card" disabled={fileBusy} onClick={() => void saveLocalFile()}><strong><Save size={16} /> {supportsLocalFiles() ? "Save directly to local file" : "Export local .bbtv file"}</strong><span className="notice">{localFileName && linkedFile.current?.lessonId === lesson.id ? `Linked file: ${localFileName}` : "Choose a file with permission, or use a download on unsupported devices."}</span></button>
       <button className="library-card" onClick={() => setModal("names")}><strong><Users size={16} /> People & groups</strong><span className="notice">Pick a name or form random groups.</span></button>
       <button className="library-card" onClick={() => setModal("timer")}><strong><Timer size={16} /> Timer</strong><span className="notice">Start a timer shared to the stage.</span></button>
       <button className="library-card" onClick={() => void exportPNG()}><strong><FileImage size={16} /> Export current PNG</strong><span className="notice">Flatten current page, including ink.</span></button>

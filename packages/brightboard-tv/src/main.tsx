@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./app.css";
+import { workspaceStorage } from "./workspace-storage";
 
 // Older/self-hosted LAN contexts may not expose randomUUID. These IDs label
 // local lesson records only; relay credentials always come from the server.
@@ -21,4 +22,14 @@ if (typeof crypto !== "undefined" && !crypto.randomUUID) {
 }
 
 const root = document.getElementById("root");
-if (root) createRoot(root).render(<React.StrictMode><App /></React.StrictMode>);
+if (root) {
+  const reactRoot = createRoot(root);
+  const start = () => reactRoot.render(<React.StrictMode><App /></React.StrictMode>);
+  Promise.resolve().then(() => workspaceStorage.initialize(localStorage)).then(start).catch(() => {
+    reactRoot.render(<main className="modal" style={{ margin: "10vh auto" }}>
+      <h1>Device storage needs attention</h1>
+      <p>Your saved data has not been deliberately cleared. Close other BrightboardTV tabs and allow browser storage, then retry. You can continue editing without reliable autosave and download a .bbtv backup.</p>
+      <div className="row wrap"><button className="button" onClick={() => location.reload()}>Retry storage</button><button className="button" onClick={start}>Continue with backup exports</button></div>
+    </main>);
+  });
+}
