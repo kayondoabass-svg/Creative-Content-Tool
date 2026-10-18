@@ -46,6 +46,11 @@ export default function About() {
           </div>
         </header>
 
+        <section className="bb-surface p-7 mb-7">
+          <h2 className="text-2xl font-bold mb-3">Interactive presentations for everyone</h2>
+          <p className="text-muted-foreground leading-relaxed">BrightBoard supports educators—and BrightboardTV extends interactive presenting to public speakers, CEOs, managers, trainers and anyone who wants to make a compelling interactive presentation. Draw, explore 3D, share ideas and use your phone or tablet as a presenter remote.</p>
+          <Link href="/brightboardtv" className="inline-flex mt-4 font-semibold text-primary hover:underline">Meet the open-source BrightboardTV →</Link>
+        </section>
         <section className="grid md:grid-cols-[.82fr_1.18fr] gap-5 mb-7">
           <article className="bb-surface p-7 md:p-8">
             <div className="w-11 h-11 rounded-xl bg-accent/10 text-accent grid place-items-center mb-5"><Target className="w-5 h-5" /></div>

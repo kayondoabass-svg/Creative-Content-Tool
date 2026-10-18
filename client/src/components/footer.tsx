@@ -28,6 +28,9 @@ export function Footer() {
             <p className="text-sm text-muted-foreground mb-4">
               {t('footer.description')}
             </p>
+            <Link href="/brightboardtv" className="inline-flex mb-4 font-semibold text-primary hover:underline" data-testid="link-brightboardtv-footer">
+              BrightboardTV
+            </Link>
             <div className="flex items-center gap-3">
               <a
                 href={FACEBOOK_URL}

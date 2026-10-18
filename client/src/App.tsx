@@ -1,4 +1,5 @@
 import { Switch, Route, Link, useLocation } from "wouter";
+import BrightboardTVPage from "@/pages/brightboardtv";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -83,6 +84,7 @@ function Router() {
       <Route path="/refund" component={Refund} />
       <Route path="/affiliate" component={Affiliate} />
       <Route path="/about" component={About} />
+      <Route path="/brightboardtv" component={BrightboardTVPage} />
       <Route path="/contact" component={Contact} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/payment/callback" component={PaymentCallbackPage} />

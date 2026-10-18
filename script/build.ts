@@ -1,6 +1,6 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, cp } from "fs/promises";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -58,6 +58,10 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+  // Build the independently distributable public app, then include its static
+  // files in the existing VPS release. Its source never exposes private services.
+  await import("../packages/brightboard-tv/scripts/build.mjs");
+  await cp("packages/brightboard-tv/dist", "dist/public/tv", { recursive: true });
 }
 
 buildAll().catch((err) => {

@@ -324,7 +324,7 @@ export default function Home() {
                   </div>
                 </Card>
               </Link>
-              <Card data-testid="card-type-tv" aria-disabled="true" className="w-[140px] sm:w-auto flex-shrink-0 sm:flex-shrink p-3">
+              <a href="/tv/" aria-label="Open BrightboardTV"><Card data-testid="card-type-tv" className="w-[140px] sm:w-auto flex-shrink-0 sm:flex-shrink p-3 cursor-pointer hover:border-primary">
                 <div className="flex flex-col items-center text-center gap-2 sm:flex-row sm:items-start sm:text-left sm:gap-3">
                   <div className="p-2 rounded-lg bg-cyan-700" aria-hidden="true">
                     <svg viewBox="0 0 24 24" className="h-4 w-4 sm:h-5 sm:w-5 text-white" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -336,11 +336,10 @@ export default function Home() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-xs sm:text-sm">{t("contentTypes.tv")}</h3>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{t("contentTypes.tvDesc")}</p>
-                    <span className="inline-block mt-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{t("contentTypes.comingSoon")}</span>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Present, draw, explore 3D and control your screen remotely.</p>
                   </div>
                 </div>
-              </Card>
+              </Card></a>
             </div>
           </div>
 

@@ -7,6 +7,7 @@ import path from "path";
 import { registerChatbotWidget } from "./chatbot-widget";
 import { initializeReferralSchema } from "./referral-store";
 import { startReferralNotificationWorker } from "./referral-notifications";
+import { createTvRelay } from "../packages/brightboard-tv/server/relay";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -63,7 +64,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse && !path.startsWith("/api/chatbot-widget/") && !path.startsWith("/api/auth/") &&
-        !path.startsWith("/api/referrals") && !path.startsWith("/api/affiliates")) {
+        !path.startsWith("/api/referrals") && !path.startsWith("/api/affiliates") && !path.startsWith("/api/tv")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -76,6 +77,14 @@ app.use((req, res, next) => {
 
 (async () => {
   await initializeReferralSchema();
+  const tvRelay = createTvRelay();
+  app.use("/api/tv", tvRelay.router);
+  httpServer.on("close", () => tvRelay.close());
+  const tvDirectory = process.env.NODE_ENV === "production"
+    ? path.resolve("dist/public/tv") : path.resolve("packages/brightboard-tv/dist");
+  app.get(/^\/tv$/, (_req, res) => res.redirect(302, "/tv/"));
+  app.use("/tv", express.static(tvDirectory, { index: "index.html" }));
+  app.use("/tv-assets", express.static(path.join(tvDirectory, "tv-assets")));
   registerChatbotWidget(app);
   await setupAuth(app);
   

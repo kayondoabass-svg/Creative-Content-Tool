@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import pptxgen from "pptxgenjs";
 import JSZip from "jszip";
 import { apiRequest } from "@/lib/queryClient";
+import { openInBrightboardTV } from "@/lib/brightboard-tv";
 
 interface QuickStartChip {
   label: string;
@@ -673,6 +674,10 @@ export function GeneratedContentDisplay({
           {type}
         </Badge>
         <div className="flex items-center gap-2 flex-wrap">
+          {["image", "presentation", "mindmap", "worksheet", "text"].includes(type) && <Button variant="outline" size="sm" data-testid="button-open-brightboardtv" onClick={async () => {
+            try { await openInBrightboardTV(type, content); }
+            catch (error) { toast({ title: "Could not open BrightboardTV", description: error instanceof Error ? error.message : "Import failed.", variant: "destructive" }); }
+          }}>Open in BrightboardTV</Button>}
           {onRegenerate && (
             <Button variant="outline" size="sm" onClick={onRegenerate} data-testid="button-regenerate">
               <RefreshCw className="h-4 w-4 mr-1.5" />

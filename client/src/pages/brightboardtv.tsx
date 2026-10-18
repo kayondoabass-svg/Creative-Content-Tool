@@ -1,0 +1,49 @@
+import { Link } from "wouter";
+import { MonitorPlay, Smartphone, Download, Github, PenTool, Box, Wifi, ShieldCheck, ArrowRight, Presentation, Users } from "lucide-react";
+import { Footer } from "@/components/footer";
+
+const repo = "https://github.com/kayondoabass-svg/Brightboard-TV";
+export default function BrightboardTVPage() {
+  return <div className="page-shell min-h-screen">
+    <main className="bb-page max-w-6xl py-12 md:py-20">
+      <p className="bb-eyebrow mb-4">BrightboardTV · Open-source presentation software</p>
+      <h1 className="bb-display text-4xl md:text-6xl font-extrabold max-w-4xl leading-tight">Make your next presentation interactive.</h1>
+      <p className="text-lg text-muted-foreground leading-relaxed max-w-3xl mt-6">For teachers, public speakers, CEOs, managers and anyone who wants to create an engaging, interactive presentation. Draw, explain, explore 3D and control your presentation from across the room.</p>
+      <div className="flex flex-wrap gap-3 mt-8">
+        <a href="/tv/" className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold inline-flex items-center gap-2">Launch BrightboardTV <ArrowRight className="w-4 h-4" /></a>
+        <a href={repo} target="_blank" rel="noopener noreferrer" className="bb-surface px-6 py-3 rounded-xl font-semibold inline-flex items-center gap-2"><Github className="w-4 h-4" />Source on GitHub</a>
+        <a href="#install" className="px-5 py-3 font-semibold text-primary">Installation guide</a>
+      </div>
+      <section className="grid md:grid-cols-3 gap-5 my-14" aria-label="Presentation features">
+        {[
+          [PenTool, "Your ideas, on a board", "Pen, highlighter, shapes, arrows, text and images. Import PDF pages, choose a background, undo changes and build a multi-page presentation."],
+          [Box, "Explore in three dimensions", "Rotate, zoom and label original schematic models. Save a camera view or upload a compatible GLB. Every starter model includes its source and licence."],
+          [Smartphone, "Present from anywhere in the room", "Pair your phone or tablet with a QR code. Approve the controller, change pages, use the laser pointer, manage a countdown and read your private notes."],
+          [Presentation, "Built for a real audience", "A clean display mode hides editor controls and speaker notes. An ordinary TV or projector works when connected to a computer."],
+          [Download, "Take your work with you", "Local autosave, a saved lesson library, portable .bbtv files, and PNG/PDF exports. Prepare selected local assets before teaching or presenting offline."],
+          [Users, "Keep the room engaged", "Countdown timer, device-local stopwatch, random name picker, group maker and spotlight tools. No audience accounts are required."],
+        ].map(([Icon, title, detail]) => {
+          const FeatureIcon = Icon as typeof PenTool;
+          return <article className="bb-surface p-6" key={String(title)}><FeatureIcon className="h-7 w-7 text-primary mb-4" /><h2 className="font-bold text-xl mb-3">{String(title)}</h2><p className="text-muted-foreground leading-relaxed">{String(detail)}</p></article>;
+        })}
+      </section>
+      <section className="bb-surface p-7 md:p-10 mb-8" id="install">
+        <h2 className="text-3xl font-bold mb-5">Install it—or just open it</h2>
+        <div className="grid md:grid-cols-2 gap-8">
+          <div><h3 className="font-bold text-xl mb-3">Use through BrightBoard</h3><ol className="list-decimal pl-5 space-y-3 text-muted-foreground"><li>Open <a href="/tv/" className="text-primary underline">BrightboardTV</a>. The core tools do not require an account.</li><li>In a supported browser, choose Install from the app menu or browser address bar. On iPhone/iPad, use the browser’s Add to Home Screen option where supported.</li><li>Start a presentation, import your files, or use Open in BrightboardTV on a supported BrightBoard creation.</li><li>Connect your computer to the room’s TV/projector and open presentation mode.</li></ol><p className="text-sm text-muted-foreground mt-4">Installation varies by browser. The ordinary website remains available without installing.</p></div>
+          <div><h3 className="font-bold text-xl mb-3">Run your own copy</h3><p className="text-muted-foreground mb-4">Use Node.js 22.12 or later and the public repository. No BrightBoard payment, account or AI keys are required for the core software.</p><pre className="rounded-xl bg-slate-950 text-slate-100 p-4 overflow-x-auto text-sm"><code>{`git clone ${repo}.git\ncd Brightboard-TV\nnpm ci\nnpm run build\nnpm start`}</code></pre><p className="text-sm text-muted-foreground mt-4">The server defaults to port 4174. For phone pairing, serve it behind HTTPS on a reachable domain. School-local hosting needs a reachable local server/network and an appropriate certificate; downloading the app does not create a local pairing server.</p></div>
+        </div>
+      </section>
+      <section className="grid md:grid-cols-2 gap-6 mb-8">
+        <article className="bb-surface p-7"><MonitorPlay className="h-7 w-7 text-primary mb-4" /><h2 className="text-2xl font-bold mb-4">Casting and remote control</h2><ol className="list-decimal pl-5 text-muted-foreground space-y-3"><li>On the presentation computer, open BrightboardTV and start a sharing session.</li><li>Scan its QR code with your phone/tablet’s camera, or enter the session ID and pairing code.</li><li>Approve the controller on the computer. Your phone can now control this presentation.</li><li>For a separate audience browser, open the display link. Its connection is read-only and speaker notes are removed from its data.</li></ol><p className="text-sm text-muted-foreground mt-4">This synchronizes BrightboardTV presentations; it does not mirror every app on your phone or carry arbitrary system audio. For the physical screen, use HDMI, a supported browser’s tab-casting feature, or your operating system’s screen mirroring. Native AirPlay/Chromecast support depends on the device and is not guaranteed by BrightboardTV.</p><p className="text-sm text-muted-foreground mt-3">With the hosted relay, both devices need internet but not necessarily the same Wi-Fi. Sessions expire after four hours and end on a server restart. You can revoke devices, refresh the pairing code or end the session.</p></article>
+        <article className="bb-surface p-7"><Wifi className="h-7 w-7 text-primary mb-4" /><h2 className="text-2xl font-bold mb-4">What works offline?</h2><p className="text-muted-foreground mb-4">Open the app online first and choose Prepare offline for the presentation you plan to use. Keep a downloaded .bbtv backup.</p><ul className="list-disc pl-5 text-muted-foreground space-y-3"><li>Whiteboard tools, embedded images/PDF pages, saved local presentations and downloaded starter models can work offline after preparation.</li><li>Cloud/hosted pairing, new AI generation and assets not downloaded need a connection.</li><li>Local files and saved lessons belong to that device/browser. Storage limits, browser cleanup or private browsing can remove them.</li><li>Export PDF/PNG captures board pages. Interactive models are flattened to screenshots when supported—not exported as interactive PDF objects.</li></ul></article>
+      </section>
+      <section className="bb-surface p-7 md:p-10 mb-8">
+        <ShieldCheck className="h-7 w-7 text-primary mb-4" /><h2 className="text-3xl font-bold mb-4">Open source, with clear boundaries</h2>
+        <div className="grid md:grid-cols-2 gap-8 text-muted-foreground leading-relaxed"><div><p>BrightboardTV’s original application code is Apache-2.0 licensed. The original starter schematic models are CC0. Third-party libraries keep their own licences and notices.</p><p className="mt-4">Our public repository contains the presentation software and pairing relay—not BrightBoard’s private authentication, customer records, billing, founder dashboard or credentials. BrightBoard’s cloud and AI features remain separate services with their existing access rules.</p></div><div><p>Presentations save locally unless you explicitly start sharing. A sharing session temporarily holds presentation data in server memory so approved devices can synchronize; it is deleted when the session ends or expires. Controllers can see presenter notes; display connections cannot.</p><p className="mt-4">On a shared device, end your session, export a backup and use Clear local workspace. Do not enter confidential audience information into publicly displayed content.</p></div></div>
+        <div className="flex flex-wrap gap-5 mt-6"><a href={`${repo}#readme`} className="text-primary underline" target="_blank" rel="noopener noreferrer">Documentation</a><a href={`${repo}/blob/main/CONTRIBUTING.md`} className="text-primary underline" target="_blank" rel="noopener noreferrer">Contribute</a><a href={`${repo}/blob/main/SECURITY.md`} className="text-primary underline" target="_blank" rel="noopener noreferrer">Security guidance</a></div>
+      </section>
+      <section className="p-7 rounded-2xl border border-primary/20 bg-primary/5"><h2 className="text-2xl font-bold mb-3">If something does not connect</h2><p className="text-muted-foreground leading-relaxed">Check internet/server access, refresh an expired pairing code, and approve the controller on the host. A QR code is a pairing shortcut, not proof that a device is approved. If touch does not work on an interactive panel, check the panel’s USB touch connection as well as its video cable. If a 3D model cannot load, check browser/WebGL support or use its image/PDF alternative.</p><div className="flex gap-5 mt-5"><a href="/tv/" className="font-semibold text-primary">Open BrightboardTV →</a><Link href="/contact" className="font-semibold text-primary">Contact BrightBoard</Link></div></section>
+    </main><Footer />
+  </div>;
+}

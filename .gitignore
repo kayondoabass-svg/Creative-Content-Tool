@@ -10,3 +10,6 @@ vite.config.ts.*
 *.sql
 attached_assets/Pasted-*.txt
 dist/public/demo-video.mp4
+/packages/brightboard-tv/dist/
+/packages/brightboard-tv/build/
+/generated-artifacts/
