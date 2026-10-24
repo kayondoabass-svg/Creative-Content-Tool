@@ -3,10 +3,14 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-if [[ -f pnpm-lock.yaml ]]; then
+if [[ -f package-lock.json ]]; then
+  # npm is used for the app and VPS. A legacy pnpm lock may be stale.
+  lockfile=package-lock.json
+elif [[ -f pnpm-lock.yaml ]]; then
   lockfile=pnpm-lock.yaml
 else
-  lockfile=package-lock.json
+  echo "[post-merge] No dependency lockfile found." >&2
+  exit 1
 fi
 
 fingerprint="$(sha256sum package.json "$lockfile" | sha256sum | cut -d ' ' -f 1)"
