@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@shared/models/auth";
 import { apiRequest } from "@/lib/queryClient";
+import { useEffect } from "react";
+import { clearOtherOrganizationSettings } from "@/lib/private-settings-cache";
 
 interface AuthUser {
   id: string;
@@ -36,6 +38,10 @@ export function useAuth() {
     retry: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+  // Includes session expiry/refetch and account switches, not just explicit logout.
+  useEffect(() => {
+    clearOtherOrganizationSettings(queryClient, user?.id);
+  }, [queryClient, user?.id]);
 
   const loginMutation = useMutation({
     mutationFn: async ({ email, password, recaptchaToken }: { email: string; password: string; recaptchaToken?: string }) => {

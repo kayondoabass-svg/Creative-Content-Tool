@@ -1,7 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateContentSchema, fileConversionSchema, organizationSettingsSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions, type ImageOptions, type TextOptions, type ActivityOptions } from "@shared/schema";
+import { generateContentSchema, fileConversionSchema, videoExportSchema, type ContentType, type Slide, type Activity, type StoryboardFrame, type VideoOptions, type PresentationOptions, type WorksheetOptions, type ImageOptions, type TextOptions, type ActivityOptions } from "@shared/schema";
+import { pool } from "./db";
+import { PrivateOrganizationSettings, registerOrganizationSettingsRoutes } from "./organizationSettings";
 import { generateGeminiImage } from "./geminiImageService";
 import { generateEducationalImage } from "./educationalImageService";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
@@ -2188,40 +2190,7 @@ ${pages.map(p => `  <url>
     }
   });
 
-  app.get("/api/settings", async (req, res) => {
-    try {
-      const settings = await storage.getOrganizationSettings();
-      res.json(settings);
-    } catch (error) {
-      console.error("Error fetching settings:", error);
-      res.status(500).json({ error: "Failed to fetch settings" });
-    }
-  });
-
-  // Update organization settings (logo, name)
-  app.post("/api/settings", async (req, res) => {
-    try {
-      const validatedData = organizationSettingsSchema.partial().parse(req.body);
-      
-      // Validate logo if provided
-      if (validatedData.logo) {
-        const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/;
-        if (!dataUrlPattern.test(validatedData.logo)) {
-          return res.status(400).json({ error: "Invalid logo format. Please upload a PNG, JPEG, GIF, WebP, or SVG image." });
-        }
-        // Base64 is ~4/3 the size of the original, so 10MB base64 = ~7.5MB file
-        if (validatedData.logo.length > 10 * 1024 * 1024) {
-          return res.status(400).json({ error: "Logo too large. Please use an image under 7MB." });
-        }
-      }
-      
-      const settings = await storage.updateOrganizationSettings(validatedData);
-      res.json(settings);
-    } catch (error) {
-      console.error("Error updating settings:", error);
-      res.status(500).json({ error: "Failed to update settings" });
-    }
-  });
+  registerOrganizationSettingsRoutes(app, new PrivateOrganizationSettings(pool));
 
   // Generate logo using AI
   app.post("/api/generate-logo", async (req, res) => {

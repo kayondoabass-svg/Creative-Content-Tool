@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Sparkles, Loader2, Upload, X, Image as ImageIcon, Lock, Crown, Mic, MicOff, Square, FileText, CheckSquare } from "lucide-react";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useOrganizationSettings } from "@/hooks/use-organization-settings";
+import { useAuth } from "@/hooks/use-auth";
+import { LogoSettings } from "@/components/logo-settings";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useTranslation } from "react-i18next";
 import type { ContentType, ImageOptions } from "@shared/schema";
@@ -218,6 +221,9 @@ type FormValues = z.infer<typeof formSchema>;
 export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGameType, externalPrompt }: PromptInputProps) {
   const { t } = useTranslation();
   const { isPremium } = useSubscription();
+  const { user } = useAuth();
+  const { data: organization, isLoading: isLoadingLogo, isError: logoLoadFailed, refetch: reloadLogo } = useOrganizationSettings(selectedType === "image");
+  const [usingSavedLogo, setUsingSavedLogo] = useState(false);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [logoMode, setLogoMode] = useState<"creative" | "exact">("creative");
@@ -227,6 +233,17 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const [isReadingImage, setIsReadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevSelectedType = useRef(selectedType);
+  const previousUserId = useRef(user?.id);
+
+  useEffect(() => {
+    if (previousUserId.current !== user?.id) {
+      previousUserId.current = user?.id;
+      setReferenceImage(null);
+      setImagePreview(null);
+      setUsingSavedLogo(false);
+      setLogoMode("creative");
+    }
+  }, [user?.id]);
 
   const [mindmapCentralTopic, setMindmapCentralTopic] = useState("");
   const [mindmapBranches, setMindmapBranches] = useState("");
@@ -267,6 +284,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       setReferenceImage(null);
       setImagePreview(null);
       setLogoMode("creative");
+      setUsingSavedLogo(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -425,6 +443,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
         const base64 = reader.result as string;
         setReferenceImage(base64);
         setImagePreview(base64);
+        setUsingSavedLogo(false);
       };
       reader.onerror = () => {
         setIsReadingImage(false);
@@ -438,6 +457,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     setReferenceImage(null);
     setImagePreview(null);
     setLogoMode("creative");
+    setUsingSavedLogo(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -822,9 +842,33 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                 <p className="text-xs text-muted-foreground mt-1">{t("home.imageAttachmentHint")}</p>
               </div>
               <input type="file" ref={fileInputRef} accept="image/png,image/jpeg,image/webp" onChange={handleImageUpload} disabled={isGenerating || isReadingImage} className="hidden" data-testid="input-image-attachment" />
+              <div className="space-y-2 rounded-lg border p-3" data-testid="saved-organisation-logo">
+                <p className="text-sm font-medium">Saved organisation logo</p>
+                {isLoadingLogo ? <p className="text-xs text-muted-foreground">Loading your logo…</p> : logoLoadFailed ? (
+                  <div className="text-sm">
+                    Could not load your saved logo.
+                    <Button type="button" variant="ghost" onClick={() => reloadLogo()}>Try again</Button>
+                  </div>
+                ) : organization?.logo ? (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <img src={organization.logo} alt={`${organization.name || "Your organisation"} saved logo`} className="h-16 w-24 rounded border bg-muted object-contain" data-testid="img-saved-organisation-logo" />
+                    <Button type="button" variant="outline" disabled={isGenerating || isReadingImage} data-testid="button-use-saved-logo" onClick={() => {
+                      setReferenceImage(organization.logo!);
+                      setImagePreview(organization.logo!);
+                      setUsingSavedLogo(true);
+                      setLogoMode("exact");
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}>{usingSavedLogo ? "Use latest saved logo" : "Use saved logo"}</Button>
+                  </div>
+                ) : <p className="text-xs text-muted-foreground">{user ? "No saved logo yet. Save one in logo settings, or upload an image below." : "Sign in to use a private saved organisation logo. You can still upload a reference below."}</p>}
+                {user && <LogoSettings />}
+                <p className="text-xs text-muted-foreground">Only added when you choose it. Logo settings replace or remove your saved copy; removing the attachment below affects this design only.</p>
+              </div>
               {imagePreview ? (
                 <div className="flex items-center gap-3">
                   <img src={imagePreview} alt="Attached image or logo" className="h-20 w-20 object-contain rounded-lg border bg-white" data-testid="img-image-attachment" />
+                  <div className="text-xs text-muted-foreground">{usingSavedLogo ? "Saved logo selected for this design" : "Uploaded reference selected"}</div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isGenerating || isReadingImage} data-testid="button-replace-image-attachment">Replace upload</Button>
                   <Button type="button" variant="outline" size="sm" onClick={clearImage} disabled={isGenerating} data-testid="button-remove-image-attachment"><X className="h-4 w-4 mr-2" />{t("home.removeAttachment")}</Button>
                 </div>
               ) : (

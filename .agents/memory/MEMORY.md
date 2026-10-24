@@ -14,3 +14,4 @@
 - [Afro Auth contract](afro-auth-contract.md) — project connection examples can differ from public docs; website ownership and customer email confirmation are separate.
 - [Referral privacy and policy](referral-program-decisions.md) — applicants see only their own data; commission rules need founder confirmation, not inferred historical debt.
 - [Dependency recovery](dependency-recovery.md) — a successful npm install can omit security-blocked optional packages; verify a clean install and production build.
+- [Organisation logo ownership](organisation-logo-ownership.md) — saved branding is teacher-private; unknown global ownership is not permission to share, and logo use stays opt-in.

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ import { Settings, Upload, Wand2, X, Loader2, Check, Crown, Download } from "luc
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { OrganizationSettings } from "@shared/schema";
+import { useOrganizationSettings } from "@/hooks/use-organization-settings";
+import { useAuth } from "@/hooks/use-auth";
 
 const COLOR_SCHEMES = [
   { id: "purple-teal", name: "Purple & Teal", colors: ["#7C3AED", "#14B8A6"], preview: "bg-gradient-to-r from-purple-600 to-teal-500" },
@@ -48,9 +50,16 @@ export function LogoSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: settings } = useQuery<OrganizationSettings>({
-    queryKey: ["/api/settings"],
-  });
+  const { data: settings } = useOrganizationSettings();
+  const { user } = useAuth();
+  useEffect(() => {
+    setPreviewLogo(null);
+    setGeneratedLogos([]);
+    setSelectedLogoIndex(null);
+    setOrgName("");
+    setOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [user?.id]);
   
   const { data: subscriptionStatus } = useQuery<{ isPremium: boolean }>({
     queryKey: ["/api/subscription/status"],
@@ -72,6 +81,7 @@ export function LogoSettings() {
       setPreviewLogo(null);
       setGeneratedLogos([]);
       setSelectedLogoIndex(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     },
     onError: (error: Error) => {
       toast({
@@ -123,10 +133,15 @@ export function LogoSettings() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      toast({ title: "Unsupported image", description: "Please use a PNG, JPEG, or WebP logo.", variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Please upload an image under 5MB.",
+        description: "Please upload an image under 10MB.",
         variant: "destructive",
       });
       return;
@@ -136,6 +151,7 @@ export function LogoSettings() {
     reader.onload = () => {
       setPreviewLogo(reader.result as string);
     };
+    reader.onerror = () => toast({ title: "Unable to read logo", description: "Please try another image.", variant: "destructive" });
     reader.readAsDataURL(file);
   };
 
@@ -146,7 +162,7 @@ export function LogoSettings() {
   };
 
   const handleRemoveLogo = () => {
-    updateSettingsMutation.mutate({ logo: undefined });
+    updateSettingsMutation.mutate({ logo: null });
   };
 
   const handleGenerateLogo = () => {
@@ -173,8 +189,9 @@ export function LogoSettings() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" data-testid="button-settings">
+        <Button type="button" variant="ghost" aria-label="Manage saved organisation logo" title="Replace or remove saved logo" data-testid="button-settings">
           <Settings className="h-4 w-4" />
+          <span className="ml-2">Logo settings</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
@@ -213,6 +230,8 @@ export function LogoSettings() {
                       type="button"
                       className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1"
                       onClick={handleRemoveLogo}
+                      aria-label="Remove saved logo"
+                      disabled={updateSettingsMutation.isPending}
                       data-testid="button-remove-logo"
                     >
                       <X className="h-3 w-3" />
@@ -228,10 +247,11 @@ export function LogoSettings() {
 
             <div className="space-y-2">
               <Label>Upload New Logo</Label>
+              <p className="text-xs text-muted-foreground">PNG, JPEG or WebP, up to 10MB and 16 megapixels. Aspect ratio and transparency are preserved; JPEG keeps its background.</p>
               <input
                 type="file"
                 ref={fileInputRef}
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp"
                 onChange={handleFileUpload}
                 className="hidden"
                 data-testid="input-logo-file"

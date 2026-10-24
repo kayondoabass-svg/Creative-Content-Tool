@@ -231,7 +231,7 @@ export type Worksheet = z.infer<typeof worksheetSchema>;
 
 // Organization/School settings schema
 export const organizationSettingsSchema = z.object({
-  logo: z.string().optional(), // Base64 logo image
+  logo: z.string().nullable().optional(), // Base64 logo image; null explicitly removes it
   name: z.string().optional(),
 });
 

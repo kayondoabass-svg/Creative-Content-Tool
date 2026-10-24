@@ -47,7 +47,7 @@ import AdsLanding from "@/pages/ads-landing";
 import Resources from "@/pages/resources";
 import TeachingTips from "@/pages/teaching-tips";
 import FlashcardsPage from "@/pages/flashcards";
-import type { OrganizationSettings } from "@shared/schema";
+import { useOrganizationSettings } from "@/hooks/use-organization-settings";
 
 function PageTracker() {
   const [location] = useLocation();
@@ -219,10 +219,7 @@ function UserMenu() {
 function HeaderWithLogo() {
   const { t } = useTranslation();
   const { isAuthenticated, isLoading } = useAuth();
-  const { data: settings } = useQuery<OrganizationSettings>({
-    queryKey: ["/api/settings"],
-    enabled: isAuthenticated,
-  });
+  const { data: settings } = useOrganizationSettings();
 
   if (isLoading || !isAuthenticated) {
     return null;

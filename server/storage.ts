@@ -1,4 +1,4 @@
-import type { GeneratedContent, InsertGeneratedContent, OrganizationSettings } from "@shared/schema";
+import type { GeneratedContent, InsertGeneratedContent } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { RecentContentStore } from "./content-retention";
 
@@ -7,19 +7,15 @@ export interface IStorage {
   getContent(id: number): Promise<GeneratedContent | undefined>;
   createContent(content: InsertGeneratedContent): Promise<GeneratedContent>;
   deleteContent(id: number, userId?: string): Promise<void>;
-  getOrganizationSettings(): Promise<OrganizationSettings>;
-  updateOrganizationSettings(settings: Partial<OrganizationSettings>): Promise<OrganizationSettings>;
 }
 
 export class MemStorage implements IStorage {
   private content: Map<number, GeneratedContent>;
   private nextId: number;
-  private organizationSettings: OrganizationSettings;
 
   constructor() {
     this.content = new Map();
     this.nextId = 1;
-    this.organizationSettings = {};
   }
 
   async getContentByUser(userId: string): Promise<GeneratedContent[]> {
@@ -50,18 +46,9 @@ export class MemStorage implements IStorage {
     this.content.delete(id);
   }
 
-  async getOrganizationSettings(): Promise<OrganizationSettings> {
-    return this.organizationSettings;
-  }
-
-  async updateOrganizationSettings(settings: Partial<OrganizationSettings>): Promise<OrganizationSettings> {
-    this.organizationSettings = { ...this.organizationSettings, ...settings };
-    return this.organizationSettings;
-  }
 }
 
-// Organization preferences keep their existing behavior; only recent creations
-// move from volatile memory to the application's existing PostgreSQL database.
+// Recent creations use the application's existing PostgreSQL database.
 export class DatabaseStorage extends MemStorage {
   private recent = new RecentContentStore();
   getContentByUser(userId: string) { return this.recent.getContentByUser(userId); }
