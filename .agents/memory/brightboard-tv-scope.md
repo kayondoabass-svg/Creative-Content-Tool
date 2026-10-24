@@ -73,3 +73,14 @@ Both the main browser module and the worker need the compatibility polyfills.
 
 **How to apply:** Keep the main/worker versions paired and confirm PDF rendering
 in a real browser after PDF.js upgrades; a successful build is not sufficient.
+
+BrightBoard and BrightboardTV must be two separate installed apps. BrightBoard
+is not open source; BrightboardTV is. Customer-facing BrightBoard authentication
+screens and verification emails must retain BrightBoard branding rather than
+AfroAI branding.
+
+**Why:** The user explicitly requested separate installed apps and corrected the
+provider branding appearing in the installed window and verification email.
+
+**How to apply:** Preserve these product and branding boundaries when changing
+installation, authentication, email templates, or downloadable distributions.
