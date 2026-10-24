@@ -57,6 +57,38 @@ After updating settings and installing the GitHub update, use
 
 ## Verification
 
+### Account device controls
+
+The account menu opens `/account/settings`. Afro Auth sign-ins can list active
+sessions, revoke an owned session, or confirm sign-out everywhere (including
+the current browser). Server proxies use only the stored provider user token.
+Provider-linked local cookies on other browsers lose access at their next API
+request through the live session guard. Separate Google/legacy sign-ins are
+preserved and show an unsupported-state explanation.
+
+Contract sources checked: `https://afroaigroup.com/docs/auth`,
+`https://afroaigroup.com/openapi.json`, and the publicly served project Setup
+connection examples, on 2026-10-24. They specify tenant `GET /sessions`,
+`DELETE /sessions/:id` (owned only), and `POST /logout-all` with `{}` and a user
+bearer token. No response metadata schema is published. The adapter accepts
+an array or `{ sessions: [...] }` with string `id`s, whitelists optional
+`current`/`isCurrent`, `userAgent`, `createdAt`, and `expiresAt`, and fails explicitly
+for an incompatible list. Missing metadata is shown honestly, not inferred from
+IP or browser guesses. Revocation requires provider success; single-session
+revocation also checks the resulting list (or invalidated current token).
+
+`npm run auth:check:unit` includes isolated HTTP tests with stateful mocked
+provider sessions: ownership, failures/no-op deletion, confirmation, local
+cleanup, unsupported sign-ins, and denial of revoked sessions on protected APIs.
+These tests do not claim to verify a live provider rollout.
+
+BrightboardTV mounts its relay before the general API routes. Its session-creation
+route therefore applies the live guard separately, before reading account-derived
+page limits. Pairing and presentation-key routes remain public capabilities. The
+HTTP regression test reproduces this ordering and checks that revoked devices
+cannot reach the paid entitlement lookup, while guest/legacy creation and public
+pairing still work.
+
 Run `npx tsx --test server/afroaiAuthService.test.ts`.
 Mocks cover the provider contract and session guard, not actual email delivery.
 A real end-to-end confirmation/recovery test needs the new server secret in

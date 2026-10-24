@@ -90,6 +90,7 @@ import { verifyRecaptchaToken } from "./recaptcha/verifyRecaptcha";
 import * as customAuth from "./customAuthService";
 import { afroaiSignup, afroaiLogin, afroaiVerifySession, afroaiSendVerification, afroaiForgotPassword, afroaiLogout, isAfroAuthConfigured, matchesAfroEmail } from "./afroaiAuthService";
 import { afroaiSessionGuard } from "./afroaiSessionGuard";
+import { registerAfroSessionRoutes } from "./afroaiSessionRoutes";
 import { registerReferralRoutes } from "./referral-routes";
 import { attachSignupReferral, captureReferral } from "./referral-attribution";
 import { db } from "./db";
@@ -212,6 +213,7 @@ export async function registerRoutes(
   // ── Apply general API rate limit to all /api routes ──────────────────────
   app.use("/api", generalApiLimiter);
   app.use("/api", afroaiSessionGuard);
+  registerAfroSessionRoutes(app);
   app.use(captureReferral);
   registerReferralRoutes(app);
 

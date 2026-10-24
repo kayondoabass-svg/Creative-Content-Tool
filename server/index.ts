@@ -10,6 +10,7 @@ import { startReferralNotificationWorker } from "./referral-notifications";
 import { createTvRelay } from "../packages/brightboard-tv/server/relay";
 import { getUserById } from "./customAuthService";
 import { canSaveTVLibrary } from "./tv-library-access";
+import { afroaiSessionGuard } from "./afroaiSessionGuard";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -91,6 +92,9 @@ app.use((req, res, next) => {
   app.use("/tv-assets", express.static(path.join(tvDirectory, "tv-assets")));
   registerChatbotWidget(app);
   await setupAuth(app);
+  // Creation reads account entitlements before registerRoutes' general guard.
+  // Pairing/join/state endpoints intentionally use their own presentation keys.
+  app.post("/api/tv/sessions", afroaiSessionGuard);
   app.use("/api/tv", tvRelay.router);
   
   await registerRoutes(httpServer, app);

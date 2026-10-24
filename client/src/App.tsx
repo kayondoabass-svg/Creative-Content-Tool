@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSelector } from "@/components/language-selector";
 import { LogoSettings } from "@/components/logo-settings";
+import AccountSettings from "@/pages/account-settings";
 import { FileConverter } from "@/components/file-converter";
 import { GamesLauncher } from "@/components/games-launcher";
 import { Sparkles, GraduationCap, LogOut, Crown, User, BarChart3, Receipt } from "lucide-react";
@@ -89,6 +90,7 @@ function Router() {
       <Route path="/pricing" component={PricingPage} />
       <Route path="/payment/callback" component={PaymentCallbackPage} />
       <Route path="/billing" component={BillingPage} />
+      <Route path="/account/settings" component={AccountSettings} />
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
@@ -170,6 +172,12 @@ function UserMenu() {
           </div>
         </div>
         <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-pointer" asChild>
+          <Link href="/account/settings" className="flex items-center gap-2" data-testid="link-account-settings">
+            <User className="w-4 h-4" />
+            <span>Account settings</span>
+          </Link>
+        </DropdownMenuItem>
         {user.isOwner && (
           <DropdownMenuItem className="cursor-pointer" asChild>
             <a href="/owner-dashboard" className="flex items-center gap-2" data-testid="link-owner-dashboard">

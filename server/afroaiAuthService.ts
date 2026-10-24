@@ -19,6 +19,15 @@ export interface AfroResult {
   verificationRequired?: boolean;
   valid?: boolean;
   error?: string;
+  sessions?: AfroSession[];
+}
+
+export interface AfroSession {
+  id: string;
+  current: boolean | null;
+  userAgent: string | null;
+  createdAt: string | null;
+  expiresAt: string | null;
 }
 
 function tenantBase() {
@@ -38,24 +47,24 @@ function getSecret(): string | undefined {
     || process.env.AFROAI_AUTH_API_SECRET?.trim();
 }
 
-async function request(url: string, body: object, bearer?: string): Promise<AfroResult> {
+async function request(url: string, body: object, bearer?: string, method = "POST", listSessions = false): Promise<AfroResult> {
   try {
     const response = await fetch(url, {
-      method: "POST",
+      method,
       headers: {
         "Content-Type": "application/json",
         ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
       },
-      body: JSON.stringify(body),
+      ...(method === "POST" ? { body: JSON.stringify(body) } : {}),
       signal: AbortSignal.timeout(TIMEOUT_MS),
       redirect: "error",
     });
-    if (response.status === 204) return { ok: true, status: 204 };
+    if (response.status === 204 && !listSessions) return { ok: true, status: 204 };
     const data = await response.json();
-    if (!data || typeof data !== "object" || Array.isArray(data)) {
+    if (!data || typeof data !== "object" || (!listSessions && Array.isArray(data))) {
       return { ok: false, status: 502, error: "Authentication provider returned an invalid response" };
     }
-    if (!response.ok) {
+    if (!response.ok || data.success === false || data.ok === false || data.error) {
       // Do not expose arbitrary provider payloads (which may contain diagnostic secrets).
       const verificationRequired = data.verificationRequired === true
         || /(?:verify|confirm).*(?:email)|email.*(?:not verified|unverified|confirmation)/i.test(
@@ -63,7 +72,7 @@ async function request(url: string, body: object, bearer?: string): Promise<Afro
         );
       return {
         ok: false,
-        status: response.status,
+        status: response.ok ? 502 : response.status,
         verificationRequired,
         error: verificationRequired
           ? "Please verify your email using the confirmation link before signing in."
@@ -72,6 +81,29 @@ async function request(url: string, body: object, bearer?: string): Promise<Afro
             : response.status >= 500
               ? "Authentication provider is temporarily unavailable. Please try again."
               : "Authentication request was rejected. Check your details or use Forgot Password.",
+      };
+    }
+    if (listSessions) {
+      // The public guide/OpenAPI specify the endpoint, but not a metadata schema.
+      // Accept an array or { sessions }, require usable IDs, and whitelist optional
+      // display fields. Never forward arbitrary provider payloads or JWTs.
+      const rows = Array.isArray(data) ? data : data.sessions;
+      if (!Array.isArray(rows) || rows.some(row => !row || typeof row.id !== "string"
+        || !row.id || row.id.length > 256 || row.id === bearer || row.id.includes("."))) {
+        return { ok: false, status: 502, error: "Authentication provider returned an unsupported session list." };
+      }
+      const text = (value: unknown): string | null =>
+        typeof value === "string" && value.length <= 512 && value !== bearer ? value : null;
+      return {
+        ok: true, status: response.status,
+        sessions: rows.map(row => ({
+          id: row.id,
+          current: typeof row.current === "boolean" ? row.current
+            : typeof row.isCurrent === "boolean" ? row.isCurrent : null,
+          userAgent: text(row.userAgent),
+          createdAt: text(row.createdAt),
+          expiresAt: text(row.expiresAt),
+        })),
       };
     }
     return {
@@ -87,9 +119,9 @@ async function request(url: string, body: object, bearer?: string): Promise<Afro
   }
 }
 
-function tenantRequest(path: string, body: object, bearer?: string): Promise<AfroResult> {
+function tenantRequest(path: string, body: object, bearer?: string, method = "POST", listSessions = false): Promise<AfroResult> {
   try {
-    return request(`${tenantBase()}${path}`, body, bearer);
+    return request(`${tenantBase()}${path}`, body, bearer, method, listSessions);
   } catch {
     return Promise.resolve({ ok: false, status: 503, error: "Authentication is not configured correctly." });
   }
@@ -129,6 +161,18 @@ export function afroaiForgotPassword(email: string): Promise<AfroResult> {
 
 export function afroaiLogout(token: string): Promise<AfroResult> {
   return tenantRequest("/logout", {}, token);
+}
+
+export function afroaiListSessions(token: string): Promise<AfroResult> {
+  return tenantRequest("/sessions", {}, token, "GET", true);
+}
+
+export function afroaiRevokeSession(token: string, id: string): Promise<AfroResult> {
+  return tenantRequest(`/sessions/${encodeURIComponent(id)}`, {}, token, "DELETE");
+}
+
+export function afroaiLogoutAll(token: string): Promise<AfroResult> {
+  return tenantRequest("/logout-all", {}, token);
 }
 
 export function afroaiVerifySession(token: string): Promise<AfroResult> {
