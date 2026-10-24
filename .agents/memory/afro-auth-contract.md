@@ -22,14 +22,19 @@ only by the server-side session verification endpoint.
 
 Keep both `https://brightboardapp.com` and `https://www.brightboardapp.com`
 explicitly allowed when both hostname forms are in use. Website ownership
-verification does not automatically allow either browser origin.
+verification does not automatically allow either browser origin. AfroAI also
+requires ownership proof for a production hostname before allowing it to be
+added: verify the bare hostname separately rather than assuming the `www`
+proof covers it.
 
 **Why:** The provider's public confirmation endpoint accepted the `www`
 origin but rejected the bare-domain origin during a real confirmation
 investigation. The two origins are not interchangeable.
 
-**How to apply:** Recheck the provider project settings when changing auth or
-production hostnames. Preserve legitimate exact origins; do not add Gmail,
+**How to apply:** For a new production hostname, complete its exact
+project-generated DNS challenge in Setup before saving its allowed origin.
+Recheck the provider project settings when changing auth or production
+hostnames. Preserve legitimate exact origins; do not add Gmail,
 wildcards, or unrelated provider origins as a workaround. A successful
 anonymous endpoint check is not proof that a real confirmation form was
 submitted or that login works.
