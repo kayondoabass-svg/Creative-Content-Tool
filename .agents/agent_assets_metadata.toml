@@ -88,3 +88,31 @@ mtime_ms = 1792299723499
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/899cfc4b-7ce4-4b8f-a216-f912901b15dd/35777313-0e82-49f7-91ee-bc6f3384725a"
 storage_version_token = "1792299820923398"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "KfZly3DJtUpJHd6pFtM1e"
+uri = "file://attached_assets/generated_images/brightboard-logo-option-1.png"
+type = "image"
+title = "Option 1 — Board & Sunshine"
+description = "A cleaner version of your original logo, keeping the teal board and golden sun."
+logical_id = "1ab4a4ee-67c8-49b2-a4a3-bd6dd51e1b90"
+content_hash = "sha256:90d414d4a1892bf51480ba32a8756f77e3a7312519d83d8671222ba8cd1c60d9"
+size = 34069
+mtime_ms = 1792977395578
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/1ab4a4ee-67c8-49b2-a4a3-bd6dd51e1b90/cb20a775-7307-4fad-9d5e-3d8a843902f9"
+storage_version_token = "1792977409166058"
+content_type = "image/png"
+
+[[outputs]]
+id = "XY9kxFAEZeGJ-BW5F9zNa"
+uri = "file://attached_assets/generated_images/brightboard-logo-option-2.png"
+type = "image"
+title = "Option 2 — BrightBoard B"
+description = "A bold B monogram with a golden accent, designed to work well as an app icon."
+logical_id = "6e653587-4946-4084-a0ec-67d6d9ba055c"
+content_hash = "sha256:4730a8ba9fe447eeb87bd94c110d8b33caa005e2c36fc0a280f51937d397ac9e"
+size = 36041
+mtime_ms = 1792977395614
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/6e653587-4946-4084-a0ec-67d6d9ba055c/b96f8ed3-cc0a-4692-9bb3-1e212eb3b86f"
+storage_version_token = "1792977410421241"
+content_type = "image/png"
