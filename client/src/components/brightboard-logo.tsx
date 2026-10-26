@@ -5,7 +5,7 @@ export function BrightBoardLogo({ show, size = "sm", absolute = true }: { show?:
   const positionClass = absolute ? "absolute bottom-2 right-2" : "";
   return (
     <div className={`${positionClass} flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2 py-0.5 pointer-events-none`} data-testid="logo-badge">
-      <img src="/favicon.png" alt="BrightBoard" className={`${iconSize} rounded`} />
+      <img src="/logo.png" alt="" className={`${iconSize} rounded bg-white p-0.5 object-contain`} />
       <span className={`text-white/80 ${textSize} font-medium`}>brightboardapp.com</span>
     </div>
   );

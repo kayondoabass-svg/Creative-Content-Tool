@@ -116,3 +116,31 @@ mtime_ms = 1792977395614
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/6e653587-4946-4084-a0ec-67d6d9ba055c/b96f8ed3-cc0a-4692-9bb3-1e212eb3b86f"
 storage_version_token = "1792977410421241"
 content_type = "image/png"
+
+[[outputs]]
+id = "JflmWidkHFkc25LMdSrAz"
+uri = "file://attached_assets/generated_images/BrightBoard-brand-kit.zip"
+type = "unspecified"
+title = "BrightBoard logo kit"
+description = "Approved full logo in transparent PNG and SVG, symbol, app icons, favicon, and social-sharing image. Use brand-logo.png for AfroAI email templates."
+logical_id = "7f84d9f4-32d6-41fb-b180-b8e12ebb7bae"
+content_hash = "sha256:0a891305a38fe0b84a31890849c9429d066aba9da1c61868a71c2a20ca7896d7"
+size = 74962
+mtime_ms = 1792977912826
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/7f84d9f4-32d6-41fb-b180-b8e12ebb7bae/5fc12a5f-fd43-42e2-9b20-73eae28ad3f7"
+storage_version_token = "1792977948167587"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "bgRwXZh_I7Ugm6rZRnxTD"
+uri = "file://client/public/brand-logo.png"
+type = "image"
+title = "BrightBoard email logo — transparent PNG"
+description = "The approved Board & Sunshine logo, ready to upload to AfroAI’s branding settings."
+logical_id = "e817377d-ac58-4895-a413-acc04a805832"
+content_hash = "sha256:5eb08352e07befa8172c6bc24b85228ece656a5aed487e0014f646c77ac9b2bb"
+size = 22009
+mtime_ms = 1792977837044
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/e817377d-ac58-4895-a413-acc04a805832/7557bfea-a5ef-4bd8-b67a-14c1a68800c3"
+storage_version_token = "1792977949348945"
+content_type = "image/png"

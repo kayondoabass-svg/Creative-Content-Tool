@@ -19,4 +19,4 @@ The user selected “Option 1 — Board & Sunshine” as the new BrightBoard log
 
 **Why:** The user explicitly chose this sample over the B-monogram alternative.
 
-**How to apply:** Use the selected board-and-sun direction when preparing brand assets. Selection alone does not authorize replacing live website assets or branding BrightboardTV identically.
+**How to apply:** The user authorized applying this identity across BrightBoard and its locally managed emails while preparing the AfroAI side separately. Keep BrightboardTV and users’ organisation logos separate.

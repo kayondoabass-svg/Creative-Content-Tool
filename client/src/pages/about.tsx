@@ -41,7 +41,7 @@ export default function About() {
           <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
           <div className="relative max-w-3xl">
             <div className="flex items-center gap-3 mb-7">
-              <img src="/favicon.png" alt="BrightBoard" className="w-12 h-12 rounded-xl object-cover" data-testid="img-about-logo" />
+              <img src="/logo.png" alt="" className="w-12 h-12 rounded-xl bg-white p-1 object-contain" data-testid="img-about-logo" />
               <span className="bb-eyebrow">BrightBoard · Keyo Technologies</span>
             </div>
             <h1 className="bb-display text-4xl md:text-6xl font-extrabold leading-[1.04] mb-5" data-testid="text-about-title">{tr("about.title", "About BrightBoard")}</h1>

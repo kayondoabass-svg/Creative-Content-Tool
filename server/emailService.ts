@@ -2,6 +2,7 @@
 import { db } from './db';
 import { expenses } from '@shared/schema';
 import { deliverOwnerAlert, paymentOwnerAlert, referralApplicationOwnerAlert, type OwnerAlert } from './owner-alerts';
+import { withBrightBoardBranding } from './emailBranding';
 
 const AFROAI_API_URL = "https://afroaigroup.com/api/email-api/send";
 const NOREPLY_SENDER = process.env.AFROAI_EMAIL_FROM || "BrightBoard <noreply@brightboardapp.com>";
@@ -13,7 +14,7 @@ async function sendEmail(to: string, subject: string, html: string, from: string
     throw new Error("AFROAI_EMAIL_API_KEY is not set");
   }
 
-  const body: any = { from, to, subject, html };
+  const body: any = { from, to, subject, html: withBrightBoardBranding(html) };
   if (text) body.text = text;
   if (replyTo) body.replyTo = replyTo;
 

@@ -165,7 +165,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <img 
               src="/logo.png" 
-              alt={t('common.appName')} 
+              alt=""
               className="h-10 w-10 rounded-xl object-contain bg-card p-1 ring-1 ring-border/70"
             />
             <span className="font-bold tracking-tight text-lg">{t('common.appName')}</span>

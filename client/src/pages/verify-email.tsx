@@ -82,6 +82,7 @@ export default function VerifyEmailPage() {
       <div className="min-h-screen flex items-center justify-center page-shell p-4">
         <Card className="w-full max-w-md" data-testid="email-confirmation-link">
           <CardHeader className="text-center">
+            <img src="/brand-logo.svg" alt="BrightBoard" className="mx-auto mb-4 h-20 w-44 rounded-lg bg-white/90 p-2 object-contain" />
             <Mail className="h-10 w-10 text-primary mx-auto mb-3" />
             <CardTitle>Confirm your email</CardTitle>
             <CardDescription>
@@ -112,6 +113,7 @@ export default function VerifyEmailPage() {
         <Card className="w-full max-w-md">
           <CardContent className="pt-8 pb-8">
             <div className="flex flex-col items-center text-center space-y-4">
+              <img src="/brand-logo.svg" alt="BrightBoard" className="mb-2 h-20 w-44 rounded-lg bg-white/90 p-2 object-contain" />
               <div className="w-20 h-20 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center animate-pulse">
                 <CheckCircle className="w-10 h-10 text-white" />
               </div>
@@ -133,6 +135,7 @@ export default function VerifyEmailPage() {
     <div className="min-h-screen flex items-center justify-center page-shell p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
+          <img src="/brand-logo.svg" alt="BrightBoard" className="mx-auto mb-4 h-20 w-44 rounded-lg bg-white/90 p-2 object-contain" />
           <div className="flex justify-center">
             <div className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-600 to-teal-500 flex items-center justify-center shadow-lg">
               <Mail className="w-10 h-10 text-white" />

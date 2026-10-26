@@ -93,6 +93,7 @@ export default function SignupPage() {
       <div className="min-h-screen flex items-center justify-center page-shell p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
+            <img src="/brand-logo.svg" alt="BrightBoard" className="mx-auto mb-4 h-20 w-44 rounded-lg bg-white/90 p-2 object-contain" />
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-600 to-teal-500 flex items-center justify-center">
                 <CheckCircle className="w-8 h-8 text-white" />
@@ -137,9 +138,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center page-shell p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-teal-500 bg-clip-text text-transparent">
-            BrightBoard
-          </CardTitle>
+          <img src="/brand-logo.svg" alt="BrightBoard" className="mx-auto mb-4 h-20 w-44 rounded-lg bg-white/90 p-2 object-contain" />
           <CardDescription>Create your account to start creating amazing content</CardDescription>
         </CardHeader>
         <CardContent>

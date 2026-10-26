@@ -230,8 +230,8 @@ function HeaderWithLogo() {
       <div className="flex items-center gap-3">
         <img 
           src="/logo.png" 
-          alt="BrightBoard" 
-          className="h-10 w-10 rounded-xl object-contain bg-background p-1 ring-1 ring-border/70"
+          alt=""
+          className="h-10 w-10 rounded-xl object-contain bg-white p-1 ring-1 ring-border/70"
           data-testid="img-brightboard-logo"
         />
         <div>
@@ -268,7 +268,7 @@ function PublicHeader() {
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-xl">
       <div className="bb-page flex min-h-16 items-center justify-between gap-4 py-2">
         <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="BrightBoard home">
-          <img src="/logo.png" alt="" className="h-9 w-9 rounded-xl object-contain bg-card p-0.5 ring-1 ring-border/70" />
+          <img src="/logo.png" alt="" className="h-9 w-9 rounded-xl object-contain bg-white p-0.5 ring-1 ring-border/70" />
           <span className="font-bold tracking-tight text-foreground">BrightBoard</span>
         </Link>
         <nav className="hidden items-center gap-5 lg:flex" aria-label="Main navigation">

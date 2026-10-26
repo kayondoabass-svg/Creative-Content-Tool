@@ -872,7 +872,7 @@ function PresentationContent({ content }: { content: string }) {
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-xl">{data.title || "Presentation"}</h3>
               <div className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5" data-testid="logo-badge-title">
-                <img src="/favicon.png" alt="BrightBoard" className="w-3.5 h-3.5 rounded" />
+                <img src="/logo.png" alt="" className="w-3.5 h-3.5 rounded bg-white p-0.5 object-contain" />
                 <span className="text-muted-foreground text-[10px] font-medium">brightboardapp.com</span>
               </div>
             </div>
@@ -1566,7 +1566,7 @@ function WorksheetContent({ content }: { content: string }) {
         {showLogo && (
           <div className="flex items-center gap-1 justify-center mt-2" data-testid="logo-badge-worksheet">
             <div className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 border ${bw("bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800", "border-black bg-white")}`}>
-              <img src="/logo.png" alt="BrightBoard" className="w-4 h-4 rounded" />
+              <img src="/logo.png" alt="" className="w-4 h-4 rounded bg-white p-0.5 object-contain" />
               <span className={`text-[10px] font-semibold ${bw("text-purple-700 dark:text-purple-300", "text-black")}`}>brightboardapp.com</span>
             </div>
           </div>
@@ -1999,7 +1999,7 @@ function MindmapContent({ content }: { content: string }) {
       <div className="flex items-center gap-2 flex-wrap">
         <h3 className="font-bold text-xl" data-testid="mindmap-title">{editableData.title || "Mind Map"}</h3>
         <div className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5" data-testid="logo-badge-mindmap">
-          <img src="/favicon.png" alt="BrightBoard" className="w-3.5 h-3.5 rounded" />
+          <img src="/logo.png" alt="" className="w-3.5 h-3.5 rounded bg-white p-0.5 object-contain" />
           <span className="text-muted-foreground text-[10px] font-medium">brightboardapp.com</span>
         </div>
       </div>

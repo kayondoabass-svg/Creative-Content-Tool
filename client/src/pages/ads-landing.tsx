@@ -97,7 +97,7 @@ export default function AdsLanding() {
       {/* Minimal Nav */}
       <nav className="sticky top-0 z-50 bg-background/90 backdrop-blur border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <img src="/favicon.png" alt="BrightBoard" className="w-9 h-9 rounded-xl" />
+          <img src="/logo.png" alt="" className="w-9 h-9 rounded-xl bg-white p-1 object-contain" />
           <span className="font-bold text-lg">BrightBoard</span>
         </div>
         <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ export default function AdsLanding() {
       {/* Minimal Footer */}
       <footer className="border-t px-4 py-5 text-center text-xs text-muted-foreground">
         <div className="flex items-center justify-center gap-1 mb-2">
-          <img src="/favicon.png" alt="BrightBoard" className="w-5 h-5 rounded" />
+          <img src="/logo.png" alt="" className="w-5 h-5 rounded bg-white p-0.5 object-contain" />
           <span className="font-semibold text-foreground">BrightBoard</span>
         </div>
         <p className="mb-2">AI-Powered Content Creation for Educators</p>

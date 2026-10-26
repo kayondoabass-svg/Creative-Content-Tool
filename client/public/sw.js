@@ -1,9 +1,16 @@
-const CACHE_NAME = 'brightboard-v1';
+const CACHE_NAME = 'brightboard-shell-brand-v2';
 const STATIC_ASSETS = [
   '/',
   '/favicon.png',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/icon-maskable-192.png',
+  '/icon-maskable-512.png',
+  '/apple-touch-icon.png',
+  '/logo.png',
+  '/brand-symbol.svg',
+  '/brand-logo.svg',
+  '/brand-logo.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -19,7 +26,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.filter((key) => key === 'brightboard-v1' ||
+          (key.startsWith('brightboard-shell-') && key !== CACHE_NAME))
+          .map((key) => caches.delete(key))
       );
     })
   );
@@ -31,12 +40,18 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  if (url.pathname.startsWith('/api/')) return;
+  // The root worker must not cache or intercept the separate TV application.
+  if (url.origin !== self.location.origin ||
+      /^\/(?:tv|tv-assets|api)(?:\/|$)/.test(url.pathname)) return;
+  const isNavigation = event.request.mode === 'navigate';
+  const isStaticAsset = STATIC_ASSETS.includes(url.pathname) || url.pathname.startsWith('/assets/');
+  if (!isNavigation && !isStaticAsset) return;
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        if (response.ok && url.origin === self.location.origin) {
+        // Cache only explicit public assets, never signed-in page responses.
+        if (response.ok && isStaticAsset && !isNavigation) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, clone);
@@ -45,8 +60,10 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        return caches.match(event.request).then((cached) => {
-          return cached || caches.match('/');
+        return caches.open(CACHE_NAME).then(async (cache) => {
+          const cached = await cache.match(event.request);
+          return cached || (isNavigation ? await cache.match('/') : undefined) ||
+            new Response('Offline. Reconnect and try again.', { status: 503 });
         });
       })
   );

@@ -18,7 +18,7 @@ export function Footer() {
             <Link href="/" className="flex items-center gap-2 mb-4">
               <img 
                 src="/logo.png" 
-                alt="BrightBoard" 
+                alt=""
                 className="w-10 h-10 rounded-xl object-contain bg-background p-1 ring-1 ring-border/70"
               />
               <span className="font-bold text-xl text-primary">

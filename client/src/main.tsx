@@ -19,7 +19,7 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, { crashed: bo
     if (this.state.crashed) {
       return (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "sans-serif", gap: "12px", padding: "24px", textAlign: "center" }}>
-          <img src="/logo.png" alt="BrightBoard" style={{ width: 64, height: 64, borderRadius: 12 }} />
+          <img src="/logo.png" alt="BrightBoard" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "contain", background: "rgba(255,255,255,.92)", padding: 4 }} />
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Something went wrong</h2>
           <p style={{ color: "#666", margin: 0 }}>{this.state.error}</p>
           <button
