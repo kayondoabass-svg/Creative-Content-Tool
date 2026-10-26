@@ -25,6 +25,7 @@ export async function generateEducationalImage(
       : "No text in the image.";
   const enhancedPrompt = `Create a colorful, child-friendly educational illustration: ${prompt}. ${context} Style: bright colors, simple shapes, ${styleDesc}, ${qualityDesc}, engaging for children. ${attachmentInstructions}`;
   const images: string[] = [];
+  const backgrounds: string[] = [];
   for (let i = 0; i < (layout === "grid" ? 4 : 1); i++) {
     // Exact mode deliberately never sends the original logo to the model.
     const response = await generate(
@@ -33,6 +34,7 @@ export async function generateEducationalImage(
     );
     const image = response.data?.[0]?.b64_json;
     if (!image) throw new Error("Image generation is temporarily unavailable. Please try again in a moment.");
+    if (exact) backgrounds.push(image);
     images.push(logo ? await compositeExactLogo(image, logo, options, position) : image);
   }
   return {
@@ -41,5 +43,6 @@ export async function generateEducationalImage(
     b64_json: layout === "grid" ? await composeImageGrid(images) : images[0],
     ...(layout === "grid" ? { images } : {}),
     options: { ...options, style, quality, layout, ...(exact ? { resolvedLogoPosition: position } : {}) },
+    ...(exact ? { logoSources: { backgrounds, logo: referenceImage! } } : {}),
   };
 }

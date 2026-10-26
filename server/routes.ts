@@ -6,6 +6,8 @@ import { pool } from "./db";
 import { PrivateOrganizationSettings, registerOrganizationSettingsRoutes } from "./organizationSettings";
 import { generateGeminiImage } from "./geminiImageService";
 import { generateEducationalImage } from "./educationalImageService";
+import { registerLogoAdjustmentRoutes } from "./logoAdjustmentRoutes";
+import type { ExactLogoSources } from "@shared/schema";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { PDFExtract } from "pdf.js-extract";
 import sharp from "sharp";
@@ -2158,6 +2160,8 @@ ${pages.map(p => `  <url>
     }
   });
 
+  registerLogoAdjustmentRoutes(app, storage, generateLimiter);
+
   // Delete content
   app.delete("/api/content/:id", async (req: any, res) => {
     try {
@@ -3416,6 +3420,7 @@ This should look like it was designed by a world-class branding agency. Make it 
         }
 
         let generatedContent: string;
+        let logoSources: ExactLogoSources | undefined;
         let title: string;
 
         // Check generation cache (text/presentation/worksheet cacheable; images/storyboards skip)
@@ -3438,7 +3443,9 @@ This should look like it was designed by a world-class branding agency. Make it 
           case "image": {
             onProgress("Generating your image with AI...", 30);
             const imageResult = await generateImage(prompt, gradeLevel, subject, imageOptions, referenceImage);
-            generatedContent = JSON.stringify(imageResult);
+            const { logoSources: sources, ...finishedImage } = imageResult;
+            logoSources = sources;
+            generatedContent = JSON.stringify(finishedImage);
             title = imageResult.title;
             break;
           }
@@ -3550,7 +3557,7 @@ This should look like it was designed by a world-class branding agency. Make it 
         if (cacheKey) setCache(cacheKey, generatedContent, title);
 
         // Save to storage — always attach userId so content is private per user
-        const saved = await storage.createContent({ type, prompt, title, content: generatedContent, userId });
+        const saved = await storage.createContent({ type, prompt, title, content: generatedContent, userId }, logoSources);
 
         onProgress("Saving to your library...", 95);
 

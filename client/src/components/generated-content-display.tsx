@@ -16,6 +16,8 @@ import pptxgen from "pptxgenjs";
 import JSZip from "jszip";
 import { apiRequest } from "@/lib/queryClient";
 import { openInBrightboardTV } from "@/lib/brightboard-tv";
+import { LogoAdjustmentEditor } from "@/components/logo-adjustment-editor";
+import type { GeneratedContent } from "@shared/schema";
 
 interface QuickStartChip {
   label: string;
@@ -40,6 +42,8 @@ interface GeneratedContentDisplayProps {
   onRegenerate?: () => void;
   isFirstTimeUser?: boolean;
   onPromptSelect?: (prompt: string, type: ContentType) => void;
+  contentId?: number | null;
+  onLogoSaved?: (record: GeneratedContent) => void;
 }
 
 class ContentErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
@@ -79,11 +83,14 @@ export function GeneratedContentDisplay({
   onRegenerate,
   isFirstTimeUser,
   onPromptSelect,
+  contentId,
+  onLogoSaved,
 }: GeneratedContentDisplayProps) {
   const [copied, setCopied] = useState(false);
   const [showSlideshow, setShowSlideshow] = useState(false);
   const [showVideoExport, setShowVideoExport] = useState(false);
   const [showGamePlayer, setShowGamePlayer] = useState(false);
+  const [showLogoEditor, setShowLogoEditor] = useState(false);
   const { toast } = useToast();
   const { isPremium } = useSubscription();
 
@@ -667,6 +674,17 @@ export function GeneratedContentDisplay({
     }
   };
 
+  let imageMetadata: Record<string, any> | null = null;
+  if (type === "image") {
+    try {
+      imageMetadata = JSON.parse(content);
+    } catch {
+      imageMetadata = null;
+    }
+  }
+  const canAdjustLogo = !!contentId && imageMetadata?.logoEditable === true;
+  const exactLogoUnavailable = !!contentId && imageMetadata?.options?.logoMode === "exact" && !imageMetadata?.logoEditable;
+
   return (
     <Card className="p-5 overflow-hidden">
       <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
@@ -686,6 +704,18 @@ export function GeneratedContentDisplay({
             <Button variant="outline" size="sm" onClick={onRegenerate} data-testid="button-regenerate">
               <RefreshCw className="h-4 w-4 mr-1.5" />
               Regenerate
+            </Button>
+          )}
+          {canAdjustLogo && onLogoSaved && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLogoEditor((open) => !open)}
+              data-testid="button-adjust-logo"
+              aria-expanded={showLogoEditor}
+            >
+              <Pencil className="h-4 w-4 mr-1.5" />
+              {showLogoEditor ? "Close logo editor" : "Adjust logo"}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleCopy} data-testid="button-copy">
@@ -751,6 +781,23 @@ export function GeneratedContentDisplay({
           )}
         </div>
       </div>
+      {showLogoEditor && canAdjustLogo && contentId && onLogoSaved && (
+        <LogoAdjustmentEditor
+          key={contentId}
+          contentId={contentId}
+          content={content}
+          onSaved={(record) => {
+            setShowLogoEditor(false);
+            onLogoSaved(record);
+          }}
+          onCancel={() => setShowLogoEditor(false)}
+        />
+      )}
+      {exactLogoUnavailable && (
+        <p className="mb-4 rounded-lg border border-muted bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          Logo adjustment is unavailable because original sources were not retained, expired, or reached the private storage limit. Sources are kept for up to 24 hours after creation, within 128MB per account. Your finished design is unchanged.
+        </p>
+      )}
       <div className="overflow-auto max-h-[600px]">
         <ContentErrorBoundary>
           {renderContent()}

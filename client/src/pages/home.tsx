@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch, useLocation, Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -78,7 +78,12 @@ export default function Home() {
   const [selectedType, setSelectedType] = useState<ContentType>("image");
   const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<string>("");
+  const [generatedContentId, setGeneratedContentId] = useState<number | null>(null);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<GeneratedContent | null>(null);
+  const selectedHistoryRef = useRef(selectedHistoryItem);
+  const generatedContentIdRef = useRef(generatedContentId);
+  selectedHistoryRef.current = selectedHistoryItem;
+  generatedContentIdRef.current = generatedContentId;
   const [lastPrompt, setLastPrompt] = useState<{ prompt: string; gradeLevel?: string; subject?: string; slideCount?: number; videoOptions?: { length?: string; style?: string; quality?: string }; presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; keyPoints?: string[]; documentContext?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }; worksheetOptions?: { colorMode?: string; includeImages?: boolean }; referenceImage?: string; imageOptions?: ImageOptions; textOptions?: { style?: string }; activityOptions?: { gameType?: string }; includeLogo?: boolean; mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] } } | null>(null);
   const [quickStartPrompt, setQuickStartPrompt] = useState<string | null>(null);
   const [lowCreditType, setLowCreditType] = useState<string | null>(null);
@@ -163,6 +168,7 @@ export default function Home() {
         });
       } else if (jobStatus.result) {
         setGeneratedContent(jobStatus.result.content);
+        setGeneratedContentId(typeof jobStatus.result.id === "number" ? jobStatus.result.id : null);
         setSelectedHistoryItem(null);
         queryClient.invalidateQueries({ queryKey: ["/api/content"] });
         toast({ title: t("home.contentCreated"), description: t("home.contentReady") });
@@ -232,6 +238,7 @@ export default function Home() {
   const handleSelectHistory = (item: GeneratedContent) => {
     setSelectedHistoryItem(item);
     setGeneratedContent(item.content);
+    setGeneratedContentId(null);
     setSelectedType(item.type as ContentType);
   };
 
@@ -242,6 +249,19 @@ export default function Home() {
   };
 
   const displayContent = selectedHistoryItem?.content || generatedContent;
+  const displayedContentId = selectedHistoryItem?.id ?? generatedContentId;
+
+  const handleLogoSaved = (record: GeneratedContent) => {
+    queryClient.setQueriesData<GeneratedContent[]>({ queryKey: ["/api/content"] }, (old) =>
+      old?.map((item) => item.id === record.id ? record : item)
+    );
+    if (selectedHistoryRef.current?.id === record.id) {
+      setSelectedHistoryItem(record);
+      setGeneratedContent(record.content);
+    } else if (!selectedHistoryRef.current && generatedContentIdRef.current === record.id) {
+      setGeneratedContent(record.content);
+    }
+  };
 
   // Use server-provided lifetime generation count for reliable first-time detection
   const isFirstTimeUser = usageData
@@ -311,6 +331,7 @@ export default function Home() {
                   onClick={() => {
                     setSelectedType(ct.type);
                     setSelectedHistoryItem(null);
+                    setGeneratedContentId(null);
                   }}
                   testId={`card-type-${ct.type}`}
                   remaining={usageData && !usageData.isPremium && usageData.remaining
@@ -411,6 +432,8 @@ export default function Home() {
               onRegenerate={lastPrompt ? handleRegenerate : undefined}
               isFirstTimeUser={isFirstTimeUser}
               onPromptSelect={handlePromptSelect}
+              contentId={displayedContentId}
+              onLogoSaved={handleLogoSaved}
             />
           )}
         </div>

@@ -30,6 +30,12 @@ export const insertGeneratedContentSchema = createInsertSchema(generatedContent)
 export type GeneratedContent = typeof generatedContent.$inferSelect;
 export type InsertGeneratedContent = z.infer<typeof insertGeneratedContentSchema>;
 
+export const exactLogoSources = pgTable("exact_logo_sources", {
+  contentId: integer("content_id").primaryKey().references(() => generatedContent.id, { onDelete: "cascade" }),
+  assets: text("assets").notNull(),
+  byteSize: integer("byte_size").notNull(),
+});
+
 // Video options schema
 export const videoOptionsSchema = z.object({
   length: z.enum(["30sec", "1min", "2min", "3min", "4min", "5min", "10min", "30min"]).optional(),
@@ -92,6 +98,20 @@ export const imageOptionsSchema = z.object({
 });
 
 export type ImageOptions = z.infer<typeof imageOptionsSchema>;
+
+// Original assets are server-only; never include these in content API responses.
+export interface ExactLogoSources {
+  backgrounds: string[];
+  logo: string;
+}
+
+export const logoAdjustmentSchema = imageOptionsSchema.pick({
+  logoPosition: true,
+  logoWidthPercent: true,
+  logoMarginPercent: true,
+}).required().strict().refine(value => value.logoPosition !== "auto", {
+  message: "Choose an explicit logo position.",
+});
 
 // Text options schema
 export const textOptionsSchema = z.object({

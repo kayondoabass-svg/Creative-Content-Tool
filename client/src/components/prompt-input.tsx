@@ -910,6 +910,9 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                       <p className="text-xs text-muted-foreground">
                         The logo’s aspect ratio and transparency are preserved. PNG transparency is recommended; JPEG files retain their background.
                       </p>
+                      <p className="text-xs text-muted-foreground">
+                        Adjust the saved logo later without another generation. Private editing sources are kept for up to 24 hours, limited to 48MB per design and 128MB per account. Designs above the source limit are saved without logo adjustment. Generating more designs may remove the oldest editing sources, but not their finished images.
+                      </p>
                       <div className="grid gap-4 sm:grid-cols-3">
                         <div className="space-y-2">
                           <label htmlFor="exact-logo-position" className="text-xs font-medium">Position</label>

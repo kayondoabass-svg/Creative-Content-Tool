@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import sharp from "sharp";
-import { generateContentSchema, imageOptionsSchema } from "../shared/schema";
-import { compositeExactLogo, composeImageGrid, prepareExactLogo, resolveLogoPosition } from "./exactLogoService";
+import { generateContentSchema, imageOptionsSchema, logoAdjustmentSchema } from "../shared/schema";
+import { compositeExactLogo, composeImageGrid, prepareExactLogo, resolveLogoPosition, recomposeExactLogo, validateLogoSources, MAX_LOGO_SOURCE_BYTES } from "./exactLogoService";
 import { generateEducationalImage } from "./educationalImageService";
 
 async function fixtures() {
@@ -160,4 +160,46 @@ test("request schema rejects invalid exact-logo controls and requires an upload"
   ]) assert.equal(imageOptionsSchema.safeParse(options).success, false);
   assert.equal(imageOptionsSchema.safeParse({ logoMode: "exact", logoPosition: "auto", logoWidthPercent: 5, logoMarginPercent: 0 }).success, true);
   assert.equal(generateContentSchema.safeParse({ type: "image", prompt: "Hello" }).success, true);
+});
+
+test("saved single and grid edits start from original backgrounds and need no model calls", async () => {
+  const { base, reference } = await fixtures();
+  for (const layout of ["single", "grid"] as const) {
+    let calls = 0;
+    const generated = await generateEducationalImage("logo", "", "Editable", { logoMode: "exact", layout }, reference, async () => {
+      calls++;
+      return { data: [{ b64_json: base }] };
+    });
+    assert.deepEqual(generated.logoSources?.backgrounds, Array(layout === "grid" ? 4 : 1).fill(base));
+    assert.equal(generated.logoSources?.logo, reference);
+    const moved = await recomposeExactLogo(generated.logoSources!, {
+      logoPosition: "bottom-left", logoWidthPercent: 20, logoMarginPercent: 0,
+    });
+    assert.equal(calls, layout === "grid" ? 4 : 1);
+    // Old top-right logo is gone; original background is restored.
+    assert.deepEqual(await pixel(moved.b64_json, 172, 4), [255, 255, 255, 255]);
+    assert.deepEqual(await pixel(moved.b64_json, 25, 85), [240, 20, 60, 255]);
+    if (layout === "grid") {
+      assert.equal(moved.images?.length, 4);
+      assert.equal(moved.b64_json, await composeImageGrid(moved.images!));
+      for (const [x, y] of [[25, 85], [225, 85], [25, 185], [225, 185]]) {
+        assert.deepEqual(await pixel(moved.b64_json, x, y), [240, 20, 60, 255]);
+      }
+    }
+    const repeat = await recomposeExactLogo(generated.logoSources!, {
+      logoPosition: "bottom-left", logoWidthPercent: 20, logoMarginPercent: 0,
+    });
+    assert.equal(repeat.b64_json, moved.b64_json);
+  }
+});
+
+test("adjustment accepts only complete bounded controls and enforces source budget", () => {
+  const valid = { logoPosition: "center", logoWidthPercent: 5, logoMarginPercent: 0 };
+  assert.ok(logoAdjustmentSchema.safeParse(valid).success);
+  for (const invalid of [
+    {}, { ...valid, logoPosition: "auto" }, { ...valid, logoWidthPercent: 41 },
+    { ...valid, logoMarginPercent: -1 }, { ...valid, backgrounds: ["injected"] },
+  ]) assert.equal(logoAdjustmentSchema.safeParse(invalid).success, false);
+  assert.throws(() => validateLogoSources({ backgrounds: [], logo: "" }), /one or four/);
+  assert.throws(() => validateLogoSources({ backgrounds: ["x".repeat(MAX_LOGO_SOURCE_BYTES)], logo: "" }), /48MB/);
 });

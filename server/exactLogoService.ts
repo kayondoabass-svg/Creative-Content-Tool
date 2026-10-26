@@ -1,5 +1,31 @@
 import sharp from "sharp";
-import type { ImageOptions } from "../shared/schema";
+import type { ExactLogoSources, ImageOptions } from "../shared/schema";
+
+export const MAX_LOGO_SOURCE_BYTES = 48 * 1024 * 1024;
+export const MAX_USER_LOGO_SOURCE_BYTES = 128 * 1024 * 1024;
+
+export function validateLogoSources(sources: ExactLogoSources) {
+  if (![1, 4].includes(sources.backgrounds.length)) throw new Error("Expected one or four original backgrounds.");
+  if (Buffer.byteLength(JSON.stringify(sources)) > MAX_LOGO_SOURCE_BYTES) {
+    throw new Error("Editable image sources exceed the 48MB design limit.");
+  }
+}
+
+// This path deliberately has no dependency on a model or billing service.
+export async function recomposeExactLogo(sources: ExactLogoSources, options: ImageOptions) {
+  validateLogoSources(sources);
+  const logo = await prepareExactLogo(sources.logo);
+  const position = resolveLogoPosition("", options.logoPosition);
+  const images: string[] = [];
+  for (const background of sources.backgrounds) {
+    images.push(await compositeExactLogo(background, logo, options, position));
+  }
+  return {
+    b64_json: images.length === 4 ? await composeImageGrid(images) : images[0],
+    ...(images.length === 4 ? { images } : {}),
+    resolvedLogoPosition: position,
+  };
+}
 
 type LogoPosition = Exclude<ImageOptions["logoPosition"], "auto" | undefined>;
 

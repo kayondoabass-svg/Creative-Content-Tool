@@ -1,11 +1,11 @@
-import type { GeneratedContent, InsertGeneratedContent } from "@shared/schema";
+import type { ExactLogoSources, GeneratedContent, InsertGeneratedContent } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { RecentContentStore } from "./content-retention";
 
 export interface IStorage {
   getContentByUser(userId: string): Promise<GeneratedContent[]>;
   getContent(id: number): Promise<GeneratedContent | undefined>;
-  createContent(content: InsertGeneratedContent): Promise<GeneratedContent>;
+  createContent(content: InsertGeneratedContent, sources?: ExactLogoSources): Promise<GeneratedContent>;
   deleteContent(id: number, userId?: string): Promise<void>;
 }
 
@@ -53,7 +53,9 @@ export class DatabaseStorage extends MemStorage {
   private recent = new RecentContentStore();
   getContentByUser(userId: string) { return this.recent.getContentByUser(userId); }
   getContent(id: number) { return this.recent.getContent(id); }
-  createContent(content: InsertGeneratedContent) { return this.recent.createContent(content); }
+  createContent(content: InsertGeneratedContent, sources?: ExactLogoSources) { return this.recent.createContent(content, sources); }
+  getLogoSources(id: number, userId: string) { return this.recent.getLogoSources(id, userId); }
+  updateLogoComposition(id: number, userId: string, content: string) { return this.recent.updateLogoComposition(id, userId, content); }
   deleteContent(id: number, userId?: string) { return this.recent.deleteContent(id, userId); }
   purgeExpired() { return this.recent.purgeExpired(); }
 }
