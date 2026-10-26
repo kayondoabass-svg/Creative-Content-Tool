@@ -8,7 +8,7 @@ if (paths.length !== 18) throw new Error("Unexpected approved-logo structure.");
 const svg = (viewBox, body) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${body}</svg>`;
 const symbol = svg("22 14 40 34", paths.slice(0, 6).join(""));
-const logo = svg("2 14 76 50", paths.join(""));
+const logo = svg("2 14 76 50", '<rect x="2" y="14" width="76" height="50" fill="#ffffff"/>' + paths.join(""));
 await writeFile("client/public/brand-symbol.svg", symbol);
 await writeFile("client/public/brand-logo.svg", logo);
 await sharp(Buffer.from(logo)).resize(760).png().toFile("client/public/brand-logo.png");

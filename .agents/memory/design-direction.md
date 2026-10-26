@@ -15,8 +15,8 @@ Generated marketing imagery of educators and students is fictional, not a portra
 
 **How to apply:** Use these as illustrative marketing visuals; do not identify their subjects as the founder or customers, or claim they are real customer work. Use only a verified supplied portrait if adding a founder photo.
 
-The user selected “Option 1 — Board & Sunshine” as the new BrightBoard logo: a deep-teal board outline, golden sun, and bold BrightBoard wordmark.
+The user selected “Option 1 — Board & Sunshine” as the new BrightBoard logo: a deep-teal board outline, golden sun, and bold BrightBoard wordmark. Keep the primary full logo on a white background, matching the selected sample, not a dark background.
 
-**Why:** The user explicitly chose this sample over the B-monogram alternative.
+**Why:** The user explicitly chose this sample over the B-monogram alternative and reiterated that the white-background version is better, saying “Dark isn't good.”
 
 **How to apply:** The user authorized applying this identity across BrightBoard and its locally managed emails while preparing the AfroAI side separately. Keep BrightboardTV and users’ organisation logos separate.
