@@ -14,3 +14,9 @@ Generated marketing imagery of educators and students is fictional, not a portra
 **Why:** The landing educator and the classroom images for sample and feature cards were generated as original marketing visuals, rather than supplied as photographs of actual people or customer work.
 
 **How to apply:** Use these as illustrative marketing visuals; do not identify their subjects as the founder or customers, or claim they are real customer work. Use only a verified supplied portrait if adding a founder photo.
+
+The user selected “Option 1 — Board & Sunshine” as the new BrightBoard logo: a deep-teal board outline, golden sun, and bold BrightBoard wordmark.
+
+**Why:** The user explicitly chose this sample over the B-monogram alternative.
+
+**How to apply:** Use the selected board-and-sun direction when preparing brand assets. Selection alone does not authorize replacing live website assets or branding BrightboardTV identically.
