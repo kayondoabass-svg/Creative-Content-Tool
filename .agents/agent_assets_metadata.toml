@@ -144,3 +144,59 @@ mtime_ms = 1792978166835
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/e817377d-ac58-4895-a413-acc04a805832/95dc73a9-c005-4a09-804a-a1e83f35c328"
 storage_version_token = "1792978178873177"
 content_type = "image/png"
+
+[[outputs]]
+id = "q8VF3wD7BiK-QQ9pBOb-6"
+uri = "file://generated-artifacts/brightboardtv/v1.0.0/BrightboardTV-source-v1.0.0.zip"
+type = "unspecified"
+title = "Upload this source ZIP unchanged"
+description = "Download this ZIP and attach it below the GitHub release description. Do not extract it for the release upload."
+logical_id = "488172c5-8fc7-4271-8238-f8b8fa309cd7"
+content_hash = "sha256:5ae62f99480e536eab1d0f0fb2385911312256be7ec1db1d3a40692308961b7f"
+size = 161463
+mtime_ms = 1793121009725
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/488172c5-8fc7-4271-8238-f8b8fa309cd7/b1341931-3b7a-46f2-80a1-609125bbabd5"
+storage_version_token = "1793122234405193"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "QFUUUTU37cMSPF45lE_jS"
+uri = "file://generated-artifacts/brightboardtv/v1.0.0/BrightboardTV-prebuilt-v1.0.0.zip"
+type = "unspecified"
+title = "Upload this prebuilt ZIP unchanged"
+description = "Download this ZIP and attach it below the GitHub release description. Do not extract it for the release upload."
+logical_id = "e7803788-528f-41bb-9279-758610f25b97"
+content_hash = "sha256:0ee4b98fcd8c116f2dc3a36695336b29f87f8f38971cb47241a24c00e0995456"
+size = 1383963
+mtime_ms = 1793121010329
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/e7803788-528f-41bb-9279-758610f25b97/bfc6facc-3e5e-4b07-a1b4-23d1679810af"
+storage_version_token = "1793122238031123"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "zvFrXhpj3JGM4YemEXHlD"
+uri = "file://generated-artifacts/brightboardtv/v1.0.0/SHA256SUMS.txt"
+type = "text"
+title = "Upload this checksum file"
+description = "Attach this file alongside both ZIPs below the GitHub release description."
+logical_id = "a0fd9036-784a-44e1-b880-4c63f53a9510"
+content_hash = "sha256:7b5018d80355c6bec1af47b89b4c1296232ea037a82f9c2e3bc195130fc1a4f1"
+size = 198
+mtime_ms = 1793121010385
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/a0fd9036-784a-44e1-b880-4c63f53a9510/dba0dfd7-5798-4eed-ae97-3b0457eabccb"
+storage_version_token = "1793122239218747"
+content_type = "text/plain"
+
+[[outputs]]
+id = "QCaQwKg6BTeAuW4uoHHgm"
+uri = "file://generated-artifacts/brightboardtv/v1.0.0/RELEASE-NOTES.md"
+type = "text"
+title = "BrightboardTV v1.0.0 release notes"
+description = "Paste these notes into the GitHub release description."
+logical_id = "5f68ba3a-464e-4f8d-83bf-9b2692842a67"
+content_hash = "sha256:0001d33101e29f44abb43a3460e2c93a3ea3566c0a0f35030d7fe94e102933a9"
+size = 1868
+mtime_ms = 1793121010391
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/5f68ba3a-464e-4f8d-83bf-9b2692842a67/e32284e8-a717-4231-bffa-6bdfada89926"
+storage_version_token = "1793121127988986"
+content_type = "text/markdown"
