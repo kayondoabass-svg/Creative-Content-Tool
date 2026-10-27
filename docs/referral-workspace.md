@@ -132,6 +132,27 @@ This release does **not** execute PayPal/bank transfers automatically. Do not
 mark a payout paid until the transfer is complete. Currency balances are kept
 separate; there is no invented cross-currency exchange rate.
 
+### Owner-confirmed payout scope
+
+The owner chose to **keep payouts manual** after reviewing provider options.
+Use PesaPal only; the business and intended recipients are in Uganda, with USD
+requested for partner payouts. This request does not confirm that PesaPal
+supports USD disbursements for this merchant, and does not change existing
+currency balances or commission policy.
+
+PesaPal publicly offers disbursements in Uganda through
+[Openfloat](https://www.pesapal.com/blog/pesapal-uganda-launches-openfloat-transforming-bulk-funds-disbursement-for-businesses).
+Before any future automated integration, obtain the merchant-specific API
+documentation and confirmation of USD support, fees, onboarding/compliance,
+idempotency, status verification and webhook authentication. Checkout payment
+acceptance or settlement to the merchant is not evidence of a completed partner
+payout. No automatic transfer, onboarding or webhook integration is enabled.
+
+The owner also requested removal of the unused Stripe connection. No Stripe
+payout code was added. Disconnecting the workspace connection is a separate
+owner action in **Integrations → Stripe → Manage → Disconnect/Remove**;
+documentation changes do not disconnect it.
+
 ## Notification operations
 
 The notification outbox survives restarts. A worker processes pending messages.
