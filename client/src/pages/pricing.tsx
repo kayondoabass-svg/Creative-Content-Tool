@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,7 @@ export default function PricingPage() {
   const [, setLocation] = useLocation();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [country, setCountry] = useState<string>(() => detectCountry());
+  const resumedSignupPurchase = useRef(false);
 
   const { data: pricing, isLoading: pricingLoading } = useQuery<LocalizedPricing>({
     queryKey: ["/api/pricing", country],
@@ -141,19 +142,26 @@ export default function PricingPage() {
       return;
     }
 
+    const currency = pricing?.currency || "USD";
+    const attemptKey = `brightboard-payment-attempt:${planId}:${currency}`;
+    let attemptId = sessionStorage.getItem(attemptKey);
+    if (!attemptId) {
+      attemptId = crypto.randomUUID();
+      sessionStorage.setItem(attemptKey, attemptId);
+    }
     setLoadingPlan(planId);
     try {
-      const response = await apiRequest("POST", "/api/pesapal/checkout", { 
+      const response = await apiRequest("POST", "/api/pesapal/checkout", {
         tier: planId,
-        currency: pricing?.currency || 'USD',
+        currency,
+        attemptId,
       });
       const data = await response.json();
-      
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("No checkout URL returned");
-      }
+
+      if (!data.orderId) throw new Error("No payment reference was returned.");
+      sessionStorage.removeItem(attemptKey);
+      // Load our own document so the checkout-specific frame-src header applies.
+      window.location.assign(`/checkout?order=${encodeURIComponent(data.orderId)}`);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -167,14 +175,13 @@ export default function PricingPage() {
 
   const isPremium = subscriptionStatus?.isPremium;
 
-  // Auto-start checkout if user just signed up/logged in with a pending plan
   useEffect(() => {
-    if (isAuthenticated && pricing) {
-      const pendingPlan = localStorage.getItem("pendingPlan");
-      if (pendingPlan) {
-        localStorage.removeItem("pendingPlan");
-        handleSubscribe(pendingPlan);
-      }
+    if (!isAuthenticated || !pricing || resumedSignupPurchase.current) return;
+    const pendingPlan = localStorage.getItem("pendingPlan");
+    if (pendingPlan && ["weekly", "monthly", "institution"].includes(pendingPlan)) {
+      resumedSignupPurchase.current = true;
+      localStorage.removeItem("pendingPlan");
+      void handleSubscribe(pendingPlan);
     }
   }, [isAuthenticated, pricing]);
 

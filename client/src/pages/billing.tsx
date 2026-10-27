@@ -191,7 +191,15 @@ export default function BillingPage() {
                       <td className="py-3 px-2">
                         {new Date(payment.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                       </td>
-                      <td className="py-3 px-2 font-mono text-xs">{payment.orderId}</td>
+                      <td className="py-3 px-2 font-mono text-xs">
+                        {payment.orderId}
+                        {payment.status === "pending" && (
+                          <a className="mt-1 block font-sans font-medium text-primary underline"
+                            href={`/checkout?order=${encodeURIComponent(payment.orderId)}`}>
+                            Resume / check payment
+                          </a>
+                        )}
+                      </td>
                       <td className="py-3 px-2">
                         <Badge variant="outline">{payment.tier}</Badge>
                       </td>

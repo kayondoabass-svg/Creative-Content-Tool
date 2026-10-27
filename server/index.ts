@@ -11,6 +11,8 @@ import { createTvRelay } from "../packages/brightboard-tv/server/relay";
 import { getUserById } from "./customAuthService";
 import { canSaveTVLibrary } from "./tv-library-access";
 import { afroaiSessionGuard } from "./afroaiSessionGuard";
+import { paymentSecurityHeaders } from "./payment-security";
+import { initializePaymentCheckoutSchema } from "./payment-checkout-schema";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -21,6 +23,7 @@ process.on("unhandledRejection", (reason) => {
 });
 
 const app = express();
+app.use(paymentSecurityHeaders);
 const httpServer = createServer(app);
 
 declare module "http" {
@@ -69,7 +72,9 @@ app.use((req, res, next) => {
       if (capturedJsonResponse && !path.startsWith("/api/chatbot-widget/") && !path.startsWith("/api/auth/") &&
         !path.startsWith("/api/referrals") && !path.startsWith("/api/affiliates") && !path.startsWith("/api/tv") &&
         !path.startsWith("/api/settings")) {
+        if (!path.startsWith("/api/pesapal") && !path.startsWith("/api/payments")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        }
       }
 
       log(logLine);
@@ -81,6 +86,7 @@ app.use((req, res, next) => {
 
 (async () => {
   await initializeReferralSchema();
+  await initializePaymentCheckoutSchema();
   const tvRelay = createTvRelay({ hostedLibrary: true, pageLimitForRequest: async (req: any) => {
     const user = req.session?.userId ? await getUserById(req.session.userId) : null;
     return canSaveTVLibrary(user) ? 20 : 10;

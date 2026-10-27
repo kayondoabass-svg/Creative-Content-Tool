@@ -100,7 +100,8 @@ import { attachSignupReferral, captureReferral } from "./referral-attribution";
 import { db } from "./db";
 import { users, featureUsage, loginEvents, pageViews, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
-import { reconcileProviderNotification } from "./referral-reconciliation";
+import { registerPaymentCheckoutRoutes } from "./payment-checkout";
+import { verifyPayment } from "./payment-verification";
 import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
 // ── Gemini via raw REST fetch — zero external dependencies ──────────────────
@@ -5232,167 +5233,7 @@ export function registerSubscriptionRoutes(app: any) {
     res.json(pesapalService.getSupportedCurrencies());
   });
 
-  app.post("/api/pesapal/checkout", async (req: any, res: any) => {
-    try {
-      const sessionUserId = req.session?.userId;
-      const sessionUser = req.session?.user;
-      if (!sessionUserId || !sessionUser) {
-        return res.status(401).json({ error: "Please sign in to subscribe" });
-      }
-
-      const { tier, currency } = req.body;
-      if (!tier || !['weekly', 'monthly', 'institution'].includes(tier)) {
-        return res.status(400).json({ error: "Invalid subscription tier" });
-      }
-
-      const price = pesapalService.getTierPrice(tier, currency);
-      if (!price) {
-        return res.status(400).json({ error: "Invalid tier" });
-      }
-
-      const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
-      const result = await pesapalService.submitOrder({
-        userId: sessionUserId,
-        email: sessionUser.email || '',
-        firstName: sessionUser.firstName || '',
-        lastName: sessionUser.lastName || '',
-        amount: price.amount,
-        currency: price.currency,
-        tier,
-        callbackUrl: `${baseUrl}/api/pesapal/callback`,
-        ipnUrl: `${baseUrl}/api/pesapal/ipn`,
-      });
-
-      res.json({ url: result.redirectUrl, orderTrackingId: result.orderTrackingId });
-    } catch (error: any) {
-      console.error("PesaPal checkout error:", error);
-      res.status(500).json({ error: error.message || "Failed to create checkout" });
-    }
-  });
-
-  app.get("/api/pesapal/callback", async (req: any, res: any) => {
-    try {
-      const { OrderTrackingId, OrderMerchantReference } = req.query;
-      if (!OrderTrackingId) {
-        return res.redirect('/pricing?payment=failed');
-      }
-
-      const status = await pesapalService.getTransactionStatus(OrderTrackingId as string);
-      await reconcileProviderNotification(String(OrderTrackingId), status.merchantReference, status.referralState);
-
-      if (status.referralState === 'completed') {
-        const [payment] = await db.select().from(payments)
-          .where(eq(payments.pesapalTrackingId, OrderTrackingId as string))
-          .limit(1);
-
-        if (payment && payment.status !== 'reversed' && status.merchantReference === payment.orderId) {
-          await pesapalService.updatePaymentStatus(
-            payment.orderId,
-            'completed',
-            status.paymentMethod,
-            status.confirmationCode,
-          );
-          await pesapalService.activateSubscription(payment.userId, payment.tier, OrderTrackingId as string);
-
-          const [user] = await db.select().from(users).where(eq(users.id, payment.userId)).limit(1);
-          if (user?.email) {
-            const { sendPaymentReceiptEmail } = await import("./emailService");
-            const endDate = pesapalService.getSubscriptionEndDate(payment.tier);
-            await sendPaymentReceiptEmail(user.email, {
-              orderId: payment.orderId,
-              amount: status.amount,
-              currency: status.currency,
-              planName: payment.tier.charAt(0).toUpperCase() + payment.tier.slice(1),
-              paymentMethod: status.paymentMethod,
-              confirmationCode: status.confirmationCode,
-              date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-              nextBillingDate: endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-              customerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer',
-            });
-
-            await db.update(payments)
-              .set({ receiptSentAt: new Date() })
-              .where(eq(payments.orderId, payment.orderId));
-          }
-        }
-
-        res.redirect('/payment/callback?status=success');
-      } else if (status.referralState === 'failed') {
-        const [payment] = await db.select().from(payments)
-          .where(eq(payments.pesapalTrackingId, OrderTrackingId as string))
-          .limit(1);
-        if (payment) {
-          await pesapalService.updatePaymentStatus(payment.orderId, 'failed');
-        }
-        res.redirect('/payment/callback?status=failed');
-      } else {
-        res.redirect('/payment/callback?status=pending');
-      }
-    } catch (error) {
-      console.error("PesaPal callback error:", error);
-      res.redirect('/payment/callback?status=failed');
-    }
-  });
-
-  app.get("/api/pesapal/ipn", async (req: any, res: any) => {
-    try {
-      const { OrderTrackingId, OrderMerchantReference, OrderNotificationType } = req.query;
-
-      if (!OrderTrackingId) {
-        return res.status(400).json({ error: "Missing OrderTrackingId" });
-      }
-
-      const status = await pesapalService.getTransactionStatus(OrderTrackingId as string);
-      await reconcileProviderNotification(String(OrderTrackingId), status.merchantReference, status.referralState);
-
-      const [payment] = await db.select().from(payments)
-        .where(eq(payments.pesapalTrackingId, OrderTrackingId as string))
-        .limit(1);
-
-      if (!payment) {
-        console.error("IPN: Payment not found for tracking ID:", OrderTrackingId);
-        return res.json({ orderNotificationType: OrderNotificationType, orderTrackingId: OrderTrackingId });
-      }
-
-      if (status.referralState === 'completed' && status.merchantReference === payment.orderId && !['completed', 'reversed'].includes(payment.status)) {
-        await pesapalService.updatePaymentStatus(
-          payment.orderId,
-          'completed',
-          status.paymentMethod,
-          status.confirmationCode,
-        );
-        await pesapalService.activateSubscription(payment.userId, payment.tier, OrderTrackingId as string);
-
-        const [user] = await db.select().from(users).where(eq(users.id, payment.userId)).limit(1);
-        if (user?.email && !payment.receiptSentAt) {
-          const { sendPaymentReceiptEmail } = await import("./emailService");
-          const endDate = pesapalService.getSubscriptionEndDate(payment.tier);
-          await sendPaymentReceiptEmail(user.email, {
-            orderId: payment.orderId,
-            amount: status.amount,
-            currency: status.currency,
-            planName: payment.tier.charAt(0).toUpperCase() + payment.tier.slice(1),
-            paymentMethod: status.paymentMethod,
-            confirmationCode: status.confirmationCode,
-            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-            nextBillingDate: endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-            customerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer',
-          });
-
-          await db.update(payments)
-            .set({ receiptSentAt: new Date() })
-            .where(eq(payments.orderId, payment.orderId));
-        }
-      } else if (status.referralState === 'failed') {
-        await pesapalService.updatePaymentStatus(payment.orderId, 'failed');
-      }
-
-      res.json({ orderNotificationType: OrderNotificationType, orderTrackingId: OrderTrackingId, orderMerchantReference: OrderMerchantReference, status: 200 });
-    } catch (error) {
-      console.error("PesaPal IPN error:", error);
-      res.status(500).json({ error: "IPN processing failed" });
-    }
-  });
+  registerPaymentCheckoutRoutes(app);
 
   // Marketing email blast to all free users
   app.post("/api/owner/send-marketing-blast", async (req: any, res: any) => {
@@ -5463,38 +5304,9 @@ export function registerSubscriptionRoutes(app: any) {
       if (!payment) return res.status(404).json({ error: "Payment not found" });
       if (!payment.pesapalTrackingId) return res.status(400).json({ error: "No PesaPal tracking ID on this payment" });
 
-      const status = await pesapalService.getTransactionStatus(payment.pesapalTrackingId);
-      await reconcileProviderNotification(payment.pesapalTrackingId, status.merchantReference, status.referralState);
-
-      if (status.referralState === 'completed' && status.merchantReference === payment.orderId && !['completed', 'reversed'].includes(payment.status)) {
-        await pesapalService.updatePaymentStatus(payment.orderId, 'completed', status.paymentMethod, status.confirmationCode);
-        await pesapalService.activateSubscription(payment.userId, payment.tier, payment.pesapalTrackingId);
-        const [user] = await db.select().from(users).where(eq(users.id, payment.userId)).limit(1);
-        if (user?.email && !payment.receiptSentAt) {
-          try {
-            const { sendPaymentReceiptEmail } = await import("./emailService");
-            const endDate = pesapalService.getSubscriptionEndDate(payment.tier);
-            await sendPaymentReceiptEmail(user.email, {
-              orderId: payment.orderId,
-              amount: status.amount,
-              currency: status.currency,
-              planName: payment.tier.charAt(0).toUpperCase() + payment.tier.slice(1),
-              paymentMethod: status.paymentMethod,
-              confirmationCode: status.confirmationCode,
-              date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-              nextBillingDate: endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-              customerName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Valued Customer',
-            });
-            await db.update(payments).set({ receiptSentAt: new Date() }).where(eq(payments.orderId, payment.orderId));
-          } catch (e) { console.error("Receipt email failed:", e); }
-        }
-        return res.json({ updated: true, newStatus: 'completed', pesapalStatus: status.paymentStatusDescription });
-      } else if (status.referralState === 'failed') {
-        await pesapalService.updatePaymentStatus(payment.orderId, 'failed');
-        return res.json({ updated: true, newStatus: 'failed', pesapalStatus: status.paymentStatusDescription });
-      } else {
-        return res.json({ updated: false, newStatus: payment.status, pesapalStatus: status.paymentStatusDescription, rawStatus: status });
-      }
+      await verifyPayment(payment.pesapalTrackingId);
+      const [fresh] = await db.select().from(payments).where(eq(payments.id, payment.id)).limit(1);
+      return res.json({ updated: fresh?.status !== payment.status, newStatus: fresh?.status || payment.status });
     } catch (error: any) {
       console.error("Recheck payment error:", error);
       res.status(500).json({ error: error.message || "Failed to recheck payment" });

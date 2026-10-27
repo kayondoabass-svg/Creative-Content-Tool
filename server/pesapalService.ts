@@ -3,6 +3,7 @@ import { users, payments } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { recordProviderPaymentStatus } from './referral-store';
 import { pesapalState, type ProviderState } from './referral-reconciliation';
+import { safeCheckoutUrl } from './payment-security';
 
 const PESAPAL_BASE_URL = 'https://pay.pesapal.com/v3/api';
 
@@ -28,11 +29,13 @@ export async function getAuthToken(): Promise<string> {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`PesaPal auth failed: ${response.status} ${errorText}`);
+    throw new Error(`PesaPal authentication unavailable (HTTP ${response.status})`);
   }
 
   const data = await response.json();
+  if (typeof data.token !== "string" || !data.token || !Number.isFinite(Date.parse(data.expiryDate))) {
+    throw new Error("Invalid payment authentication response");
+  }
   cachedToken = {
     token: data.token,
     expiresAt: new Date(data.expiryDate),
@@ -47,6 +50,7 @@ export async function registerIPN(callbackUrl: string): Promise<string> {
   const token = await getAuthToken();
 
   const response = await fetch(`${PESAPAL_BASE_URL}/URLSetup/RegisterIPN`, {
+    signal: AbortSignal.timeout(15000),
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -60,16 +64,17 @@ export async function registerIPN(callbackUrl: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`PesaPal IPN registration failed: ${response.status} ${errorText}`);
+    throw new Error(`PesaPal notification setup unavailable (HTTP ${response.status})`);
   }
 
   const data = await response.json();
+  if (typeof data.ipn_id !== "string" || !data.ipn_id) throw new Error("Invalid payment notification response");
   cachedIpnId = data.ipn_id;
   return data.ipn_id;
 }
 
 interface SubmitOrderParams {
+  merchantReference: string;
   userId: string;
   email: string;
   firstName: string;
@@ -85,9 +90,12 @@ export async function submitOrder(params: SubmitOrderParams): Promise<{ orderTra
   const token = await getAuthToken();
   const ipnId = await registerIPN(params.ipnUrl);
 
-  const merchantReference = `BB-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  // The caller durably creates this order BEFORE any provider request.
+  const merchantReference = params.merchantReference;
 
   const response = await fetch(`${PESAPAL_BASE_URL}/Transactions/SubmitOrderRequest`, {
+    signal: AbortSignal.timeout(20000),
+    redirect: 'error',
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -100,6 +108,8 @@ export async function submitOrder(params: SubmitOrderParams): Promise<{ orderTra
       amount: params.amount,
       description: `BrightBoard ${params.tier} subscription`,
       callback_url: params.callbackUrl,
+      redirect_mode: 'TOP_WINDOW',
+      cancellation_url: params.callbackUrl,
       notification_id: ipnId,
       branch: 'BrightBoard',
       billing_address: {
@@ -120,29 +130,24 @@ export async function submitOrder(params: SubmitOrderParams): Promise<{ orderTra
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`PesaPal order submission failed: ${response.status} ${errorText}`);
+    throw new Error(`PesaPal checkout unavailable (HTTP ${response.status})`);
   }
 
   const data = await response.json();
 
   if (data.error) {
-    throw new Error(`PesaPal error: ${JSON.stringify(data.error)}`);
+    throw new Error("PesaPal could not create the payment");
   }
 
-  await db.insert(payments).values({
-    userId: params.userId,
-    orderId: merchantReference,
-    pesapalTrackingId: data.order_tracking_id,
-    amount: Math.round(params.amount * 100),
-    currency: params.currency,
-    tier: params.tier,
-    status: 'pending',
-  });
+  if (typeof data.order_tracking_id !== "string" || !data.order_tracking_id ||
+      data.merchant_reference !== merchantReference) throw new Error("Invalid provider order response");
+  await db.update(payments).set({ pesapalTrackingId: data.order_tracking_id })
+    .where(eq(payments.orderId, merchantReference));
+  const redirectUrl = safeCheckoutUrl(data.redirect_url);
 
   return {
     orderTrackingId: data.order_tracking_id,
-    redirectUrl: data.redirect_url,
+    redirectUrl,
     merchantReference,
   };
 }
@@ -175,8 +180,7 @@ export async function getTransactionStatus(orderTrackingId: string): Promise<Tra
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`PesaPal status check failed: ${response.status} ${errorText}`);
+    throw new Error(`PesaPal verification unavailable (HTTP ${response.status})`);
   }
 
   const data = await response.json();
@@ -317,6 +321,7 @@ export function getTierPrice(tier: string, currency?: string) {
   const base = TIER_PRICES_USD[tier];
   if (!base) return null;
   const cur = currency || 'USD';
+  if (!Object.hasOwn(CURRENCY_RATES, cur)) return null;
   const amount = convertPrice(base.amount, cur);
   return { amount, currency: cur, days: base.days };
 }

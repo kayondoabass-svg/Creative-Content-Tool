@@ -23,6 +23,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import LandingPage from "@/pages/landing";
 import PricingPage from "@/pages/pricing";
+import CheckoutPage from "@/pages/checkout";
 import Terms from "@/pages/terms";
 import Privacy from "@/pages/privacy";
 import Refund from "@/pages/refund";
@@ -88,6 +89,7 @@ function Router() {
       <Route path="/brightboardtv" component={BrightboardTVPage} />
       <Route path="/contact" component={Contact} />
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/checkout" component={CheckoutPage} />
       <Route path="/payment/callback" component={PaymentCallbackPage} />
       <Route path="/billing" component={BillingPage} />
       <Route path="/account/settings" component={AccountSettings} />
@@ -322,7 +324,7 @@ function AppShell() {
     );
   }
 
-  const standaloneRoutes = ["/", "/login", "/signup", "/verify-email", "/ads", "/payment/callback", "/file-tools"];
+  const standaloneRoutes = ["/", "/login", "/signup", "/verify-email", "/ads", "/payment/callback", "/checkout", "/file-tools"];
   const hasPublicHeader = !standaloneRoutes.includes(location);
   return (
     <div className="min-h-screen w-full bg-background">
