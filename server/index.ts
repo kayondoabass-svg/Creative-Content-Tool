@@ -13,6 +13,7 @@ import { canSaveTVLibrary } from "./tv-library-access";
 import { afroaiSessionGuard } from "./afroaiSessionGuard";
 import { paymentSecurityHeaders } from "./payment-security";
 import { initializePaymentCheckoutSchema } from "./payment-checkout-schema";
+import { registerReleaseRoute } from "./release";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -103,6 +104,7 @@ app.use((req, res, next) => {
   // Pairing/join/state endpoints intentionally use their own presentation keys.
   app.post("/api/tv/sessions", afroaiSessionGuard);
   app.use("/api/tv", tvRelay.router);
+  registerReleaseRoute(app);
   
   await registerRoutes(httpServer, app);
   startReferralNotificationWorker();

@@ -5,55 +5,107 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Verify build & deploy
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout exact release
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # The VPS serves the committed dist/ files, not this runner's build.
+      # The VPS serves committed dist/, not a fresh build on this runner.
       - name: Verify committed production build
         run: |
           node --check dist/index.cjs
-          node <<'NODE'
-          const fs = require("node:fs");
-          for (const file of ["dist/index.cjs", "dist/public/index.html"]) {
-            if (!fs.statSync(file).isFile() || fs.statSync(file).size === 0) {
-              throw new Error(`Missing or empty production file: ${file}`);
-            }
-          }
-          const html = fs.readFileSync("dist/public/index.html", "utf8");
-          const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)];
-          if (assets.length === 0) throw new Error("No production assets found");
-          for (const [, asset] of assets) {
-            if (!fs.statSync(`dist/public${asset}`).isFile()) {
-              throw new Error(`Missing production asset: ${asset}`);
-            }
-          }
-          console.log(`Verified production build and ${assets.length} entry assets`);
-          NODE
+          node --test scripts/release.test.cjs
+          node scripts/release-manifest.cjs "$GITHUB_SHA"
 
-      - name: Deploy to VPS via SSH
+      - name: Check deployment credentials
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          VPS_FINGERPRINT: ${{ secrets.VPS_FINGERPRINT }}
+        shell: bash
+        run: |
+          missing=()
+          for key in VPS_HOST VPS_USER SSH_PRIVATE_KEY VPS_FINGERPRINT; do
+            if [[ -z "${!key}" ]]; then missing+=("$key"); fi
+          done
+          if ((${#missing[@]})); then
+            echo "::error::Deployment blocked: missing GitHub Actions secrets: ${missing[*]}"
+            {
+              echo "## BLOCKED — build verified; deployment did not run"
+              echo "Missing GitHub Actions secrets: ${missing[*]}."
+              echo "Configure them securely in repository Settings → Secrets and variables → Actions."
+              echo "No rollout or live revision has been verified."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Deploy exact revision and verify running origin
+        id: origin
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          RELEASE_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.VPS_FINGERPRINT }}
+          envs: RELEASE_SHA
           script: |
-            set -e
+            set -eu
             cd /var/www/brightboardapp.com
             git fetch origin main
-            git reset --hard origin/main
+            # Never substitute the latest main for the triggering revision.
+            git cat-file -e "$RELEASE_SHA^{commit}"
+            git reset --hard "$RELEASE_SHA"
+            node scripts/release-manifest.cjs "$RELEASE_SHA"
             mkdir -p /var/log/brightboard
-            pm2 restart brightboard 2>/dev/null || \
+            if pm2 describe brightboard >/dev/null 2>&1; then
+              pm2 restart brightboard
+            else
               pm2 start ecosystem.config.cjs
+            fi
             pm2 save
-            echo "✅ Deployed at $(date)"
+            # Preserve PM2's environment and .env loading; no --update-env.
+            # Local verification stays on the VPS, never exposes the origin.
+            node --env-file=.env -e '
+              const { spawnSync } = require("node:child_process");
+              const r = spawnSync(process.execPath, [
+                "scripts/verify-release.cjs",
+                `http://127.0.0.1:${process.env.PORT || "5000"}`
+              ], { stdio: "inherit" });
+              process.exit(r.status ?? 1);
+            '
+
+      - name: Verify public release through Cloudflare
+        id: public
+        env:
+          # Optional repository variable for an approved canonical hostname.
+          RELEASE_PUBLIC_URL: ${{ vars.RELEASE_PUBLIC_URL || 'https://www.brightboardapp.com' }}
+        run: node scripts/verify-release.cjs "$RELEASE_PUBLIC_URL"
+
+      - name: Release outcome
+        if: always()
+        env:
+          ORIGIN_OUTCOME: ${{ steps.origin.outcome }}
+          PUBLIC_OUTCOME: ${{ steps.public.outcome }}
+        run: |
+          if [[ "$ORIGIN_OUTCOME" == success && "$PUBLIC_OUTCOME" == success ]]; then
+            echo "## VERIFIED rollout: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$ORIGIN_OUTCOME" == success ]]; then
+            echo "## Origin verified; public rollout NOT confirmed" >> "$GITHUB_STEP_SUMMARY"
+            echo "Public checks failed or were protected. Keep Cloudflare protections enabled; inspect the check result above." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Rollout NOT verified" >> "$GITHUB_STEP_SUMMARY"
+            echo "Build validation alone is not deployment success. See the blocked or failed step." >> "$GITHUB_STEP_SUMMARY"
+          fi
