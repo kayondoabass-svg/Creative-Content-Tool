@@ -6,16 +6,16 @@ import { draftReferralPolicy } from "./referral-policy";
 
 afterEach(() => mock.restoreAll());
 
-function store() {
-  let status = "pending", queued = 0, committed = 0;
+function store(initialStatus = "pending") {
+  let status = initialStatus, queued = 0, committed = 0;
   const queries: string[] = [];
   const client = {
     release() {},
     async query(sql: string, args: any[] = []) {
       queries.push(sql);
       if (sql.startsWith("UPDATE payments")) {
-        if (status === "completed") return { rows: [] };
-        assert.match(sql, /status<>'completed'/);
+        assert.match(sql, /status NOT IN \('completed','reversed'\)/);
+        if (status === "completed" || status === "reversed") return { rows: [] };
         status = args[1];
         return { rows: [{ id: 123, user_id: "test-user", order_id: "test-order", amount: 1250, currency: "USD", tier: "monthly", status }] };
       }
@@ -60,4 +60,14 @@ test("late failure cannot downgrade a completed payment", async () => {
   await updatePaymentStatus("test-order", "failed");
   assert.equal(s.status, "completed");
   assert.equal(s.queued, 1);
+});
+
+test("late callbacks cannot overwrite a reversed payment or queue a success alert", async () => {
+  const s = store("reversed");
+  for (const status of ["pending", "completed", "failed"]) {
+    await updatePaymentStatus("test-order", status);
+  }
+  assert.equal(s.status, "reversed");
+  assert.equal(s.queued, 0);
+  assert.equal(s.committed, 3);
 });
