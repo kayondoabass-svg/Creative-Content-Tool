@@ -17,3 +17,4 @@
 - [Payout provider scope](payout-provider-scope.md) — PesaPal only; business and recipients in Uganda, requested partner payout currency USD.
 - [Dependency recovery](dependency-recovery.md) — a successful npm install can omit security-blocked optional packages; verify a clean install and production build.
 - [Organisation logo ownership](organisation-logo-ownership.md) — saved branding is teacher-private; unknown global ownership is not permission to share, and logo use stays opt-in.
+- [GitHub credential rewrites](github-credential-rewrites.md) — inherited Git URL rewrites can add authentication even when the saved origin is clean; never print effective URLs.
