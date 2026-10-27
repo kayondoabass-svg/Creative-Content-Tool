@@ -2,6 +2,7 @@ import { db } from './db';
 import { users, payments } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { recordProviderPaymentStatus } from './referral-store';
+import { pesapalState, type ProviderState } from './referral-reconciliation';
 
 const PESAPAL_BASE_URL = 'https://pay.pesapal.com/v3/api';
 
@@ -14,6 +15,7 @@ export async function getAuthToken(): Promise<string> {
   }
 
   const response = await fetch(`${PESAPAL_BASE_URL}/Auth/RequestToken`, {
+    signal: AbortSignal.timeout(15000),
     method: 'POST',
     headers: {
       'Accept': 'application/json',
@@ -146,6 +148,7 @@ export async function submitOrder(params: SubmitOrderParams): Promise<{ orderTra
 }
 
 export interface TransactionStatus {
+  referralState: ProviderState;
   paymentMethod: string;
   amount: number;
   createdDate: string;
@@ -162,7 +165,8 @@ export interface TransactionStatus {
 export async function getTransactionStatus(orderTrackingId: string): Promise<TransactionStatus> {
   const token = await getAuthToken();
 
-  const response = await fetch(`${PESAPAL_BASE_URL}/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`, {
+  const response = await fetch(`${PESAPAL_BASE_URL}/Transactions/GetTransactionStatus?orderTrackingId=${encodeURIComponent(orderTrackingId)}`, {
+    signal: AbortSignal.timeout(15000),
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -178,13 +182,14 @@ export async function getTransactionStatus(orderTrackingId: string): Promise<Tra
   const data = await response.json();
 
   return {
+    referralState: pesapalState(data),
     paymentMethod: data.payment_method || '',
     amount: data.amount || 0,
     createdDate: data.created_date || '',
     confirmationCode: data.confirmation_code || '',
     orderTrackingId: data.order_tracking_id || orderTrackingId,
     paymentStatusDescription: data.payment_status_description || '',
-    paymentStatusCode: data.payment_status_code || '',
+    paymentStatusCode: String(data.status_code ?? ''),
     merchantReference: data.merchant_reference || '',
     paymentAccount: data.payment_account || '',
     currency: data.currency || '',

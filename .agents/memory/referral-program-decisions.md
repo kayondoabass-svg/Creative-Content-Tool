@@ -24,3 +24,15 @@ was owed.
 **How to apply:** Leave a new financial policy inactive until confirmed. Preserve
 existing financial records; use policy snapshots for future commissions and
 require a separate, explicit reconciliation decision for historical obligations.
+
+Refunds and disputes must never silently deduct unrelated partner earnings.
+Already-paid commissions require separate recovery accounting rather than edits
+to paid history.
+
+**Why:** The user explicitly required preserved history and separate recovery for
+already-paid amounts. A refund flag alone does not establish how much the partner
+owes.
+
+**How to apply:** Keep any later automated payout, refund or adjustment integration
+from netting an unresolved recovery against another commission or currency.
+Require explicit evidence and resolution of the affected amount.

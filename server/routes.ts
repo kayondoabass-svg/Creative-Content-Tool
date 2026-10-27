@@ -100,6 +100,7 @@ import { attachSignupReferral, captureReferral } from "./referral-attribution";
 import { db } from "./db";
 import { users, featureUsage, loginEvents, pageViews, expenses, insertExpenseSchema, expenseCategories, generatedContent, affiliates, payments, type Expense, type InsertExpense } from "@shared/schema";
 import * as pesapalService from "./pesapalService";
+import { reconcileProviderNotification } from "./referral-reconciliation";
 import { eq, count, sql, desc, gte, and, sum, or, ne, lt, isNull, inArray } from "drizzle-orm";
 
 // ── Gemini via raw REST fetch — zero external dependencies ──────────────────
@@ -5277,13 +5278,14 @@ export function registerSubscriptionRoutes(app: any) {
       }
 
       const status = await pesapalService.getTransactionStatus(OrderTrackingId as string);
+      await reconcileProviderNotification(String(OrderTrackingId), status.merchantReference, status.referralState);
 
-      if (status.paymentStatusDescription === 'Completed') {
+      if (status.referralState === 'completed') {
         const [payment] = await db.select().from(payments)
           .where(eq(payments.pesapalTrackingId, OrderTrackingId as string))
           .limit(1);
 
-        if (payment) {
+        if (payment && payment.status !== 'reversed' && status.merchantReference === payment.orderId) {
           await pesapalService.updatePaymentStatus(
             payment.orderId,
             'completed',
@@ -5315,7 +5317,7 @@ export function registerSubscriptionRoutes(app: any) {
         }
 
         res.redirect('/payment/callback?status=success');
-      } else if (status.paymentStatusDescription === 'Failed') {
+      } else if (status.referralState === 'failed') {
         const [payment] = await db.select().from(payments)
           .where(eq(payments.pesapalTrackingId, OrderTrackingId as string))
           .limit(1);
@@ -5341,6 +5343,7 @@ export function registerSubscriptionRoutes(app: any) {
       }
 
       const status = await pesapalService.getTransactionStatus(OrderTrackingId as string);
+      await reconcileProviderNotification(String(OrderTrackingId), status.merchantReference, status.referralState);
 
       const [payment] = await db.select().from(payments)
         .where(eq(payments.pesapalTrackingId, OrderTrackingId as string))
@@ -5351,7 +5354,7 @@ export function registerSubscriptionRoutes(app: any) {
         return res.json({ orderNotificationType: OrderNotificationType, orderTrackingId: OrderTrackingId });
       }
 
-      if (status.paymentStatusDescription === 'Completed' && payment.status !== 'completed') {
+      if (status.referralState === 'completed' && status.merchantReference === payment.orderId && !['completed', 'reversed'].includes(payment.status)) {
         await pesapalService.updatePaymentStatus(
           payment.orderId,
           'completed',
@@ -5380,11 +5383,11 @@ export function registerSubscriptionRoutes(app: any) {
             .set({ receiptSentAt: new Date() })
             .where(eq(payments.orderId, payment.orderId));
         }
-      } else if (status.paymentStatusDescription === 'Failed') {
+      } else if (status.referralState === 'failed') {
         await pesapalService.updatePaymentStatus(payment.orderId, 'failed');
       }
 
-      res.json({ orderNotificationType: OrderNotificationType, orderTrackingId: OrderTrackingId });
+      res.json({ orderNotificationType: OrderNotificationType, orderTrackingId: OrderTrackingId, orderMerchantReference: OrderMerchantReference, status: 200 });
     } catch (error) {
       console.error("PesaPal IPN error:", error);
       res.status(500).json({ error: "IPN processing failed" });
@@ -5461,8 +5464,9 @@ export function registerSubscriptionRoutes(app: any) {
       if (!payment.pesapalTrackingId) return res.status(400).json({ error: "No PesaPal tracking ID on this payment" });
 
       const status = await pesapalService.getTransactionStatus(payment.pesapalTrackingId);
+      await reconcileProviderNotification(payment.pesapalTrackingId, status.merchantReference, status.referralState);
 
-      if (status.paymentStatusDescription === 'Completed' && payment.status !== 'completed') {
+      if (status.referralState === 'completed' && status.merchantReference === payment.orderId && !['completed', 'reversed'].includes(payment.status)) {
         await pesapalService.updatePaymentStatus(payment.orderId, 'completed', status.paymentMethod, status.confirmationCode);
         await pesapalService.activateSubscription(payment.userId, payment.tier, payment.pesapalTrackingId);
         const [user] = await db.select().from(users).where(eq(users.id, payment.userId)).limit(1);
@@ -5485,7 +5489,7 @@ export function registerSubscriptionRoutes(app: any) {
           } catch (e) { console.error("Receipt email failed:", e); }
         }
         return res.json({ updated: true, newStatus: 'completed', pesapalStatus: status.paymentStatusDescription });
-      } else if (status.paymentStatusDescription === 'Failed') {
+      } else if (status.referralState === 'failed') {
         await pesapalService.updatePaymentStatus(payment.orderId, 'failed');
         return res.json({ updated: true, newStatus: 'failed', pesapalStatus: status.paymentStatusDescription });
       } else {

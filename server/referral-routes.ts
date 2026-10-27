@@ -7,6 +7,7 @@ import { camelRow, enqueueNotification, getReferralPolicy, recordReferralCommiss
   referralActivity, referralDetail, settleHeldCommissions, transaction } from "./referral-store";
 import { referralApplicationOwnerAlert } from "./owner-alerts";
 import type { OwnerAlert } from "./owner-alerts";
+import { applyProviderReview, verifyCommissionPayments } from "./referral-reconciliation";
 
 function fail(message: string, status = 400): never { throw Object.assign(new Error(message), { status }); }
 function route(fn: (req: any, res: Response) => Promise<any>) {
@@ -112,6 +113,15 @@ export function registerReferralRoutes(app: Express) {
       affiliate: null, policy: await getReferralPolicy(), commissions: [], payouts: [], balances: [], activity: [], referrals: [],
     });
   }));
+  app.post("/api/referrals/me/check-payments", rateLimit({ windowMs: 60000, max: 3 }), route(async (req, res) => {
+    const affiliate = await ownAffiliate(req);
+    if (!affiliate) fail("Apply to the referral program first", 404);
+    await transaction(async client => {
+      await verifyCommissionPayments(client, { affiliateId: affiliate.id });
+      await settleHeldCommissions(client);
+    });
+    res.json({ success: true });
+  }));
   app.patch("/api/referrals/me/payout-details", route(async (req, res) => {
     const data = z.object({ payoutMethod: z.enum(["paypal", "bank"]), payoutDetails: z.string().trim().min(5).max(1000) }).parse(req.body);
     const affiliate = await ownAffiliate(req);
@@ -125,6 +135,8 @@ export function registerReferralRoutes(app: Express) {
   }));
   app.post("/api/referrals/me/payouts", route(async (req, res) => {
     const { currency } = z.object({ currency: z.string().regex(/^[A-Z]{3}$/) }).parse(req.body);
+    const affiliateToVerify = await ownAffiliate(req);
+    if (affiliateToVerify) await transaction(client => verifyCommissionPayments(client, { affiliateId: affiliateToVerify.id }));
     const result = await transaction(async client => {
       const affiliate = await ownAffiliate(req, client);
       if (!affiliate || affiliate.status !== "approved") fail("Only approved partners can request a payout");
@@ -134,7 +146,8 @@ export function registerReferralRoutes(app: Express) {
       if (!profile?.payout_method || !profile.payout_details) fail("Save payout details first");
       await settleHeldCommissions(client);
       const { rows: commissions } = await client.query(`SELECT * FROM referral_commissions
-        WHERE affiliate_id=$1 AND currency=$2 AND status='available' AND payout_id IS NULL FOR UPDATE`, [affiliate.id, currency]);
+        WHERE affiliate_id=$1 AND currency=$2 AND status='available' AND payout_id IS NULL
+        AND NOT review_required AND provider_state='completed' AND provider_checked_at>now()-interval '5 minutes' FOR UPDATE`, [affiliate.id, currency]);
       const amount = commissions.reduce((n, c) => n + c.amount, 0);
       const minimum = policy.minimumByCurrency[currency];
       if (!minimum) fail("The founder must configure a payout minimum for this currency");
@@ -143,6 +156,8 @@ export function registerReferralRoutes(app: Express) {
       await client.query(`INSERT INTO referral_payouts(id,affiliate_id,currency,amount,method,details)
         VALUES($1,$2,$3,$4,$5,$6)`, [id, affiliate.id, currency, amount, profile.payout_method, profile.payout_details]);
       await client.query("UPDATE referral_commissions SET payout_id=$1 WHERE id=ANY($2::text[])", [id, commissions.map(c => c.id)]);
+      await client.query(`INSERT INTO referral_payout_items(payout_id,commission_id,amount)
+        SELECT payout_id,id,amount FROM referral_commissions WHERE payout_id=$1`, [id]);
       await referralActivity(client, affiliate.id, req.referralUser.id, "payout_requested", `${currency} ${(amount / 100).toFixed(2)}`);
       return id;
     });
@@ -150,6 +165,26 @@ export function registerReferralRoutes(app: Express) {
   }));
 
   app.use("/api/referrals/owner", owner);
+  app.post("/api/referrals/owner/:id/check-payments", route(async (req, res) => {
+    await transaction(client => verifyCommissionPayments(client, { affiliateId: req.params.id }));
+    await transaction(client => settleHeldCommissions(client));
+    res.json({ success: true });
+  }));
+  app.post("/api/referrals/owner/adjustments/:id", route(async (req, res) => {
+    const data = z.object({ status: z.enum(["recovered", "waived"]), amount: z.number().int().positive().optional(),
+      reference: z.string().trim().min(3).max(250), note: z.string().trim().min(3).max(2000) }).parse(req.body);
+    await transaction(async client => {
+      const { rows: [adjustment] } = await client.query("SELECT * FROM referral_adjustments WHERE id=$1 FOR UPDATE", [req.params.id]);
+      if (!adjustment) fail("Adjustment not found", 404);
+      if (adjustment.status !== "review") fail("This review is already resolved", 409);
+      if (data.status === "recovered" && (!data.amount || data.amount > adjustment.exposure)) fail("Enter the separately recovered amount, no greater than the paid commission");
+      await client.query(`UPDATE referral_adjustments SET status=$2,recovered_amount=$3,reference=$4,private_note=$5,resolved_at=now() WHERE id=$1`,
+        [adjustment.id, data.status, data.status === "recovered" ? data.amount : 0, data.reference, data.note]);
+      await referralActivity(client, adjustment.affiliate_id, req.referralUser.id, `recovery_${data.status}`,
+        data.status === "recovered" ? `${adjustment.currency} ${(data.amount! / 100).toFixed(2)} recovered separately; earnings unchanged. Remaining exposure closed without deduction.` : "Recovery review closed without a deduction from earnings.");
+    });
+    res.json({ success: true });
+  }));
   app.get("/api/referrals/owner", route(async (req, res) => {
     const q = String(req.query.q || "").slice(0, 120), status = String(req.query.status || "");
     const page = Math.max(1, Math.min(1000000, Math.floor(Number(req.query.page) || 1)));
@@ -208,10 +243,20 @@ export function registerReferralRoutes(app: Express) {
   }));
   app.post("/api/referrals/owner/payouts/:id", route(async (req, res) => {
     const data = z.object({ status: z.enum(["approved", "paid", "rejected"]), reference: z.string().trim().max(250).optional(), note: z.string().trim().max(2000).optional() }).parse(req.body);
+    // Commit safety holds even when the subsequent approval is refused.
+    if (data.status !== "rejected") await transaction(client => verifyCommissionPayments(client, { payoutId: req.params.id }));
     await transaction(async client => {
       const { rows: [payout] } = await client.query("SELECT * FROM referral_payouts WHERE id=$1 FOR UPDATE", [req.params.id]);
       if (!payout) fail("Payout not found", 404);
       if (["paid", "rejected"].includes(payout.status)) fail("This payout is already finalized", 409);
+      if (payout.status === "blocked" && data.status !== "rejected") fail("Payment review blocked this payout. Reject it to release unaffected earnings, then request a new payout.");
+      if (data.status !== "rejected") {
+        const { rows: [check] } = await client.query(`SELECT count(*)::int AS total,COALESCE(sum(amount),0)::int AS amount,
+          count(*) FILTER(WHERE status<>'available' OR review_required OR provider_state IS DISTINCT FROM 'completed'
+            OR provider_checked_at IS NULL OR provider_checked_at<=now()-interval '5 minutes')::int AS unsafe
+          FROM referral_commissions WHERE payout_id=$1`, [payout.id]);
+        if (!check.total || check.unsafe || check.amount !== payout.amount) fail("Payout payment verification is incomplete. Recheck payments before approval.");
+      }
       if (data.status === "paid" && (payout.status !== "approved" || !data.reference)) fail("Approve first, then provide the actual transfer reference before marking paid");
       await client.query("UPDATE referral_payouts SET status=$2,reference=$3,note=$4,updated_at=now() WHERE id=$1", [payout.id, data.status, data.reference || null, data.note || null]);
       if (data.status === "paid") await client.query("UPDATE referral_commissions SET status='paid' WHERE payout_id=$1", [payout.id]);
@@ -221,13 +266,20 @@ export function registerReferralRoutes(app: Express) {
     res.json({ success: true });
   }));
   app.post("/api/referrals/owner/commissions/:id", route(async (req, res) => {
-    const data = z.object({ action: z.enum(["release", "reverse"]), note: z.string().trim().min(3).max(2000) }).parse(req.body);
+    const data = z.object({ action: z.enum(["release", "reverse", "flag"]), note: z.string().trim().min(3).max(2000) }).parse(req.body);
+    if (data.action === "release") await transaction(client => verifyCommissionPayments(client, { commissionId: req.params.id }));
     await transaction(async client => {
       const { rows: [commission] } = await client.query("SELECT * FROM referral_commissions WHERE id=$1 FOR UPDATE", [req.params.id]);
       if (!commission) fail("Commission not found", 404);
+      if (data.action === "flag") {
+        await applyProviderReview(client, commission.payment_id, "unknown", true);
+        await referralActivity(client, commission.affiliate_id, req.referralUser.id, "external_refund_dispute_evidence", data.note, true);
+        return;
+      }
       if (commission.payout_id || ["paid", "reversed"].includes(commission.status)) fail("Finalize/reject the payout first; paid or reversed commissions cannot be edited");
-      if (data.action === "release" && commission.status !== "held") fail("Only held commissions can be released");
-      await client.query("UPDATE referral_commissions SET status=$2,note=$3 WHERE id=$1", [commission.id, data.action === "release" ? "available" : "reversed", data.note]);
+      if (data.action === "release" && (!["held", "review"].includes(commission.status) || commission.provider_state !== "completed" ||
+        !commission.provider_checked_at || Date.now()-new Date(commission.provider_checked_at).getTime()>=300000)) fail("A fresh provider-confirmed completed payment is required to release this commission");
+      await client.query("UPDATE referral_commissions SET status=$2,note=$3,review_required=false WHERE id=$1", [commission.id, data.action === "release" ? "available" : "reversed", data.note]);
       await referralActivity(client, commission.affiliate_id, req.referralUser.id, `commission_${data.action}`, `Commission ${commission.id.slice(0, 8)}`);
       await referralActivity(client, commission.affiliate_id, req.referralUser.id, "commission_note", data.note, true);
     });

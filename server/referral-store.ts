@@ -35,6 +35,25 @@ export async function initializeReferralSchema() {
       created_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS referral_commissions_partner ON referral_commissions(affiliate_id);
+    CREATE TABLE IF NOT EXISTS referral_payout_items (
+      payout_id text NOT NULL REFERENCES referral_payouts(id),
+      commission_id text NOT NULL REFERENCES referral_commissions(id),
+      amount integer NOT NULL CHECK(amount>0),
+      PRIMARY KEY(payout_id,commission_id)
+    );
+    INSERT INTO referral_payout_items(payout_id,commission_id,amount)
+      SELECT payout_id,id,amount FROM referral_commissions WHERE payout_id IS NOT NULL
+      ON CONFLICT DO NOTHING;
+    ALTER TABLE referral_commissions ADD COLUMN IF NOT EXISTS provider_state text;
+    ALTER TABLE referral_commissions ADD COLUMN IF NOT EXISTS provider_checked_at timestamptz;
+    ALTER TABLE referral_commissions ADD COLUMN IF NOT EXISTS review_required boolean NOT NULL DEFAULT false;
+    CREATE TABLE IF NOT EXISTS referral_adjustments (
+      id text PRIMARY KEY, commission_id text NOT NULL UNIQUE REFERENCES referral_commissions(id),
+      affiliate_id varchar NOT NULL REFERENCES affiliates(id), currency varchar(3) NOT NULL,
+      exposure integer NOT NULL, status text NOT NULL DEFAULT 'review',
+      recovered_amount integer, reference text, private_note text,
+      created_at timestamptz NOT NULL DEFAULT now(), resolved_at timestamptz
+    );
     CREATE TABLE IF NOT EXISTS referral_activity (
       id text PRIMARY KEY, affiliate_id varchar NOT NULL REFERENCES affiliates(id),
       actor_id text, action text NOT NULL, note text,
@@ -64,6 +83,8 @@ export async function transaction<T>(fn: (client: PoolClient) => Promise<T>): Pr
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // One lock order for notifications, reservations and founder financial edits.
+    await client.query("SELECT pg_advisory_xact_lock(1818001)");
     const value = await fn(client);
     await client.query("COMMIT");
     return value;
@@ -111,7 +132,7 @@ export async function recordProviderPaymentStatus(orderId: string, status: strin
     const { rows } = await client.query(`UPDATE payments SET status=$2,
       payment_method=COALESCE(NULLIF($3,''),payment_method),
       confirmation_code=COALESCE(NULLIF($4,''),confirmation_code)
-      WHERE order_id=$1 AND status<>'completed' RETURNING *`,
+      WHERE order_id=$1 AND status NOT IN ('completed','reversed') RETURNING *`,
       [orderId, status, paymentMethod || null, confirmationCode || null]);
     if (status !== "completed" || !rows.length) return;
     // Saving the payment, alert and commission is one transaction. Provider
@@ -138,12 +159,13 @@ export async function recordReferralCommission(paymentId: number, client: Querya
     VALUES($1,$2,$3,$4,$5,$6,$7,now()+($8*interval '1 day'),$9)
     ON CONFLICT(payment_id) DO NOTHING RETURNING id`,
     [crypto.randomUUID(), affiliate.id, payment.id, payment.order_id, commission.amount,
-      commission.currency, policy.holdDays === 0 ? "available" : "held", policy.holdDays, policy]);
+      commission.currency, "held", policy.holdDays, policy]);
   if (rows.length) await referralActivity(client, affiliate.id, null, "commission_recorded", `Order ${payment.order_id}: ${commission.currency} ${(commission.amount / 100).toFixed(2)}`);
 }
 
 export async function settleHeldCommissions(client: Queryable = pool) {
-  await client.query("UPDATE referral_commissions SET status='available' WHERE status='held' AND available_at<=now()");
+  await client.query(`UPDATE referral_commissions SET status='available' WHERE status='held' AND available_at<=now()
+    AND provider_state='completed' AND provider_checked_at>now()-interval '5 minutes' AND NOT review_required`);
 }
 
 export async function referralDetail(affiliateId: string, founder = false) {
@@ -151,17 +173,19 @@ export async function referralDetail(affiliateId: string, founder = false) {
   const { rows: [affiliate] } = await pool.query(`SELECT a.*,r.payout_method,r.payout_details,r.terms_accepted_at
     FROM affiliates a LEFT JOIN referral_profiles r ON r.affiliate_id=a.id WHERE a.id=$1`, [affiliateId]);
   if (!affiliate) return null;
-  const [{ rows: commissions }, { rows: payouts }, { rows: activity }, { rows: referrals }, { rows: [visits] }] = await Promise.all([
+  const [{ rows: commissions }, { rows: payouts }, { rows: activity }, { rows: referrals }, { rows: [visits] }, { rows: adjustments }] = await Promise.all([
     pool.query("SELECT * FROM referral_commissions WHERE affiliate_id=$1 ORDER BY created_at DESC", [affiliateId]),
     pool.query("SELECT * FROM referral_payouts WHERE affiliate_id=$1 ORDER BY created_at DESC", [affiliateId]),
     pool.query(`SELECT id,action,note,created_at FROM referral_activity WHERE affiliate_id=$1 ${founder ? "" : "AND NOT internal"} ORDER BY created_at DESC`, [affiliateId]),
     pool.query(`SELECT ${founder ? "id,first_name,last_name,email," : "id,"} created_at AS joined_at FROM users WHERE referred_by=$1 ORDER BY created_at DESC`, [affiliate.referral_code]),
     pool.query("SELECT count(*)::integer AS count FROM referral_link_visits WHERE affiliate_id=$1", [affiliateId]),
+    pool.query(`SELECT ${founder ? "*" : "id,commission_id,currency,exposure,status,recovered_amount,created_at,resolved_at"}
+      FROM referral_adjustments WHERE affiliate_id=$1 ORDER BY created_at DESC`, [affiliateId]),
   ]);
   const balances = new Map<string, any>();
   for (const commission of commissions) {
     const balance = balances.get(commission.currency) || {
-      currency: commission.currency, held: 0, available: 0, reserved: 0, paid: 0, reversed: 0,
+      currency: commission.currency, held: 0, available: 0, reserved: 0, paid: 0, reversed: 0, review: 0,
     };
     const bucket = commission.status === "available" && commission.payout_id ? "reserved" : commission.status;
     if (bucket in balance) balance[bucket] += commission.amount;
@@ -178,7 +202,12 @@ export async function referralDetail(affiliateId: string, founder = false) {
     }
     return row;
   });
-  return { affiliate: camelRow(affiliate), policy: await getReferralPolicy(), commissions: visibleCommissions,
+  const visibleAdjustments = adjustments.map(a => {
+    const row = { ...camelRow(a), commissionReference: `Referral ${String(a.commission_id).slice(0, 8)}` };
+    if (!founder) delete row.commissionId;
+    return row;
+  });
+  return { affiliate: camelRow(affiliate), policy: await getReferralPolicy(), commissions: visibleCommissions, adjustments: visibleAdjustments,
     payouts: payouts.map(p => { const row = camelRow(p); if (!founder) delete row.note; return row; }),
     balances: Array.from(balances.values()), activity: activity.map(camelRow),
     stats: { linkVisits: visits.count, signups: referrals.length, completedPaymentCount: commissions.filter(c => c.status !== "reversed").length },

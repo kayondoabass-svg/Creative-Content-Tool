@@ -61,11 +61,61 @@ are private. Status changes and financial actions are audited.
   email event and records an eligible commission in one database transaction.
 - Commission uniqueness by payment prevents duplicate callback/IPN/recheck
   credit. Pending and failed payments earn nothing.
-- Held commissions clear after the configured hold period. Founder review can
-  release a hold or reverse an unpaid, unreserved commission with a note.
-- Founder reversal is the supported manual adjustment for refunds/disputes.
-  A paid payout is immutable through these controls; recoveries after a paid
-  commission require separate accounting rather than silently rewriting history.
+- Held commissions clear only after the configured hold period **and** a successful
+  provider check within five minutes. This includes zero-day holds. Partners and
+  the founder can use **Check provider payments**; reading a statement never
+  contacts PesaPal or silently clears an unverified commission.
+- Payout requests, approvals, mark-paid and founder releases verify payment
+  status server-to-server. A failed check is committed as a safety hold even if
+  the requested financial action is refused. The provider lookup has timeouts;
+  a sweep has a bounded network budget and leaves unchecked rows under review.
+- Unknown/error, failed or reversed responses put unpaid commissions under
+  `review`. They are not automatically restored by a later completion or timer.
+  Founder **Resolve and release** requires a fresh completed result and an explicit
+  resolution note. **Reverse** remains an audited action for fully ineligible,
+  unpaid, unreserved commissions.
+- Affected requested/approved payouts become `blocked`, retaining their original
+  amount, members and history. They cannot be approved or marked paid. Reject
+  the blocked request to release its reservations, then request a new payout
+  using only unaffected earnings. There is no silent resizing or cross-currency
+  offset. An immutable payout-item ledger preserves original membership and
+  amounts after rejection/rescheduling. Setup backfills existing reservations;
+  it cannot reconstruct memberships of requests rejected before this feature.
+- Paid payouts and commission amounts/statuses are never rewritten by refund
+  reconciliation. A unique, separate recovery-review ledger entry records the
+  maximum exposed commission, not an established debt. The founder records
+  money **already recovered separately**, with the actual reference and private
+  evidence, or closes the review without recovery. A partial recovery closes
+  remaining exposure without deduction. No unrelated or future earnings are
+  reduced. Duplicate notifications cannot create another recovery.
+- Provider notifications are hints only: callback/IPN/founder recheck retrieves
+  status directly from PesaPal. Delayed completed notifications cannot undo a
+  known reversal. Financial writes share a transaction lock to serialize
+  notification handling, reservations and founder decisions.
+
+### Verified PesaPal contract and limits
+
+Checked against official API 3 documentation on 2026-10-26:
+
+- [GetTransactionStatus](https://developer.pesapal.com/how-to-integrate/e-commerce/api-30-json/gettransactionstatus):
+  `status_code` is 0 INVALID, 1 COMPLETED, 2 FAILED, 3 REVERSED. The sample's
+  `payment_status_code` is empty and must not be substituted for `status_code`.
+  `status: "200"` indicates a successful lookup, **not** a successful payment.
+  Contradictory/missing status, API errors and mismatched merchant reference
+  fail closed; completed checks also match original amount and currency.
+- [RefundRequest](https://developer.pesapal.com/how-to-integrate/e-commerce/api-30-json/refund-request):
+  acceptance means a refund is being processed, not effected. Cards support
+  partial/full refunds; mobile payments only full refunds. No refund requests
+  or charges are issued by this workspace.
+- The documented status lookup supplies no refunded amount and no separate
+  dispute/chargeback status. Do not invent these fields or infer full refund
+  from REVERSED. Conservatively flag the commission for founder review.
+  Use **Flag refund/dispute** with an external provider evidence reference in the
+  required internal review note for partial refunds or disputes known through
+  the merchant portal/support. This flags unpaid commissions or opens a paid
+  recovery review; it does not claim an undocumented automated dispute feed.
+- Partners see only their own review/status/recovery statement entries, with
+  no provider evidence references, private resolution notes or customer identity.
 
 ## Payout workflow
 
@@ -113,5 +163,10 @@ is desired. No authentication or email keys need rotating for this feature.
 - `tsx scripts/test-referral-workspace.ts` runs real PostgreSQL/HTTP lifecycle
   checks inside an empty temporary schema. It does not use existing customer
   records, contact the mail provider, or charge a payment.
+  It stubs all provider HTTP requests and covers refund checks at approval and
+  mark-paid, delayed/duplicate notifications, blocked reservation release and
+  rescheduling, immutable paid entries, capped separate recovery, duplicate
+  recovery rejection, outages, mismatched references, explicit review release,
+  external dispute flags, restart-safe schema setup and partner privacy.
 - Browser verification uses uniquely marked development-only fixtures and
   temporary signed sessions, never a shipped authentication bypass.

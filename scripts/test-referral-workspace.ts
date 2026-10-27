@@ -5,6 +5,33 @@ import express from "express";
 import { pool } from "../server/db";
 import { initializeReferralSchema, recordProviderPaymentStatus } from "../server/referral-store";
 import { registerReferralRoutes } from "../server/referral-routes";
+import { pesapalState, reconcileProviderNotification } from "../server/referral-reconciliation";
+import { getTransactionStatus } from "../server/pesapalService";
+
+const realFetch = globalThis.fetch;
+const provider = new Map<string, any>();
+// Exercise the real status adapter. The process can never send an actual
+// provider request, including authentication, charges, refunds or mail.
+globalThis.fetch = async (input, init) => {
+  const url = String(input);
+  if (url.includes("pay.pesapal.com/v3/api/Auth/RequestToken")) return Response.json({ token: "fixture-only", expiryDate: "2099-01-01" });
+  if (url.includes("pay.pesapal.com/v3/api/Transactions/GetTransactionStatus")) {
+    const trackingId = new URL(url).searchParams.get("orderTrackingId")!;
+    const result = provider.get(trackingId);
+    if (result instanceof Error) throw result;
+    return Response.json(result || { status: "500" });
+  }
+  if (!url.startsWith("http://127.0.0.1:")) throw new Error("Unexpected external request blocked in referral test");
+  return realFetch(input, init);
+};
+function providerResult(order: string, code: number, extra: Record<string, unknown> = {}) {
+  return { status: "200", status_code: code, payment_status_description: ["INVALID", "COMPLETED", "FAILED", "REVERSED"][code],
+    merchant_reference: order, currency: "USD", amount: 15, ...extra };
+}
+async function notification(order: string) {
+  const result = await getTransactionStatus(order);
+  await reconcileProviderNotification(order, result.merchantReference, result.referralState);
+}
 
 const schema = `referral_test_${crypto.randomUUID().replace(/-/g, "")}`;
 const server = express();
@@ -87,6 +114,11 @@ async function main() {
   ]);
   let earnings = await request("/api/referrals/me", partnerId);
   assert.equal(earnings.commissions.length, 1);
+  assert.equal(earnings.balances[0].held, 450, "even zero-day commissions need provider verification");
+  await pool.query("UPDATE payments SET pesapal_tracking_id=order_id WHERE order_id='fixture-order'");
+  provider.set("fixture-order", providerResult("fixture-order", 1));
+  await request(`/api/referrals/owner/${affiliateId}/check-payments`, ownerId, "POST");
+  earnings = await request("/api/referrals/me", partnerId);
   assert.equal(earnings.balances[0].available, 450);
   assert.ok(!JSON.stringify(earnings).includes("new@example.test"));
   assert.equal((await request("/api/referrals/owner/notifications", ownerId)).notifications.length, 3);
@@ -101,8 +133,103 @@ async function main() {
   assert.equal(earnings.balances[0].paid, 450);
   assert.equal(earnings.balances[0].available, 0);
   await request(`/api/referrals/owner/commissions/${earnings.commissions[0].id}`, ownerId, "POST", { action: "reverse", note: "Do not change paid records" }, 400);
+  // Documented contract: HTTP success is not payment completion; status_code is
+  // authoritative and payment_status_code is frequently empty in real replies.
+  assert.equal(pesapalState(providerResult("contract", 3, { payment_status_code: "" })), "reversed");
+  assert.equal(pesapalState(providerResult("contract", 1, { payment_status_description: "Completed" })), "completed");
+  for (const result of [
+    { status: "200", payment_status_code: 1 }, providerResult("x", 1, { status: "500" }),
+    providerResult("x", 3, { payment_status_description: "COMPLETED" }), providerResult("x", 1, { error: { code: "ERR" } }),
+    providerResult("x", 99), { status: "200", message: "Refund request successfully" },
+  ]) assert.equal(pesapalState(result), "unknown");
+
+  let nextPayment = 900010;
+  async function newPayment(order: string) {
+    await pool.query(`INSERT INTO payments(id,user_id,order_id,amount,currency,tier,status,created_at,pesapal_tracking_id)
+      VALUES($1,$2,$3,1500,'USD','monthly','pending',now()+interval '1 second',$3)`, [nextPayment++, applicantId, order]);
+    provider.set(order, providerResult(order, 1));
+    await recordProviderPaymentStatus(order, "completed");
+    await request(`/api/referrals/owner/${affiliateId}/check-payments`, ownerId, "POST");
+    return (await pool.query("SELECT * FROM referral_commissions WHERE order_id=$1", [order])).rows[0];
+  }
+  const refunded = await newPayment("refund-reserved");
+  const unrelated = await newPayment("unrelated-earnings");
+  const reserved = await request("/api/referrals/me/payouts", partnerId, "POST", { currency: "USD" });
+  provider.set("refund-reserved", providerResult("refund-reserved", 3));
+  // Approval itself checks PesaPal, without waiting for an IPN.
+  await request(`/api/referrals/owner/payouts/${reserved.payoutId}`, ownerId, "POST", { status: "approved" }, 400);
+  const beforeDuplicate = (await pool.query("SELECT count(*)::int AS n FROM referral_activity")).rows[0].n;
+  await Promise.all([notification("refund-reserved"), notification("refund-reserved")]);
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM referral_activity")).rows[0].n, beforeDuplicate);
+  let reviewed = await request("/api/referrals/me", partnerId);
+  assert.equal(reviewed.payouts.find((p: any) => p.id === reserved.payoutId).status, "blocked");
+  assert.equal(reviewed.commissions.find((c: any) => c.id === refunded.id).status, "review");
+  assert.equal(reviewed.commissions.find((c: any) => c.id === unrelated.id).status, "available");
+  await request(`/api/referrals/owner/payouts/${reserved.payoutId}`, ownerId, "POST", { status: "paid", reference: "NO-TRANSFER" }, 400);
+  await request(`/api/referrals/owner/payouts/${reserved.payoutId}`, ownerId, "POST", { status: "rejected" });
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM referral_payout_items WHERE payout_id=$1", [reserved.payoutId])).rows[0].n, 2,
+    "rejecting preserves original payout membership for audit");
+  const rescheduled = await request("/api/referrals/me/payouts", partnerId, "POST", { currency: "USD" });
+  assert.equal((await pool.query("SELECT amount FROM referral_payouts WHERE id=$1", [rescheduled.payoutId])).rows[0].amount, 450);
+  await request(`/api/referrals/owner/commissions/${refunded.id}`, ownerId, "POST", { action: "release", note: "Cannot release a confirmed reversal" }, 400);
+  await request(`/api/referrals/owner/commissions/${refunded.id}`, ownerId, "POST", { action: "reverse", note: "Verified full refund in provider portal" });
+
+  // A reversal arriving after approval must block mark-paid too.
+  await request(`/api/referrals/owner/payouts/${rescheduled.payoutId}`, ownerId, "POST", { status: "approved" });
+  provider.set("unrelated-earnings", providerResult("unrelated-earnings", 3));
+  await request(`/api/referrals/owner/payouts/${rescheduled.payoutId}`, ownerId, "POST", { status: "paid", reference: "NO-TRANSFER" }, 400);
+  await request(`/api/referrals/owner/payouts/${rescheduled.payoutId}`, ownerId, "POST", { status: "rejected" });
+
+  // Paid refunds: preserve the paid payout and original commission forever.
+  const originalPaid = earnings.commissions[0].id;
+  provider.set("fixture-order", providerResult("fixture-order", 3));
+  await Promise.all([notification("fixture-order"), notification("fixture-order")]);
+  reviewed = await request("/api/referrals/me", partnerId);
+  assert.equal(reviewed.commissions.find((c: any) => c.id === originalPaid).status, "paid");
+  assert.equal(reviewed.payouts.find((p: any) => p.id === payout.payoutId).status, "paid");
+  assert.equal(reviewed.balances[0].paid, 450);
+  assert.equal(reviewed.adjustments.length, 1);
+  assert.equal(reviewed.adjustments[0].commissionReference, `Referral ${originalPaid.slice(0, 8)}`);
+  assert.equal(reviewed.adjustments[0].commissionId, undefined);
+  const adjustmentId = reviewed.adjustments[0].id;
+  await request(`/api/referrals/owner/adjustments/${adjustmentId}`, partnerId, "POST", { status: "waived", reference: "private-proof", note: "private recovery evidence" }, 403);
+  await request(`/api/referrals/owner/adjustments/${adjustmentId}`, ownerId, "POST", { status: "recovered", amount: 451, reference: "private-proof", note: "private recovery evidence" }, 400);
+  await request(`/api/referrals/owner/adjustments/${adjustmentId}`, ownerId, "POST", { status: "recovered", amount: 200, reference: "private-proof", note: "private recovery evidence" });
+  await notification("fixture-order");
+  reviewed = await request("/api/referrals/me", partnerId);
+  assert.equal(reviewed.adjustments.length, 1);
+  assert.equal(reviewed.adjustments[0].recoveredAmount, 200);
+  assert.ok(!JSON.stringify(reviewed).includes("private-proof"));
+  assert.ok(!JSON.stringify(reviewed).includes("private recovery evidence"));
+  assert.equal(reviewed.balances[0].paid, 450);
+  await request(`/api/referrals/owner/adjustments/${adjustmentId}`, ownerId, "POST", { status: "waived", reference: "duplicate", note: "Do not repeat recovery" }, 409);
+  assert.equal((await request("/api/referrals/me", otherId)).adjustments.length, 0);
+
+  // A delayed completion notification cannot resurrect a reversed payment.
+  provider.set("fixture-order", providerResult("fixture-order", 1));
+  await notification("fixture-order");
+  await recordProviderPaymentStatus("fixture-order", "completed");
+  assert.equal((await pool.query("SELECT status FROM payments WHERE order_id='fixture-order'")).rows[0].status, "reversed");
+  assert.equal((await pool.query("SELECT provider_state FROM referral_commissions WHERE id=$1", [originalPaid])).rows[0].provider_state, "reversed");
+
+  // Outages and inconsistent identity fail closed, but can be explicitly
+  // resolved after a fresh check, never merely by a hold-period timer.
+  const uncertain = await newPayment("uncertain-payment");
+  provider.set("uncertain-payment", new Error("Simulated timeout"));
+  await request(`/api/referrals/owner/${affiliateId}/check-payments`, ownerId, "POST");
+  assert.equal((await pool.query("SELECT status FROM referral_commissions WHERE id=$1", [uncertain.id])).rows[0].status, "review");
+  provider.set("uncertain-payment", providerResult("uncertain-payment", 1, { merchant_reference: "wrong-order" }));
+  await request(`/api/referrals/owner/commissions/${uncertain.id}`, ownerId, "POST", { action: "release", note: "Wrong identity must stay held" }, 400);
+  provider.set("uncertain-payment", providerResult("uncertain-payment", 1));
+  await request(`/api/referrals/owner/commissions/${uncertain.id}`, ownerId, "POST", { action: "release", note: "Confirmed provider identity and completion" });
+  await request(`/api/referrals/owner/commissions/${uncertain.id}`, ownerId, "POST", { action: "flag", note: "External provider dispute case: PRIVATE-DISPUTE" });
+  assert.ok(!JSON.stringify(await request("/api/referrals/me", partnerId)).includes("PRIVATE-DISPUTE"));
+  await request(`/api/referrals/owner/commissions/${uncertain.id}`, ownerId, "POST", { action: "release", note: "Dispute resolved with provider evidence" });
+  await request(`/api/referrals/owner/commissions/${originalPaid}`, ownerId, "POST", { action: "flag", note: "Duplicate external evidence" });
+  await initializeReferralSchema(); // Restart-safe, no duplicate paid adjustments.
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM referral_adjustments")).rows[0].n, 1);
   await request(`/api/referrals/owner/${affiliateId}`, ownerId, "PATCH", { status: "suspended" });
-  assert.equal((await request("/api/referrals/me", partnerId)).commissions.length, 1);
+  assert.equal((await request("/api/referrals/me", partnerId)).commissions.length, 4);
   await request("/api/referrals/me/payouts", partnerId, "POST", { currency: "USD" }, 400);
   await pool.query("UPDATE users SET email_verified=false WHERE id=$1", [partnerId]);
   await request("/api/referrals/me", partnerId, "GET", undefined, 403);
@@ -111,6 +238,7 @@ async function main() {
 
 main().catch(error => { console.error(error.message); process.exitCode = 1; }).finally(async () => {
   if (http) await new Promise<void>(resolve => http!.close(() => resolve()));
+  globalThis.fetch = realFetch;
   // The generated schema contains only this test's empty clones and fixtures.
   if (/^referral_test_[a-f0-9]{32}$/.test(schema)) await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
   await pool.end();
