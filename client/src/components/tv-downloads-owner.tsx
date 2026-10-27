@@ -38,7 +38,7 @@ export function TVDownloadsOwner() {
         <div className="rounded-lg border p-4 space-y-2" data-testid="github-download-counter">
           <h3 className="font-semibold">GitHub release downloads</h3>
           <p className="text-2xl font-bold">{data.github.available ? data.github.total?.toLocaleString() : "Unavailable"}</p>
-          <p className="text-sm text-muted-foreground">From kayondoabass-svg/Brightboard-TV release assets. Cached for up to 15 minutes; checked {new Date(data.github.checkedAt).toLocaleString()}. GitHub does not identify individual downloaders.</p>
+          <p className="text-sm text-muted-foreground">From published stable source and prebuilt ZIP assets in kayondoabass-svg/Brightboard-TV. Excludes checksums, notes, automatic source archives, clones and installs. Cached for up to 15 minutes; checked {new Date(data.github.checkedAt).toLocaleString()}. GitHub does not identify individual downloaders.</p>
           {!data.github.available && <p role="status" className="text-sm text-destructive">{data.github.error} Website totals remain available.</p>}
           {data.github.available && data.github.assets.length === 0 && <p className="text-sm text-muted-foreground">No GitHub release files have been published yet. Upload ZIPs as release assets on GitHub to track their downloads.</p>}
           {data.github.assets.length > 0 && <ul className="text-sm space-y-1">{data.github.assets.map((asset, i) =>

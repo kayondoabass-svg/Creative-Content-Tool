@@ -27,7 +27,11 @@ export function createGitHubDownloadReader(fetcher: typeof fetch = fetch) {
           const releases = await response.json();
           if (!Array.isArray(releases)) throw new Error("GitHub returned an unexpected response.");
           for (const release of releases) {
+            if (release.draft || release.prerelease) continue;
             for (const asset of release.assets || []) {
+              // Notes/checksums and GitHub's automatic source archives are not
+              // software downloads. Support existing unversioned ZIPs as well.
+              if (!/^BrightboardTV-(?:source|prebuilt)(?:-v\d+\.\d+\.\d+)?\.zip$/.test(asset.name)) continue;
               if (!Number.isSafeInteger(asset.download_count) || asset.download_count < 0) {
                 throw new Error("GitHub returned an invalid download count.");
               }

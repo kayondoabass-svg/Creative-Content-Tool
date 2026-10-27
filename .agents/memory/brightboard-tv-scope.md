@@ -38,6 +38,17 @@ payment, founder-dashboard or customer information.
 original/licensed assets and documentation. Never push the private root repository
 or attach its history to the public project.
 
+Standalone GitHub release publication remains a manual founder upload unless
+the founder explicitly authorizes automated publication.
+
+**Why:** The founder's manual-upload choice must be preserved; preparing release
+files is not permission to publish them.
+
+**How to apply:** Prepare versioned source/prebuilt ZIPs, notes and SHA-256
+checksums, then provide the upload instructions. Do not report the release
+complete until the tagged assets are public and their real download counts
+have been verified.
+
 BrightboardTV software downloads need their own visible founder-only counter,
 website history and GitHub release-download totals, separate from existing
 generated-content reporting.

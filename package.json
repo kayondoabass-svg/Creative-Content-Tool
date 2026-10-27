@@ -8,6 +8,8 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
+    "tv:release:prepare": "node script/prepare-tv-release.mjs",
+    "tv:release:verify": "tsx script/verify-tv-release.ts",
     "auth:check:unit": "tsx --test server/afroaiAuthService.test.ts server/afroaiSessionRoutes.test.ts scripts/auth-live/support.test.ts",
     "auth:check:types": "tsc -p scripts/auth-live/tsconfig.json",
     "auth:check:live": "tsx scripts/auth-live-check.ts",
