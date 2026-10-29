@@ -228,3 +228,45 @@ mtime_ms = 1793241690171
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/aae65d26-f6ee-4737-9d37-1251334c1a5a/f498aaca-7a1a-4dde-a8d0-73c9c8b1eb0b"
 storage_version_token = "1793241700947373"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "h1ZYNDYq-6Nx-ihgy4Ffw"
+uri = "file://generated-artifacts/brightboardtv/v1.0.1/BrightboardTV-source-v1.0.1.zip"
+type = "unspecified"
+title = "BrightboardTV v1.0.1 — Source ZIP"
+description = "Updated editable source with matching internal version numbers. Extract to update your repository; attach the original ZIP to the new release."
+logical_id = "62e0b08b-4b66-43b7-8854-8d4b7b50aed4"
+content_hash = "sha256:115486439fcc95891e45d6d6090eb1781bb2c33e6b3c7abeb80cd70fcd468b65"
+size = 186854
+mtime_ms = 1793245541655
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/62e0b08b-4b66-43b7-8854-8d4b7b50aed4/7575ac1d-7058-4214-948e-7296fcbf7688"
+storage_version_token = "1793245574885014"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "Vjkaojhy4wVOGtCHfIl3M"
+uri = "file://generated-artifacts/brightboardtv/v1.0.1/BrightboardTV-prebuilt-v1.0.1.zip"
+type = "unspecified"
+title = "BrightboardTV v1.0.1 — Ready-to-run ZIP"
+description = "Freshly built standalone application. Attach this ZIP to the new v1.0.1 release."
+logical_id = "80213b6d-2d5f-4bee-baf1-02e556e5c8f9"
+content_hash = "sha256:e9ef188406336068600e09744eb868018a374f60afe89cc328a561798e289035"
+size = 1462233
+mtime_ms = 1793245542675
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/80213b6d-2d5f-4bee-baf1-02e556e5c8f9/1bcc6755-589b-4ddf-9f80-de3a313a5102"
+storage_version_token = "1793245578232960"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "CZ0FZJ_LEg7HovX9xFuAR"
+uri = "file://generated-artifacts/brightboardtv/v1.0.1/SHA256SUMS.txt"
+type = "text"
+title = "v1.0.1 — SHA256SUMS.txt"
+description = "Verified SHA-256 checksums matching these exact two ZIP files. Attach alongside both ZIPs."
+logical_id = "2e31ac6f-5d8e-40aa-abab-c1ff23a14dc8"
+content_hash = "sha256:38cc38e80c030cd6bc73aee96409bbe00c74cc5ddb2d363cc8461b97c8d0a4cc"
+size = 198
+mtime_ms = 1793245542823
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/2e31ac6f-5d8e-40aa-abab-c1ff23a14dc8/610d6ad2-6fc9-4a16-a828-ac38500e8644"
+storage_version_token = "1793245579389887"
+content_type = "text/plain"

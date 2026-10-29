@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1
 
 - Local `.pptx` import and merge for supported text, embedded images, basic
   shape outlines and private speaker notes, with progress, cancellation and
@@ -10,6 +10,8 @@
 - Hosted page limits of 20 free, 50 standard and 100 institution/business;
   independent standalone uses the free 20-page ceiling without accounts.
 - Existing oversized presentations remain recoverable without truncation.
+- Presentation size reporting and optional image compression into a separate
+  optimized copy, preserving the original presentation.
 
 ## 1.0.0
 

@@ -1,6 +1,6 @@
 # Manual source upload and GitHub Release
 
-Use **BrightboardTV-source-v1.0.0.zip** for:
+Use **BrightboardTV-source-v1.0.1.zip** for:
 https://github.com/kayondoabass-svg/Brightboard-TV
 
 1. Download and extract the source ZIP.
@@ -28,15 +28,15 @@ Uploading repository files above does **not** create a counted download.
 Once the clean source is committed:
 
 1. Open https://github.com/kayondoabass-svg/Brightboard-TV/releases/new.
-2. Choose **Choose a tag**, enter **v1.0.0**, and choose to create that tag on
+2. Choose **Choose a tag**, enter **v1.0.1**, and choose to create that tag on
    the commit containing the independent source. Never target the private
    BrightBoard website repository or import its history.
-3. Set the title to **BrightboardTV v1.0.0**.
+3. Set the title to **BrightboardTV v1.0.1**.
 4. Paste the supplied `RELEASE-NOTES.md` into the description.
 5. Under **Attach binaries**, upload these three files from the same prepared
    bundle:
-   - `BrightboardTV-source-v1.0.0.zip`
-   - `BrightboardTV-prebuilt-v1.0.0.zip`
+   - `BrightboardTV-source-v1.0.1.zip`
+   - `BrightboardTV-prebuilt-v1.0.1.zip`
    - `SHA256SUMS.txt`
 6. Leave **pre-release** unchecked and click **Publish release**, not just
    **Save draft**. Wait for all uploads to finish before publishing.
@@ -52,14 +52,14 @@ founder's software-download counter either.
 
 Download both ZIPs and `SHA256SUMS.txt` into one folder. On Linux run
 `sha256sum -c SHA256SUMS.txt`; on macOS run `shasum -a 256 -c SHA256SUMS.txt`.
-On Windows use `Get-FileHash .\BrightboardTV-source-v1.0.0.zip -Algorithm SHA256`
+On Windows use `Get-FileHash .\BrightboardTV-source-v1.0.1.zip -Algorithm SHA256`
 and repeat for the prebuilt file, comparing both values with `SHA256SUMS.txt`.
 
 After publication, BrightBoard maintainers can run the read-only check from
 their **private workspace**, not the public source repository:
 
 ```sh
-npm run tv:release:verify -- v1.0.0
+npm run tv:release:verify -- v1.0.1
 ```
 
 It downloads the actual public assets, compares them with the prepared
