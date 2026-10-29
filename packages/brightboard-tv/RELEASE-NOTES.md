@@ -1,9 +1,15 @@
-# BrightboardTV v1.0.1
+# BrightboardTV v1.0.2
 
-An update to the standalone open-source presentation software for teachers,
-speakers and teams. Keep the existing v1.0.0 release and its downloads unchanged.
+A source-alignment and packaging update to the standalone open-source
+presentation software for teachers, speakers and teams. The public repository
+has been updated to match the application source used in these ZIPs.
+Create the new release tag on the updated source commit so GitHub's automatic
+source archives match too. Keep existing v1.0.0 and v1.0.1 releases unchanged.
 
-## New in this update
+## Included application improvements
+
+These features are carried forward from the verified v1.0.1 ZIPs; v1.0.2 does
+not introduce additional application behavior.
 
 - Local `.pptx` PowerPoint import and merge for supported text, embedded images,
   basic shape outlines and private speaker notes, with cancellation and explicit
@@ -29,9 +35,9 @@ speakers and teams. Keep the existing v1.0.0 release and its downloads unchanged
 
 ## Downloads
 
-- **BrightboardTV-source-v1.0.1.zip**: editable independent source. Requires
+- **BrightboardTV-source-v1.0.2.zip**: editable independent source. Requires
   Node.js 22.12 or later, `npm ci`, `npm run build`, then `npm start`.
-- **BrightboardTV-prebuilt-v1.0.1.zip**: source plus compiled browser files and
+- **BrightboardTV-prebuilt-v1.0.2.zip**: source plus compiled browser files and
   relay. Requires Node.js 22.12 or later, `npm ci --omit=dev`, then `npm start`.
 - **SHA256SUMS.txt**: SHA-256 checksums for both ZIPs.
 

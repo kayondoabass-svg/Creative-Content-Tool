@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2
+
+- Prepare a version-aligned source and ready-to-run release after updating the
+  public repository to match the verified standalone application.
+- Keep earlier releases and checksums unchanged. This packaging update retains
+  the application features from 1.0.1.
+
 ## 1.0.1
 
 - Local `.pptx` import and merge for supported text, embedded images, basic

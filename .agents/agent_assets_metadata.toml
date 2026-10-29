@@ -270,3 +270,45 @@ mtime_ms = 1793245542823
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/2e31ac6f-5d8e-40aa-abab-c1ff23a14dc8/610d6ad2-6fc9-4a16-a828-ac38500e8644"
 storage_version_token = "1793245579389887"
 content_type = "text/plain"
+
+[[outputs]]
+id = "xfMpa8niUbX6ovxMgvH8k"
+uri = "file://generated-artifacts/brightboardtv/v1.0.2/BrightboardTV-source-v1.0.2.zip"
+type = "unspecified"
+title = "BrightboardTV v1.0.2 — Source ZIP"
+description = "Verified to match every source file in public main at commit 15671e5. Attach the ZIP to the new v1.0.2 release; the repository source is already updated."
+logical_id = "d62b1617-897f-4a54-a114-d4c21661b9e4"
+content_hash = "sha256:0396369097ffd28997e3343558ec67e1063593a79b5b74e387c5531d3f6224b3"
+size = 187197
+mtime_ms = 1793246316187
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/d62b1617-897f-4a54-a114-d4c21661b9e4/dfe812ac-15a6-4e92-83d8-8f3eda894317"
+storage_version_token = "1793246395351674"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "QnvbQ89MS6eSw934wzYQm"
+uri = "file://generated-artifacts/brightboardtv/v1.0.2/BrightboardTV-prebuilt-v1.0.2.zip"
+type = "unspecified"
+title = "BrightboardTV v1.0.2 — Ready-to-run ZIP"
+description = "Freshly built standalone application with matching v1.0.2 package versions. Attach this ZIP unchanged to the new release."
+logical_id = "05b27acb-e33e-4535-9677-56d1ba0486d9"
+content_hash = "sha256:8354bd461534b3592a9fd830d800f1fec61b127f9f085790bf49200df476e50b"
+size = 1462576
+mtime_ms = 1793246317823
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/05b27acb-e33e-4535-9677-56d1ba0486d9/034ec485-e9b7-457d-a19f-a66d90dfe9a4"
+storage_version_token = "1793246398551625"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "xgetvV_SXUVnszhtBtb7q"
+uri = "file://generated-artifacts/brightboardtv/v1.0.2/SHA256SUMS.txt"
+type = "text"
+title = "v1.0.2 — SHA256SUMS.txt"
+description = "Verified SHA-256 checksums for these exact source and ready-to-run ZIPs. Attach alongside both ZIPs."
+logical_id = "f696552f-fde1-4705-8ac7-0bdadef2365d"
+content_hash = "sha256:5a6ebcd6b82b96d59d172de52516bc19e9f7b245f298638f95dac08e06217e4e"
+size = 198
+mtime_ms = 1793246317979
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/f696552f-fde1-4705-8ac7-0bdadef2365d/d5129b9e-48bd-4be9-82d8-8db797b3eac0"
+storage_version_token = "1793246399773298"
+content_type = "text/plain"

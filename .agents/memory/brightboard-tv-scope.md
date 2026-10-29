@@ -49,6 +49,18 @@ checksums, then provide the upload instructions. Do not report the release
 complete until the tagged assets are public and their real download counts
 have been verified.
 
+Release verification must compare the tagged repository source with the source
+ZIP, not just verify the attached ZIP checksums.
+
+**Why:** A manual release had correct attachments while its tag still pointed
+at older source. GitHub's automatic source archives therefore differed from the
+working application downloads.
+
+**How to apply:** Compare source file Git blob hashes and internal package
+versions against the exact tag commit. Update public source before instructing
+the founder to create a new tag. Preserve existing published tags and assets
+unless explicitly authorized to change them.
+
 BrightboardTV software downloads need their own visible founder-only counter,
 website history and GitHub release-download totals, separate from existing
 generated-content reporting.
