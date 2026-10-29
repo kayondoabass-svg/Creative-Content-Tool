@@ -200,3 +200,31 @@ mtime_ms = 1793121010391
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/5f68ba3a-464e-4f8d-83bf-9b2692842a67/e32284e8-a717-4231-bffa-6bdfada89926"
 storage_version_token = "1793121127988986"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "MY_faej8LC0IntQSRMd-5"
+uri = "file://generated-artifacts/brightboardtv/manual-upload-a448a2c/BrightboardTV-source.zip"
+type = "unspecified"
+title = "BrightboardTV — Source ZIP"
+description = "Editable, independent open-source application. Extract this ZIP and upload the contents of the Brightboard-TV folder to your public repository."
+logical_id = "5bad6485-9b54-4833-8351-2036d37b414f"
+content_hash = "sha256:028e3981fb78f4319ebfbb92eac9fe48c6e7573dfd88d5afc4640ccc932244ee"
+size = 186368
+mtime_ms = 1793241689997
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/5bad6485-9b54-4833-8351-2036d37b414f/bbf13192-6bcd-4141-89b3-0da2cf358059"
+storage_version_token = "1793241697567247"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "rl94UGRZ9jdm_FRY8i1p3"
+uri = "file://generated-artifacts/brightboardtv/manual-upload-a448a2c/BrightboardTV-prebuilt.zip"
+type = "unspecified"
+title = "BrightboardTV — Ready-to-run ZIP"
+description = "Includes the compiled application and setup instructions. Upload this ZIP as a downloadable GitHub Release asset or extract it for standalone installation."
+logical_id = "aae65d26-f6ee-4737-9d37-1251334c1a5a"
+content_hash = "sha256:fce4f7ee8e47118e618668fc377a96a94d0559287efa860873496e00acb5a820"
+size = 1461759
+mtime_ms = 1793241690171
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/aae65d26-f6ee-4737-9d37-1251334c1a5a/f498aaca-7a1a-4dde-a8d0-73c9c8b1eb0b"
+storage_version_token = "1793241700947373"
+content_type = "application/octet-stream"
