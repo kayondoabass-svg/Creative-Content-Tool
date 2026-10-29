@@ -11,6 +11,7 @@ import { MODEL_LIBRARY } from "./models";
 import { useRelay } from "./useRelay";
 import { workspaceStorage } from "./workspace-storage";
 import { useConfirmation } from "./useConfirmation";
+import { useSaveGuard } from "./useSaveGuard";
 import { chooseLocalLessonFile, openLocalLesson, supportsLocalFiles, writeLessonFile, type LocalLessonFile } from "./local-files";
 import { assertPageLimit, FREE_PAGE_LIMIT, verifiedPageLimit, PAGE_LIMIT_DESCRIPTION, replacesEmptyStarter } from "./page-limits";
 import { CloudLibrary } from "./CloudLibrary";
@@ -136,12 +137,12 @@ function App() {
   const mode = params.get("mode") || "edit";
   const [lesson, setLesson] = useState<Lesson>(loadWorkspace);
   const [stage, setStage] = useState<StageState>(() => asStage(lesson));
-  const [saveStatus, setSaveStatus] = useState<"saving" | "saved" | "error">("saving");
-  const autosaveTimer = useRef<number | null>(null);
   const importHandled = useRef(false);
   const linkedFile = useRef<{ handle: LocalLessonFile; lessonId: string } | null>(null);
   const [localFileName, setLocalFileName] = useState("");
+  const [localSnapshot, setLocalSnapshot] = useState<Lesson | null>(null);
   const [fileBusy, setFileBusy] = useState(false);
+  const [localSaving, setLocalSaving] = useState(false);
   const { requestConfirmation, confirmationDialog, confirmationOpen } = useConfirmation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [tool, setTool] = useState<Tool>("select");
@@ -298,16 +299,6 @@ function App() {
     } catch (error) { importHandled.current = false; notify(error instanceof Error ? error.message : "Could not save the BrightBoard import. Your previous draft has been kept.", true); } })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libraryAccess, pageLimit]);
-  useEffect(() => {
-    if (!editor) return;
-    let active = true;
-    setSaveStatus("saving");
-    const id = autosaveTimer.current = window.setTimeout(() => {
-      void workspaceStorage.saveWorkspace(lesson).then(() => { if (active) setSaveStatus("saved"); })
-        .catch(() => { if (active) { setSaveStatus("error"); notify("Device storage could not save this draft. Download a .bbtv backup; your open presentation is still here.", true); } });
-    }, 300);
-    return () => { active = false; window.clearTimeout(id); };
-  }, [lesson, editor, notify]);
   useEffect(() => {
     if (editor && relay.session?.role === "host") {
       if (ignorePublishOnce.current) { ignorePublishOnce.current = false; return; }
@@ -474,14 +465,14 @@ function App() {
   };
   const exportLesson = () => setModal("transfer");
   const loadLesson = async (selected: Lesson) => {
+    if (selected !== liveLesson.current && !await saveGuard.guard()) return false;
     const previous = liveLesson.current;
-    if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
+    saveGuard.stopDebounce();
     // Opening a file must not silently discard the presentation being edited.
     if (selected !== previous) {
       try {
         setLibrary(await workspaceStorage.switchWorkspace(selected, previous));
       } catch {
-        setSaveStatus(previous === workspaceStorage.workspace() ? "saved" : "error");
         notify("Could not back up your current presentation. Export it or free browser storage before opening another file.", true);
         return false;
       }
@@ -498,22 +489,29 @@ function App() {
       assertPageLimit(opened.lesson.pages.length, livePageLimit.current);
       if (await loadLesson(opened.lesson)) {
         linkedFile.current = { handle: opened.handle, lessonId: opened.lesson.id };
+        setLocalSnapshot(opened.lesson);
         setLocalFileName(opened.handle.name);
       }
     } catch (error) { if ((error as Error).name !== "AbortError") notify((error as Error).message || "Could not open the local file.", true); }
     finally { setFileBusy(false); }
   };
   const saveLocalFile = async () => {
-    if (!supportsLocalFiles()) { exportLesson(); return; }
-    setFileBusy(true);
+    if (!supportsLocalFiles()) { exportLesson(); return false; }
+    const snapshot = liveLesson.current;
+    setFileBusy(true); setLocalSaving(true);
     try {
-      const handle = linkedFile.current?.lessonId === lesson.id ? linkedFile.current.handle : await chooseLocalLessonFile(lesson);
-      await writeLessonFile(handle, lesson);
-      linkedFile.current = { handle, lessonId: lesson.id }; setLocalFileName(handle.name);
+      const handle = linkedFile.current?.lessonId === snapshot.id ? linkedFile.current.handle : await chooseLocalLessonFile(snapshot);
+      await writeLessonFile(handle, snapshot);
+      linkedFile.current = { handle, lessonId: snapshot.id }; setLocalFileName(handle.name);
+      setLocalSnapshot(snapshot);
       notify(`Presentation snapshot saved directly to ${handle.name}.`);
-    } catch (error) { if ((error as Error).name !== "AbortError") notify((error as Error).message || "Could not save the local file. Your open presentation is unchanged.", true); }
-    finally { setFileBusy(false); }
+      return true;
+    } catch (error) { if ((error as Error).name !== "AbortError") notify((error as Error).message || "Could not save the local file. Your open presentation is unchanged.", true); return false; }
+    finally { setFileBusy(false); setLocalSaving(false); }
   };
+  const localStale = linkedFile.current?.lessonId === lesson.id && localSnapshot !== lesson;
+  const saveGuard = useSaveGuard(lesson, editor, localStale, localSaving, saveLocalFile);
+  const saveStatus = saveGuard.status;
   const removeFromLibrary = (id: string) => requestConfirmation({
     title: "Delete saved lesson?", confirmLabel: "Delete saved lesson",
     description: "Remove this saved copy from this device? The presentation currently open in the editor is not deleted. Download a backup first if you want to keep the saved copy.",
@@ -760,7 +758,7 @@ function App() {
     title: "Clear this device's workspace?", confirmLabel: "Clear local data",
     description: "This removes this device's draft, local saved lessons, relay credentials and saved names. It does not delete your account or cloud files. Download a .bbtv backup before continuing. This full reset cannot be undone.",
     run: async () => {
-      if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
+      saveGuard.stopDebounce();
       const fresh = newLesson();
       await workspaceStorage.clear(fresh);
       relay.clear(); setLibrary([]); setNames(""); setPicked([]); setUndoStack([]); setRedoStack([]); setSelectedId(null); setReveal(false);
@@ -794,9 +792,9 @@ function App() {
     if (!target) { notify("Allow a presentation tab for BrightboardTV, then try Present again.", true); return; }
     target.opener = null;
     try {
-      await workspaceStorage.saveWorkspace(lesson); setSaveStatus("saved");
+      if (!await saveGuard.flush()) throw new Error("Draft save failed.");
       target.location.replace(`${location.origin}${location.pathname}?mode=display&local=1`);
-    } catch { target.close(); setSaveStatus("error"); notify("Device storage could not save the presentation. Export a .bbtv backup; your editor is unchanged.", true); }
+    } catch { target.close(); notify("Device storage could not save the presentation. Export a .bbtv backup; your editor is unchanged.", true); }
   };
   const dispatchCommand = (cmd: Command) => {
     if (relay.session?.role === "host") void relay.command(cmd);
@@ -816,7 +814,7 @@ function App() {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement || (e.target as HTMLElement)?.isContentEditable) return;
-      if (confirmationOpen) return;
+      if (confirmationOpen || saveGuard.open) return;
       if (editor && !modal && selectedId && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); removeSelected(); return; }
       if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); if (mode === "display") dispatchCommand({ type: "next" }); else choosePage(Math.min(currentIndex + 1, lesson.pages.length - 1)); }
       if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); if (mode === "display") dispatchCommand({ type: "previous" }); else choosePage(Math.max(0, currentIndex - 1)); }
@@ -824,7 +822,7 @@ function App() {
       if (e.key === "Escape") setModal(null);
     };
     window.addEventListener("keydown", key); return () => window.removeEventListener("keydown", key);
-  }, [mode, currentIndex, lesson, undoStack, redoStack, selectedId, modal, confirmationOpen]);
+  }, [mode, currentIndex, lesson, undoStack, redoStack, selectedId, modal, confirmationOpen, saveGuard.open]);
   const changeBackground = (background: Background) => updatePage(p => ({ ...p, background }));
   const randomPick = () => {
     const pool = names.split(/\n|,/).map(x => x.trim()).filter(Boolean);
@@ -925,7 +923,9 @@ function App() {
     </header>
     {relay.error && <div className="notice" style={{ padding: "7px 18px", background: "#fff0e9", color: "#a54838" }}>{relay.error} <button className="button small" onClick={() => relay.clear()}>Dismiss session</button></div>}
     {lesson.pages.length > pageLimit && <div role="alert" className="notice" style={{ padding: "10px 18px", background: "#fff0e9", color: "#a54838" }}>This existing presentation has {lesson.pages.length} pages; your limit is {pageLimit} ({PAGE_LIMIT_DESCRIPTION}). All pages are kept. Remove pages or export a backup and split the lesson before presenting or adding more.</div>}
-    {saveStatus === "error" && <div role="alert" className="notice" style={{ padding: "10px 18px", background: "#fff0e9", color: "#a54838" }}>This draft is not saved on this device. Keep the editor open and <button className="button small" onClick={exportLesson}>Download .bbtv backup</button></div>}
+    {saveStatus === "error" && <div role="alert" className="notice" style={{ padding: "10px 18px", background: "#fff0e9", color: "#a54838" }}>This draft is not saved on this device. Keep the editor open. <button className="button small" onClick={() => void saveGuard.flush()}>Retry draft save</button> <button className="button small" onClick={exportLesson}>Download .bbtv backup</button></div>}
+    {linkedFile.current?.lessonId === lesson.id && <div className="notice" role="status" style={{ padding: "8px 18px" }}>Local file: {localFileName} · {fileBusy ? "Saving file…" : localStale ? "Out of date — browser drafts do not update this file." : "Up to date."} <button className="button small" disabled={fileBusy} onClick={() => void saveLocalFile()}>Save local file</button></div>}
+    {saveGuard.dialog}
     <main className={`workspace${inspectorCollapsed ? " inspector-collapsed" : ""}`}>
       <aside className="rail"><div className="rail-heading"><span>Pages · {lesson.pages.length}/{pageLimit}</span><button className="button icon small" aria-label="Add page" disabled={lesson.pages.length >= pageLimit} title={`${pageLimit}-page limit`} onClick={addPage}><Plus size={17} /></button></div>
         <div className="page-list">{lesson.pages.map(pageThumb)}</div>
@@ -984,7 +984,7 @@ function App() {
         <section className="panel-section"><div className="section-title">Stage clock <Clock3 size={15} /></div><TimerControl state={stage} onCommand={dispatchCommand} open={() => setModal("timer")} /><StopwatchControl /></section>
         {page.model && <section className="panel-section"><div className="section-title">3D scene <Maximize2 size={15} /></div><p className="notice">{page.model.name} · {page.model.attribution} · {page.model.license}</p><div className="row wrap"><button className="button small" onClick={saveCurrentCamera}><Save size={14} /> Save view</button><button className="button small" onClick={resetCameraView}><RotateCcw size={14} /> Reset view</button><button className="button small danger" onClick={() => updatePage(p => ({ ...p, model: undefined }))}><Trash2 size={14} /> Remove model</button></div><p className="notice">Rotate in Select or Move mode. To add a hotspot, close dialogs and tap a point on the model surface. Ink tools pause model gestures.</p>{page.model.hotspots.map(h => <p className="notice" key={h.id}>{h.label} <button className="button small danger" onClick={() => updatePage(p => p.model ? { ...p, model: { ...p.model, hotspots: p.model.hotspots.filter(x => x.id !== h.id) } } : p)}>Remove</button></p>)}</section>}
         <section className="panel-section"><div className="section-title">Export & backup</div><div className="stack"><button className="button" onClick={() => void saveToLibrary()} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={15} /> {cloudBusy ? "Saving…" : "Save to lesson library"}</button>{libraryAccessHelp}<button className="button" onClick={exportLesson}><Download size={15} /> Download .bbtv backup</button><div className="row"><button className="button small" onClick={() => void exportPNG()}><FileImage size={14} /> PNG</button><button className="button small" onClick={() => void exportPDF()}><FileText size={14} /> PDF</button></div><button className="button small" onClick={() => jsonRef.current?.click()}><Import size={14} /> Import lesson file</button></div></section>
-        <section className="panel-section"><div className="section-title">Offline & install</div><p className="notice">{isOnline ? "Your draft saves locally as you work." : "Offline mode: local editing and exports are available. Pairing needs internet."} Browser data can be removed by device settings—download a backup.</p><div className="stack"><button className="button small" onClick={() => void prepareOffline()}><Download size={14} /> Prepare offline</button><button className="button small" onClick={() => void installApp()}><Plus size={14} /> Install BrightboardTV</button>{installMessage && <p className="notice">{installMessage}</p>}</div></section>
+        <section className="panel-section"><div className="section-title">Offline & install</div><p className="notice">{isOnline ? "Browser drafts save locally as you work; linked local files require Save local file." : "Offline mode: local editing and exports are available. Pairing needs internet."} Browser data can be removed by device settings—download a backup. Close warnings and final saves may not run, especially on mobile or when force-closing the app.</p><div className="stack"><button className="button small" onClick={() => void prepareOffline()}><Download size={14} /> Prepare offline</button><button className="button small" onClick={() => void installApp()}><Plus size={14} /> Install BrightboardTV</button>{installMessage && <p className="notice">{installMessage}</p>}</div></section>
         <section className="panel-section"><button className="button small danger" onClick={clearLocal}><Trash2 size={14} /> Clear local workspace & names</button></section>
       </aside>
     </main>

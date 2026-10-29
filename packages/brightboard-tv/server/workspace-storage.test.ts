@@ -96,3 +96,56 @@ test("native file saving commits on close and aborts without closing after faile
   await assert.rejects(writeLessonFile(handle, lesson), /Permission denied/);
   assert.equal(committed, false); assert.equal(aborted, true);
 });
+
+test("pending and failed writes never advertise the new draft as committed; quota retry recovers", async () => {
+  let release!: () => void;
+  let shouldFail = false;
+  let delay = false;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const store = new WorkspaceStorage({
+    read: async () => ({}),
+    write: async () => {
+      if (delay) await gate;
+      if (shouldFail) throw new DOMException("Device quota exceeded", "QuotaExceededError");
+    },
+  });
+  await store.initialize();
+  const original = freshLesson(), next = { ...original, title: "Latest unsaved work" };
+  await store.saveWorkspace(original);
+  delay = true;
+  const pending = store.saveWorkspace(next);
+  await Promise.resolve();
+  assert.equal(store.workspace(), original);
+  shouldFail = true;
+  release();
+  await assert.rejects(pending, { name: "QuotaExceededError" });
+  assert.equal(store.workspace(), original);
+  shouldFail = false;
+  await store.saveWorkspace(next);
+  assert.equal(store.workspace(), next);
+});
+
+test("a rejected local-file permission or failed close does not become a successful save", async () => {
+  const lesson = freshLesson();
+  const handle: LocalLessonFile = {
+    name: "permission-test.bbtv",
+    getFile: async () => { throw new Error("not needed"); },
+    createWritable: async () => { throw new DOMException("Permission rejected", "NotAllowedError"); },
+  };
+  await assert.rejects(writeLessonFile(handle, lesson), { name: "NotAllowedError" });
+  let aborted = false, closed = false;
+  handle.createWritable = async () => ({
+    write: async () => {},
+    close: async () => { throw new DOMException("File permission revoked", "NotAllowedError"); },
+    abort: async () => { aborted = true; },
+  });
+  await assert.rejects(writeLessonFile(handle, lesson), { name: "NotAllowedError" });
+  assert.equal(aborted, true);
+  handle.createWritable = async () => ({
+    write: async () => {},
+    close: async () => { closed = true; },
+    abort: async () => {},
+  });
+  await writeLessonFile(handle, lesson);
+  assert.equal(closed, true);
+});

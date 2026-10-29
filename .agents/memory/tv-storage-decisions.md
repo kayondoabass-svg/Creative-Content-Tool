@@ -9,6 +9,12 @@ The user requested Cloudflare file storage for the hosted application and direct
 
 **How to apply:** Use private Cloudflare storage for hosted presentation files, without moving the existing account database or exposing other customers' files. Keep standalone independent of cloud credentials. Browser access to actual local files must require explicit permission; unsupported devices need visible import/export fallbacks. Durable browser drafts need a large-object store, migration must commit before old copies are removed, and a save indicator must report persistence success rather than network availability.
 
+Browser drafts and linked local files provide separate save guarantees. A committed browser draft must not imply that the linked file is current.
+
+**Why:** Direct file writes are explicit and permission-dependent. A teacher may leave with a recoverable browser draft but still carry an outdated lesson file to another device.
+
+**How to apply:** Preserve stale-file warnings until the matching snapshot actually finishes writing. Never treat a lifecycle flush attempt or starting a download as proof of durable saving; explain mobile close-event limitations and require an explicit choice to leave after downloading.
+
 The approved hosted BrightboardTV page-limit plan is 20 pages for free users, 50 for standard paid users and 100 for business/institution users, replacing the earlier 10-free/20-paid policy.
 
 **Why:** The user explicitly selected “Use 20/50/100 by plan” when reviewing the attached open-source improvement research.
