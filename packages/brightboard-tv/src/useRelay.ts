@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE, type Command, type Peer, type RelaySnapshot, type RelayRole, type StageState } from "./types";
+import { assertRelaySize } from "./presentation-size";
 
 type Session = { id: string; key: string; role: RelayRole; joinCode?: string; expiresAt?: number };
 type RelayState = { session: Session | null; snapshot: RelaySnapshot | null; error: string; pending: boolean; connected: boolean };
@@ -39,6 +40,7 @@ export function useRelay(onState?: (snapshot: RelaySnapshot) => void) {
   const create = useCallback(async (initial: StageState) => {
     update({ pending: true, error: "" });
     try {
+      assertRelaySize(initial);
       const result = await request<{ id: string; hostKey: string; joinCode: string; expiresAt: number }>("/sessions", { method: "POST", body: JSON.stringify({ state: initial }) });
       const session = { id: result.id, key: result.hostKey, role: "host" as const, joinCode: result.joinCode, expiresAt: result.expiresAt };
       persist(session); setJoinCode(result.joinCode); setPeers([]); return session;
@@ -92,6 +94,7 @@ export function useRelay(onState?: (snapshot: RelaySnapshot) => void) {
   const publish = useCallback(async (next: StageState) => {
     const session = state.session; if (!session || session.role !== "host") return;
     try {
+      assertRelaySize(next);
       const result = await request<{ revision: number }>(`/sessions/${encodeURIComponent(session.id)}/state`, { method: "PUT", body: JSON.stringify({ state: next }) }, session.key);
       if (Number.isFinite(result?.revision)) { ownRevision.current = result.revision; revision.current = Math.max(revision.current, result.revision); }
     }

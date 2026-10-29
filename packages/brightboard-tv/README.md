@@ -77,6 +77,21 @@ npx tsc -p tsconfig.json
 
 ### Phone/tablet remote: the QR workflow
 
+**Pair** first shows the actual UTF-8 serialized `.bbtv` and relay sizes.
+Sharing is limited to 12 MB (12 × 1024 × 1024 bytes), with an 8 MB limit per
+encoded image/model. Portable imports and direct local-file saves allow 64 MB.
+If a presentation is too large, choose **Generate optimized preview** to make
+an optional resized/compressed image copy. Compare each page's images before
+downloading the separate `-optimized.bbtv` file or choosing **Open optimized copy**
+to share it. The original is backed up in device recovery copies before opening
+the new lesson; linked local files and account copies are never overwritten by
+optimization. Page order, editable objects and positions, private notes, ink and
+3D models are preserved. Models and GIFs are not compressed. Unsupported or
+unreadable images, and images that would grow, stay unchanged. A copy can still
+exceed the limits; reduce models separately or split the lesson if needed.
+Recovery downloads remain available above 64 MB, but cannot be imported until
+reduced.
+
 1. On the presentation computer, start a sharing session.
 2. Scan the QR with the phone's camera, or open the remote link and enter the
    session ID and six-digit pairing code.

@@ -1,5 +1,6 @@
 import type { Lesson } from "./types";
 import { lessonFromJSON, MAX_LESSON_FILE, safeName } from "./helpers";
+import { lessonBlob } from "./presentation-size";
 
 export type LocalLessonFile = {
   name: string;
@@ -22,7 +23,7 @@ export async function openLocalLesson() {
   return { handle, lesson: lessonFromJSON(await file.text()) };
 }
 export async function writeLessonFile(handle: LocalLessonFile, lesson: Lesson) {
-  const body = new Blob([JSON.stringify(lesson)], { type: "application/json" });
+  const body = lessonBlob(lesson);
   if (body.size > MAX_LESSON_FILE) throw new Error("This .bbtv file exceeds the 64 MB limit. Split the presentation before saving a file.");
   const writer = await handle.createWritable();
   try { await writer.write(body); await writer.close(); }

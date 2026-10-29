@@ -15,10 +15,12 @@ import { chooseLocalLessonFile, openLocalLesson, supportsLocalFiles, writeLesson
 import { assertPageLimit, FREE_PAGE_LIMIT, verifiedPageLimit, PAGE_LIMIT_DESCRIPTION, replacesEmptyStarter } from "./page-limits";
 import { CloudLibrary } from "./CloudLibrary";
 import { CloudLibraryError, openCloudLesson, saveCloudLesson } from "./cloud-library";
+import { PresentationSize } from "./PresentationSize";
+import { formatBytes, hasOversizedRelayAsset, lessonBlob, MAX_RELAY_BYTES, presentationSizes } from "./presentation-size";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 type Tool = "pen" | "highlighter" | "eraser" | "text" | "rect" | "ellipse" | "arrow" | "line" | "select" | "move";
-type Modal = "library" | "share" | "timer" | "names" | "model" | "settings" | "help" | null;
+type Modal = "library" | "share" | "transfer" | "timer" | "names" | "model" | "settings" | "help" | null;
 type LibraryAccessStatus = "checking" | "allowed" | "restricted" | "unavailable";
 type DeviceImportMode = "open" | "merge";
 const colors = ["#183a40", "#197b70", "#d56b51", "#e6a737", "#5368a9", "#805fa2", "#27323a", "#f6fbf4"];
@@ -212,6 +214,8 @@ function App() {
   const currentState = mode === "display" || mode === "remote" ? (remoteStage || stage) : null;
   const editor = mode === "edit";
   const relayStage = useMemo(() => ({ ...stage, lesson, pageIndex: currentIndex }), [stage, lesson, currentIndex]);
+  const transferSizes = useMemo(() => presentationSizes(lesson, relayStage), [lesson, relayStage]);
+  const oversizedRelayAsset = useMemo(() => hasOversizedRelayAsset(lesson), [lesson]);
   const activateTool = (next: Tool) => { setTool(next); setMoveMode(next === "move"); };
 
   const notify = useCallback((message: string, error = false) => {
@@ -468,7 +472,7 @@ function App() {
     }
     finally { setCloudBusy(false); }
   };
-  const exportLesson = () => downloadBlob(new Blob([JSON.stringify(lesson, null, 2)], { type: "application/json" }), `${safeName(lesson.title)}.bbtv`);
+  const exportLesson = () => setModal("transfer");
   const loadLesson = async (selected: Lesson) => {
     const previous = liveLesson.current;
     if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current);
@@ -726,7 +730,26 @@ function App() {
     const clone: Page = JSON.parse(JSON.stringify(page)); clone.id = crypto.randomUUID(); clone.title = `${page.title} copy`;
     updateLesson(l => ({ ...l, pages: [...l.pages.slice(0, currentIndex + 1), clone, ...l.pages.slice(currentIndex + 1)] })); setCurrentIndex(currentIndex + 1);
   };
-  const openShare = async () => { try { assertPageLimit(lesson.pages.length, pageLimit); } catch (error) { notify((error as Error).message, true); return; } if (!relay.session) await relay.create({ ...stage, lesson, pageIndex: currentIndex }); setModal("share"); };
+  const openShare = async () => { setModal(relay.session?.role === "host" ? "share" : "transfer"); };
+  const startSharing = async () => {
+    // Room administration never transfers content: keep revoke/end available even
+    // if subsequent edits can no longer be published.
+    if (relay.session?.role === "host") { setModal("share"); return; }
+    try { assertPageLimit(lesson.pages.length, pageLimit); }
+    catch (error) { notify((error as Error).message, true); return; }
+    if (transferSizes.relay > MAX_RELAY_BYTES || oversizedRelayAsset) return;
+    if (!relay.session) await relay.create(relayStage);
+    setModal("share");
+  };
+  const openOptimizedCopy = async (copy: Lesson) => {
+    assertPageLimit(copy.pages.length, pageLimit);
+    // A fresh identity and no linked handle prevent subsequent saves from overwriting the source.
+    const separate = { ...copy, id: crypto.randomUUID() };
+    if (await loadLesson(separate)) {
+      linkedFile.current = null; setLocalFileName("");
+      setModal("transfer");
+    }
+  };
   const joinSession = async (role: "controller" | "display") => {
     const result = await relay.join(joinIdInput.trim(), joinCodeInput.trim(), deviceName.trim() || "My device", role);
     if (result) { setJoinStatus(result.status); notify(result.status === "pending" ? "Request sent. Ask the presenter to approve this device." : "Connected to presentation."); }
@@ -965,6 +988,15 @@ function App() {
         <section className="panel-section"><button className="button small danger" onClick={clearLocal}><Trash2 size={14} /> Clear local workspace & names</button></section>
       </aside>
     </main>
+    {modal === "transfer" && <ModalShell title="Presentation size & optimized copy" close={() => setModal(null)}>
+      <PresentationSize lesson={lesson} relayState={relayStage} onOpenCopy={openOptimizedCopy} />
+      <div className="row wrap" style={{ marginTop: 16 }}>
+        <button className="button" onClick={() => downloadBlob(lessonBlob(lesson), `${safeName(lesson.title)}.bbtv`)}><Download size={15} /> Download original .bbtv</button>
+        <button className="button primary" disabled={relay.session?.role !== "host" && (relay.pending || transferSizes.relay > MAX_RELAY_BYTES || oversizedRelayAsset || lesson.pages.length > pageLimit)} onClick={() => void startSharing()}><Share2 size={15} /> {relay.session?.role === "host" ? "Manage connected screens" : "Start sharing"}</button>
+      </div>
+      <p className="notice">Sharing sends the current presentation. To share an optimized version, preview it and choose Open optimized copy first. Downloads over 64 MB are recovery backups and cannot be reimported until reduced. Models are not compressed.</p>
+      {lesson.pages.length > pageLimit && <p role="alert" className="notice">Your {pageLimit}-page limit must be met before sharing. Downloading a recovery backup remains available.</p>}
+    </ModalShell>}
     <input ref={fileRef} type="file" accept="image/*" hidden onChange={importImage} /><input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden onChange={importPDF} /><input ref={jsonRef} type="file" accept=".bbtv,.json,application/json" hidden onChange={handleImportJSON} /><input ref={libraryImportRef} type="file" accept=".bbtv,.json,.pptx,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/json,application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif" hidden onChange={importFromDevice} />
     {modal === "library" && <ModalShell title="Saved lesson library" close={() => setModal(null)}>
       <div className="row spread" style={{ marginBottom: 14 }}>
@@ -981,12 +1013,12 @@ function App() {
       <p className="notice">These copies stay on this browser, including lessons saved before account libraries were added. Opening another lesson backs up your previous work here. Shared devices may contain another teacher’s local copies; only upload lessons you own.</p>
       {library.length ? <div className="library-grid">{library.map(l => <div key={l.id} className="library-card">
         <button style={{ border: 0, background: "transparent", padding: 0, color: "inherit", textAlign: "left", width: "100%" }} onClick={() => void loadLesson(l)}>
-          <strong>{l.title}</strong><span className="notice">{l.pages.length} pages · Updated {new Date(l.updatedAt).toLocaleDateString()}</span>
+          <strong>{l.title}</strong><span className="notice">{l.pages.length} pages · Updated {new Date(l.updatedAt).toLocaleDateString()} · .bbtv {formatBytes(lessonBlob(l).size)} · 64 MB import limit</span>
         </button>
         <div className="row" style={{ marginTop: 12 }}>
           <button className="button small" onClick={() => void loadLesson(l)}>Open</button>
           {hostedLibrary === true && <button className="button small" disabled={librarySaveDisabled} onClick={() => void saveToLibrary(l)}>Upload to account</button>}
-          <button className="button small" aria-label={`Download ${l.title}`} onClick={() => downloadBlob(new Blob([JSON.stringify(l, null, 2)], { type: "application/json" }), `${safeName(l.title)}.bbtv`)}><Download size={14} /></button>
+          <button className="button small" aria-label={`Download ${l.title}`} onClick={() => downloadBlob(lessonBlob(l), `${safeName(l.title)}.bbtv`)}><Download size={14} /></button>
           <button className="button small danger" aria-label={`Delete ${l.title}`} onClick={() => removeFromLibrary(l.id)}><Trash2 size={14} /></button>
         </div>
       </div>)}</div> : <div className="empty">No device copies yet. Keep a .bbtv backup for offline use.</div>}
@@ -1002,13 +1034,14 @@ function App() {
     {modal === "share" && <ModalShell title="Connect presentation screens" close={() => setModal(null)}><p className="notice">Pair a phone as a remote controller or a connected TV/browser as a read-only display. This syncs this presentation only; it does not mirror other apps or audio.</p>{relay.pending && !relay.session ? <div className="empty">Creating a secure room…</div> : relay.session?.role === "host" ? <div className="split"><div className="phone-card" style={{ textAlign: "center" }}>{qr ? <img className="qr" src={qr} alt="Scan to join BrightboardTV remote" /> : <div className="empty">QR unavailable. Use the link or join code below.</div>}<p className="notice">Scan with your phone camera</p></div><div className="stack"><div className="phone-card"><div className="section-title">Room join code</div><strong style={{ font: "24px DM Mono", letterSpacing: ".15em" }}>{relay.joinCode || "••••••"}</strong><p className="notice">Share the code with trusted devices. No keys are placed in the link.</p><button className="button small" onClick={() => void copyText(relay.joinCode)}><Copy size={14} /> Copy code</button><button className="button small" onClick={() => void rotateCode()}><RotateCcw size={14} /> Rotate code</button></div><div className="phone-card"><div className="section-title">Join URL</div><button className="button small" onClick={() => void copyText(`${location.origin}${location.pathname}?mode=remote#id=${relay.session?.id}&code=${relay.joinCode}`)}><Link2 size={14} /> Copy pairing link</button><p className="notice">QR contains room ID and join code only, not your secret host key.</p></div></div></div> : <div className="empty">Could not create a relay room. {relay.error || "Check your connection and try again."}<button className="button small" onClick={() => void relay.create(asStage(lesson))}>Retry</button></div>}
       {relay.session?.role === "host" && <><div className="section-title" style={{ marginTop: 16 }}>Connected devices · approval required</div>{relay.peers.length ? relay.peers.map(peer => <div className="phone-card row spread" key={peer.id}><div><strong>{peer.name}</strong><div className="notice">{peer.role} · {peer.status}</div></div>{peer.status === "pending" ? <div className="row"><button className="button small primary" onClick={() => void relay.peerAction(peer.id, true)}><Check size={14} /> Approve</button><button className="button small danger" onClick={() => void relay.peerAction(peer.id, false)}>Deny</button></div> : <button className="button small danger" onClick={() => void relay.peerAction(peer.id, false)}>Revoke</button>}</div>) : <div className="empty">No devices yet. A controller request appears here for your approval; displays join read-only.</div>}<div className="row spread" style={{ marginTop: 15 }}><span className="notice">Room expires after 4 hours. Session exists in memory only.</span><button className="button small danger" onClick={() => { if (window.confirm("End this room for all connected devices? Your local draft remains safe.")) { void relay.end(); setModal(null); } }}>End room</button></div></>}
       <div className="phone-card"><div className="section-title">Joining another device</div><div className="split"><div><label className="field-label">Room ID</label><input className="input" value={joinIdInput} onChange={e => setJoinIdInput(e.target.value)} placeholder="Paste room ID" /><label className="field-label">Join code</label><input className="input" value={joinCodeInput} onChange={e => setJoinCodeInput(e.target.value)} placeholder="6-digit code" /></div><div><label className="field-label">Device name</label><input className="input" value={deviceName} onChange={e => setDeviceName(e.target.value)} /><button className="button small" style={{ marginTop: 10 }} onClick={() => void joinSession("controller")}>Join as controller</button><button className="button small" style={{ marginTop: 10 }} onClick={() => void joinSession("display")}>Join read-only display</button></div></div><p className="notice">A remote control request must be approved by the presenter. Read-only displays join immediately.</p></div>
+      {relay.session?.role === "host" && (transferSizes.relay > MAX_RELAY_BYTES || oversizedRelayAsset || lesson.pages.length > pageLimit) && <p className="notice" role="alert">Current changes exceed a sharing limit and are not syncing. Connected screens keep the last successfully shared version. You can still revoke devices, rotate the code or end this room. <button className="button small" onClick={() => setModal("transfer")}>Review size & optimize</button></p>}
       {relay.error && <p className="notice" style={{ color: "#a54838" }}>{relay.error}</p>}
       </ModalShell>}
     {confirmationDialog}
     {modal === "timer" && <ModalShell title="Set a stage timer" close={() => setModal(null)}><label className="field-label">Duration in minutes</label><input className="input" type="number" min="1" max="240" value={Math.round(timerSeconds / 60)} onChange={e => setTimerSeconds(Math.min(14400, Math.max(60, Number(e.target.value) * 60)))} /><div className="row" style={{ marginTop: 16 }}><button className="button primary" onClick={() => { dispatchCommand({ type: "timer", seconds: timerSeconds, running: true }); setModal(null); }}>Start timer</button><button className="button" onClick={() => { dispatchCommand({ type: "timer", seconds: timerSeconds, running: false }); setModal(null); }}>Set without starting</button></div></ModalShell>}
     {modal === "names" && <ModalShell title="People & groups" close={() => setModal(null)}><p className="notice">Names stay on this device. Clear them from the local workspace controls when finished.</p><textarea className="textarea" placeholder={"Add names, one per line\nAvery\nSam"} value={names} onChange={e => setNames(e.target.value)} /><div className="row wrap" style={{ marginTop: 12 }}><label className="field-label">Group size <input className="width-select" type="number" min="1" max="20" value={groupSize} onChange={e => setGroupSize(Math.max(1, Number(e.target.value)))} /></label><button className="button primary" onClick={randomPick}>Pick names</button><button className="button" onClick={createGroups}>Make groups</button><button className="button small" onClick={namesSaved}><Save size={14} /> Save names</button></div>{picked.length > 0 && <div className="phone-card">{picked.map((name, i) => <div key={`${name}-${i}`} style={{ padding: 7, borderBottom: "1px solid var(--line)" }}>{name}</div>)}</div>}</ModalShell>}
     {modal === "model" && <ModalShell title="3D model library" close={() => setModal(null)}><p className="notice">Schematic educational visuals. Not medical models. Library assets are provided by the BrightboardTV host; uploaded models are embedded into your lesson backup.</p><div className="library-grid">{MODEL_LIBRARY.map(model => <button className="library-card" key={model.id} onClick={() => addModel(model.id)}><strong>{model.name}</strong><span className="notice">{model.description}</span><span className="notice" style={{ display: "block", marginTop: 8 }}>{model.attribution} · {model.license}</span></button>)}</div>{!MODEL_LIBRARY.length && <div className="empty">No bundled models were found in this build.</div>}<div className="row" style={{ marginTop: 14 }}><button className="button" onClick={() => document.getElementById("model-file")?.click()}><Upload size={15} /> Import .glb model</button><input id="model-file" type="file" accept=".glb,model/gltf-binary" hidden onChange={uploadModel} /></div>{page.model && <div className="phone-card"><strong>Current scene: {page.model.name}</strong><p className="notice">Close this library and tap a visible model surface to add a hotspot. A hit position and normal are required; no guessed location is saved.</p><button className="button small danger" onClick={() => updatePage(p => ({ ...p, model: undefined }))}>Remove current</button></div>}</ModalShell>}
-    {modal === "settings" && <ModalShell title="Workspace tools" close={() => setModal(null)}><p className="notice">Your presentation limit: {pageLimit} pages. Free: 10 pages. Paid: 20 pages.</p><div className="library-grid">
+    {modal === "settings" && <ModalShell title="Workspace tools" close={() => setModal(null)}><p className="notice">Your presentation limit: {pageLimit} pages ({PAGE_LIMIT_DESCRIPTION}).</p><p className="notice" role="status">Current .bbtv: {formatBytes(transferSizes.file)}. Local-file saves and imports have a 64 MB limit; relay sharing has a 12 MB limit. <button className="button small" onClick={() => setModal("transfer")}>Size & optimize</button></p><div className="library-grid">
       <button className="library-card" onClick={() => setModal("library")}><strong><BookOpen size={16} /> Saved lessons & import</strong><span className="notice">Open the library or import from this device.</span></button>
       <button className="library-card" onClick={clearBoard}><strong><Eraser size={16} /> Clear current page</strong><span className="notice">Remove page content with confirmation. Undo remains available.</span></button>
       <button className="library-card" onClick={exportLesson}><strong><Download size={16} /> Download .bbtv backup</strong><span className="notice">Keep a portable copy even if browser saving fails.</span></button>

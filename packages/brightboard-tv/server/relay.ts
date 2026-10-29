@@ -3,11 +3,12 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto
 import { z } from "zod";
 import type { StageState, Command, RelayRole, Peer } from "../src/types";
 import { FREE_PAGE_LIMIT, LEGACY_PAGE_LIMIT, verifiedPageLimit, PAGE_LIMIT_DESCRIPTION } from "../src/page-limits";
+import { MAX_RELAY_ASSET_LENGTH, MAX_RELAY_BYTES } from "../src/presentation-size";
 
 const n = z.number().finite();
 const unit = n.min(0).max(1);
 const point = z.object({ x: unit, y: unit });
-const asset = z.string().max(8 * 1024 * 1024).refine(v =>
+const asset = z.string().max(MAX_RELAY_ASSET_LENGTH).refine(v =>
   /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=\s]+$/.test(v) ||
   /^https:\/\/[^\s<>"']+$/.test(v), "Use a raster image or HTTPS image");
 const hotspot = z.object({
@@ -32,7 +33,7 @@ export const lessonSchema = z.object({
       fontSize: n.min(1).max(400).optional(),
     })).max(1000),
     model: z.object({
-      src: z.string().max(8 * 1024 * 1024).refine(v =>
+      src: z.string().max(MAX_RELAY_ASSET_LENGTH).refine(v =>
         /^\/tv-assets\/models\/[a-z0-9-]+\.glb$/.test(v) ||
         /^data:model\/gltf-binary;base64,[A-Za-z0-9+/=\s]+$/.test(v), "Use a supplied or uploaded GLB"),
       name: z.string().max(200), attribution: z.string().max(1000), license: z.string().max(1000),
@@ -151,7 +152,7 @@ export function createTvRelay(options: { now?: () => number; ttl?: number; maxRo
     return { room, who, key };
   }
   function parseState(body: any) {
-    if (Buffer.byteLength(JSON.stringify(body) || "") > 12 * 1024 * 1024) return null;
+    if (Buffer.byteLength(JSON.stringify(body) || "") > MAX_RELAY_BYTES) return null;
     return stateSchema.parse(body) as StageState;
   }
   router.get("/health", (_req, res) => res.json({ ok: true, transport: "https-long-poll", offlinePairing: false, hostedLibrary: options.hostedLibrary === true }));
