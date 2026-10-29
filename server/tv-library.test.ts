@@ -119,7 +119,7 @@ test("private durable account libraries: ownership, uploads, expiry, quotas and 
     });
     await t.test("invalid uploads, remote assets, mismatched IDs and page overflow are rejected without modifying saved data", async () => {
       for (const invalid of [{}, { ...lesson, id: "different" }, { ...lesson, pages: [null] },
-        { ...lesson, pages: Array.from({ length: 21 }, () => blankPage()) },
+        { ...lesson, pages: Array.from({ length: 51 }, () => blankPage()) },
         { ...lesson, pages: [{ ...lesson.pages[0], objects: [{ ...lesson.pages[0].objects[0], src: "https://external.example/private.png" }] }] }]) {
         assert.equal((await request("alice", `/${lesson.id}`, "PUT", invalid, revision)).status, 400);
       }

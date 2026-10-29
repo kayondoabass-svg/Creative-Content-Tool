@@ -9,7 +9,7 @@ import { initializeReferralSchema } from "./referral-store";
 import { startReferralNotificationWorker } from "./referral-notifications";
 import { createTvRelay } from "../packages/brightboard-tv/server/relay";
 import { getUserById } from "./customAuthService";
-import { canSaveTVLibrary } from "./tv-library-access";
+import { tvPageLimit } from "./tv-library-access";
 import { afroaiSessionGuard } from "./afroaiSessionGuard";
 import { paymentSecurityHeaders } from "./payment-security";
 import { initializePaymentCheckoutSchema } from "./payment-checkout-schema";
@@ -93,7 +93,7 @@ app.use((req, res, next) => {
   await initializeTVLibrary(pool);
   const tvRelay = createTvRelay({ hostedLibrary: true, pageLimitForRequest: async (req: any) => {
     const user = req.session?.userId ? await getUserById(req.session.userId) : null;
-    return canSaveTVLibrary(user) ? 20 : 10;
+    return tvPageLimit(user);
   } });
   httpServer.on("close", () => tvRelay.close());
   const tvDirectory = process.env.NODE_ENV === "production"

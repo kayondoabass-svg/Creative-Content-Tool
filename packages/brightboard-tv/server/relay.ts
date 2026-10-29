@@ -2,7 +2,7 @@ import { Router, type Response, type Request } from "express";
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import type { StageState, Command, RelayRole, Peer } from "../src/types";
-import { FREE_PAGE_LIMIT, PAID_PAGE_LIMIT } from "../src/page-limits";
+import { FREE_PAGE_LIMIT, LEGACY_PAGE_LIMIT, verifiedPageLimit, PAGE_LIMIT_DESCRIPTION } from "../src/page-limits";
 
 const n = z.number().finite();
 const unit = n.min(0).max(1);
@@ -38,16 +38,16 @@ export const lessonSchema = z.object({
       name: z.string().max(200), attribution: z.string().max(1000), license: z.string().max(1000),
       hotspots: z.array(hotspot).max(100), cameraOrbit: z.string().max(120).optional(),
     }).optional(),
-  })).min(1).max(60),
+  })).min(1).max(LEGACY_PAGE_LIMIT),
 });
 export const stateSchema = z.object({
-  lesson: lessonSchema, pageIndex: n.int().min(0).max(59), blank: z.boolean(), spotlight: z.boolean(),
+  lesson: lessonSchema, pageIndex: n.int().min(0).max(LEGACY_PAGE_LIMIT - 1), blank: z.boolean(), spotlight: z.boolean(),
   pointer: z.object({ x: unit, y: unit, visible: z.boolean() }),
   timer: z.object({ endsAt: n.min(0).max(9e15).nullable(), remaining: n.min(0).max(86400), running: z.boolean() }),
 }).refine(s => s.pageIndex < s.lesson.pages.length, "Page does not exist");
 export const commandSchema = z.discriminatedUnion("type", [
   ...(["next", "previous", "blank", "spotlight", "reset-view"] as const).map(type => z.object({ type: z.literal(type) })),
-  z.object({ type: z.literal("page"), index: n.int().min(0).max(59) }),
+  z.object({ type: z.literal("page"), index: n.int().min(0).max(LEGACY_PAGE_LIMIT - 1) }),
   z.object({ type: z.literal("pointer"), x: unit, y: unit, visible: z.boolean() }),
   z.object({ type: z.literal("timer"), seconds: n.min(0).max(86400), running: z.boolean() }),
   z.object({ type: z.literal("camera"), orbit: z.string().min(1).max(120) }),
@@ -162,8 +162,8 @@ export function createTvRelay(options: { now?: () => number; ttl?: number; maxRo
     const state = parseState(req.body?.state);
     if (!state) return res.status(413).json({ error: "Presentation is too large to share (12 MB limit). Export it or reduce image sizes." });
     const verifiedLimit = options.hostedLibrary && options.pageLimitForRequest ? await options.pageLimitForRequest(req) : FREE_PAGE_LIMIT;
-    const pageLimit = verifiedLimit === PAID_PAGE_LIMIT ? PAID_PAGE_LIMIT : FREE_PAGE_LIMIT;
-    if (state.lesson.pages.length > pageLimit) return res.status(403).json({ error: `Your presentation limit is ${pageLimit} pages (10 free / 20 paid).` });
+    const pageLimit = verifiedPageLimit(verifiedLimit);
+    if (state.lesson.pages.length > pageLimit) return res.status(403).json({ error: `Your presentation limit is ${pageLimit} pages (${PAGE_LIMIT_DESCRIPTION}).` });
     // Subscription lookup is asynchronous; recheck capacity before allocating.
     if (rooms.size >= (options.maxRooms || 30) || roomBytes() > 64 * 1024 * 1024)
       return res.status(503).json({ error: "Presentation service is at capacity. Try again later." });

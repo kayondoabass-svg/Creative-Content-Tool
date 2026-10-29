@@ -21,7 +21,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import { registerTVDownloadRoutes } from "./tv-downloads";
 import { startContentCleanup } from "./content-retention";
-import { canSaveTVLibrary } from "./tv-library-access";
+import { canSaveTVLibrary, tvPageLimit } from "./tv-library-access";
 import { registerTVLibraryRoutes } from "./tv-library-routes";
 import { TVLibraryStore } from "./tv-library-store";
 
@@ -1466,7 +1466,7 @@ ${pages.map(p => `  <url>
     try {
       const user = req.session?.userId ? await customAuth.getUserById(req.session.userId) : null;
       const canSaveLibrary = canSaveTVLibrary(user);
-      res.json({ canSaveLibrary, maxPages: canSaveLibrary ? 20 : 10 });
+      res.json({ canSaveLibrary, maxPages: tvPageLimit(user) });
     } catch (error) {
       console.error("[TV library] Could not verify subscription", error);
       res.status(503).json({ error: "Unable to verify library access." });

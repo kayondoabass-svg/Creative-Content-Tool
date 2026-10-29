@@ -13,6 +13,7 @@
     "test": "tsx --test server/*.test.ts"
   },
   "dependencies": {
+    "jszip": "^3.10.1",
     "@google/model-viewer": "^4.4.0",
     "express": "^5.0.1",
     "jspdf": "^4.0.0",

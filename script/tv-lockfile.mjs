@@ -23,6 +23,15 @@ function walk(name, from, dev, optional = false) {
   if (!dev) runtime.add(key);
   if (already && (dev || wasRuntime)) return;
   const entry = structuredClone(base.packages[key]);
+  // The workspace firewall approved this package, but its private proxy URL
+  // cannot be resolved by independent users of the public source release.
+  if (entry.resolved) {
+    const url = new URL(entry.resolved);
+    if (url.hostname === "package-firewall.replit.internal" && url.pathname.startsWith("/npm/") &&
+        !url.username && !url.password && !url.search && !url.hash) {
+      entry.resolved = `https://registry.npmjs.org/${url.pathname.slice(5)}`;
+    }
+  }
   packages[key] = entry;
   for (const dep of Object.keys(entry.dependencies || {})) walk(dep, key, dev);
   for (const dep of Object.keys(entry.optionalDependencies || {})) walk(dep, key, dev, true);

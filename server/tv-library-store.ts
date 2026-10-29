@@ -4,6 +4,7 @@ import { gzip, gunzip } from "node:zlib";
 import { promisify } from "node:util";
 import type { Lesson } from "../packages/brightboard-tv/src/types";
 import { MAX_LESSON_FILE, validLesson } from "../packages/brightboard-tv/src/helpers";
+import { BUSINESS_PAGE_LIMIT, PAID_PAGE_LIMIT, verifiedPageLimit } from "../packages/brightboard-tv/src/page-limits";
 
 const compress = promisify(gzip), decompress = promisify(gunzip);
 export const TV_LIBRARY_LIMITS = { maxLessons: 100, maxBytes: 256 * 1024 * 1024, maxLessonBytes: MAX_LESSON_FILE };
@@ -20,13 +21,21 @@ export async function initializeTVLibrary(pool: Pool) {
     user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     lesson_id varchar(120) NOT NULL,
     title varchar(200) NOT NULL,
-    page_count integer NOT NULL CHECK(page_count BETWEEN 1 AND 20),
+    page_count integer NOT NULL CHECK(page_count BETWEEN 1 AND 100),
     byte_count integer NOT NULL CHECK(byte_count BETWEEN 1 AND 67108864),
     document bytea NOT NULL,
     revision uuid NOT NULL,
     updated_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY(user_id, lesson_id)
   )`);
+  // Widen the old constraint without changing or deleting saved documents.
+  await pool.query(`DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='tv_libraries'::regclass
+      AND conname='tv_libraries_page_count_check' AND pg_get_constraintdef(oid) NOT LIKE '%100%') THEN
+      ALTER TABLE tv_libraries DROP CONSTRAINT tv_libraries_page_count_check;
+      ALTER TABLE tv_libraries ADD CONSTRAINT tv_libraries_page_count_check CHECK(page_count BETWEEN 1 AND 100);
+    END IF;
+  END $$`);
 }
 function entry(row: any): LibraryEntry {
   return { id: row.lesson_id, title: row.title, pageCount: row.page_count,
@@ -49,12 +58,12 @@ export class TVLibraryStore {
     if (!rows[0]) throw new LibraryError(404, "Saved lesson not found.");
     return { lesson: await this.decode(rows[0]), revision: rows[0].revision as string };
   }
-  async save(userId: string, id: string, value: unknown, revision?: string) {
+  async save(userId: string, id: string, value: unknown, revision?: string, pageLimit = PAID_PAGE_LIMIT) {
     let valid = false;
     try { valid = validLesson(value); } catch { /* malformed nested fields are invalid too */ }
     if (!valid || !validLibraryId(id) || (value as Lesson).id !== id) throw new LibraryError(400, "This is not a valid BrightboardTV lesson.");
     const lesson = value as Lesson;
-    if (lesson.pages.length > 20) throw new LibraryError(400, "Paid lessons can contain at most 20 pages.");
+    if (lesson.pages.length > Math.min(BUSINESS_PAGE_LIMIT, verifiedPageLimit(pageLimit))) throw new LibraryError(400, `Your account allows at most ${verifiedPageLimit(pageLimit)} pages per lesson.`);
     const raw = Buffer.from(JSON.stringify({ ...lesson, updatedAt: new Date().toISOString() }));
     if (raw.length > this.limits.maxLessonBytes) throw new LibraryError(413, "Lesson is larger than 64 MB. Download a backup and reduce embedded assets.");
     const document = await compress(raw);

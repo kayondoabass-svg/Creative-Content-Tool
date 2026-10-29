@@ -70,7 +70,7 @@ test("device management enforces ownership, provider success, and live revocatio
   let entitlementLookups = 0;
   const tvRelay = createTvRelay({ hostedLibrary: true, pageLimitForRequest: async req => {
     entitlementLookups++;
-    return (req.session as any)?.userId ? 20 : 10;
+    return (req.session as any)?.userId ? 50 : 20;
   } });
   // Match production ordering: the TV relay precedes registerRoutes' guard.
   app.post("/api/tv/sessions", afroaiSessionGuard);
@@ -91,7 +91,7 @@ test("device management enforces ownership, provider success, and live revocatio
   const second = await login("second");
   const secondTv = await login("second");
   const legacy = await login("legacy");
-  const createTv = (cookie = "", pages = 20) => {
+  const createTv = (cookie = "", pages = 50) => {
     const state = initialState();
     state.lesson.pages = Array.from({ length: pages }, (_, i) => blankPage(`Page ${i}`));
     return call("/api/tv/sessions", cookie, "POST", { state });
@@ -102,8 +102,8 @@ test("device management enforces ownership, provider success, and live revocatio
       const paid = await createTv(secondTv);
       assert.equal(paid.status, 201);
       paidRoom = await paid.json();
-      assert.equal((await createTv("", 20)).status, 403);
-      assert.equal((await createTv("", 10)).status, 201);
+      assert.equal((await createTv("", 50)).status, 403);
+      assert.equal((await createTv("", 20)).status, 201);
       assert.equal((await createTv(legacy)).status, 201);
     });
     await t.test("signed-out access rejected; legacy listing and mutations preserve local session", async () => {

@@ -110,12 +110,32 @@ payment or private BrightBoard service.
 
 ### Large lessons and local files
 
-Presentations allow **10 pages free** or **20 pages with a verified paid
-BrightBoard subscription**. The independent standalone defaults to 10 pages,
+Hosted presentations allow **20 pages free**, **50 with a verified standard paid
+BrightBoard subscription**, or **100 with an active institution plan**. The owner
+uses the same bounded 100-page ceiling, not an unlimited bypass.
+The independent standalone defaults to 20 pages,
 without requiring an account. Limits apply to new/duplicated pages, imports,
 merges and presentation sharing. Older larger documents are never truncated:
 they remain available for editing down or backup export, but must fit the current
 limit before presenting. An imported PDF can replace the untouched empty starter.
+
+### PowerPoint import
+
+Use **Library → Choose file to open** or **Choose file to merge** for `.pptx`.
+Processing happens on your device, without a conversion service. Slide order,
+supported text boxes, embedded PNG/JPEG/WebP/GIF images, basic shape outlines and
+private speaker notes are imported. Progress and cancellation are available.
+The existing lesson is not changed until the import has been prepared and checked.
+
+This is not a full PowerPoint renderer: master layouts, backgrounds, fonts, fills,
+rotation, cropping, charts, groups, tables, animations, video and vector images
+may differ or be omitted. Read the import notes. For faithful appearance, export
+PowerPoint to PDF first and import that PDF. Legacy binary `.ppt` files must first
+be saved as `.pptx` or PDF in PowerPoint/LibreOffice.
+
+Files are limited to 25 MB, with bounded archive expansion, image memory and
+lesson size. External linked assets are never fetched. Page limits apply before
+import and again when merging; an oversized import never truncates existing work.
 
 Drafts and the device library use IndexedDB, not the small localStorage quota.
 Existing localStorage drafts, saved lessons and names migrate automatically;

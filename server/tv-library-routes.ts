@@ -1,6 +1,6 @@
 import express, { type RequestHandler, type Express } from "express";
 import rateLimit from "express-rate-limit";
-import { canSaveTVLibrary } from "./tv-library-access";
+import { canSaveTVLibrary, tvPageLimit } from "./tv-library-access";
 import { LibraryError, TVLibraryStore, validLibraryId } from "./tv-library-store";
 
 export function registerTVLibraryRoutes(app: Express, store: TVLibraryStore, getUser: (id: string) => Promise<any>) {
@@ -36,6 +36,7 @@ export function registerTVLibraryRoutes(app: Express, store: TVLibraryStore, get
     try {
       const current = await getUser(res.locals.libraryUserId);
       if (!canSaveTVLibrary(current)) return res.status(403).json({ error: "Your paid access ended during this request. Download a backup; existing account lessons remain available to open and export." });
+      res.locals.pageLimit = tvPageLimit(current);
       next();
     } catch (error) { next(error); }
   });
@@ -44,7 +45,7 @@ export function registerTVLibraryRoutes(app: Express, store: TVLibraryStore, get
   const revision = (req: any) => typeof req.headers["if-match"] === "string" ? req.headers["if-match"] : undefined;
   router.get("/", handle(async (_req, res) => res.json(await store.list(res.locals.libraryUserId))));
   router.get("/:id", handle(async (req, res) => res.json(await store.get(res.locals.libraryUserId, req.params.id))));
-  router.put("/:id", handle(async (req, res) => res.json(await store.save(res.locals.libraryUserId, req.params.id, req.body, revision(req)))));
+  router.put("/:id", handle(async (req, res) => res.json(await store.save(res.locals.libraryUserId, req.params.id, req.body, revision(req), res.locals.pageLimit))));
   router.patch("/:id", handle(async (req, res) => res.json(await store.rename(res.locals.libraryUserId, req.params.id, req.body?.title, revision(req)))));
   router.delete("/:id", handle(async (req, res) => { await store.delete(res.locals.libraryUserId, req.params.id, revision(req)); res.status(204).end(); }));
   router.use((error: any, _req: any, res: any, _next: any) => {

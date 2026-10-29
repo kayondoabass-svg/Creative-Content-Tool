@@ -38,3 +38,60 @@
 .library-access-help{padding:10px 12px;border-radius:9px;background:#edf5f0}
 .library-access-help .button{margin-left:6px}
 @media(max-width:600px){.device-import-panel{padding:11px}.device-import-panel .row .button{flex:1 1 100%}.library-access-help .button{margin:8px 0 0}}
+
+/* Editor layout: keep navigation, stage and presenter tools within their own scroll areas. */
+.workspace{gap:12px;padding:12px 16px 14px;min-width:0}
+.rail{min-width:0;overflow:hidden}
+.rail-heading{flex:none}
+.page-list{flex:1;min-height:0;overscroll-behavior:contain;scrollbar-gutter:stable}
+.center-column{gap:6px;min-height:0}
+.toolbar{gap:5px;flex:none}
+.canvas-wrap{min-height:0;flex:0 0 auto;display:flex;align-items:flex-start;justify-content:center}
+.canvas{width:min(100%,calc((100dvh - 255px)*1.7778));max-height:calc(100dvh - 255px)}
+.canvas-controls{flex:none;min-height:40px}
+.inspector{min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.inspector-head{position:sticky;top:0;z-index:4;background:#f7faf7;display:flex;align-items:center;justify-content:space-between}
+.panel-toggle{flex:none;min-height:36px;padding:0 10px}
+.panel-toggle span{font-size:11px}
+.workspace.inspector-collapsed{grid-template-columns:248px minmax(0,1fr)}
+.workspace.inspector-collapsed .inspector{display:none}
+
+@media(min-width:1101px){
+  .app:has(>.workspace){height:100dvh;overflow:hidden}
+  .workspace{height:calc(100dvh - 68px);overflow:hidden;grid-template-rows:minmax(0,1fr)}
+  .rail,.inspector{height:100%;min-height:0}
+  .center-column{overflow:hidden}
+  .canvas{width:min(100%,calc((100dvh - 255px)*1.7778));max-height:calc(100dvh - 255px)}
+}
+@media(min-width:761px) and (max-width:1100px){
+  .workspace{grid-template-columns:210px minmax(0,1fr);align-items:start}
+  .workspace.inspector-collapsed{grid-template-columns:210px minmax(0,1fr)}
+  .rail{height:min(58dvh,560px);min-height:280px}
+  .center-column{min-width:0}
+  .canvas-wrap{min-height:0}
+  .canvas{width:min(100%,calc(52dvh * 1.7778));max-height:52dvh}
+  .inspector{grid-column:1/-1;display:block;max-height:44dvh;height:auto;min-height:0}
+  .workspace.inspector-collapsed .inspector{display:none}
+}
+@media(max-width:760px){
+  .topbar{height:auto;min-height:58px;flex-wrap:wrap;padding-top:7px;padding-bottom:7px}
+  .lesson-title{order:3;flex:1 0 100%;width:100%;max-width:none;min-width:0}
+  .workspace{gap:8px;padding:8px;overflow:visible}
+  .workspace.inspector-collapsed{display:flex}
+  .rail{height:auto;min-height:0;max-height:220px;overflow:hidden}
+  .rail-heading{padding:9px 11px}
+  .page-list{flex:1;min-height:0;padding:3px 8px 8px;gap:6px;overscroll-behavior-x:contain}
+  .center-column{width:100%;gap:5px;min-height:0}
+  .toolbar{max-width:100%;gap:4px}
+  .panel-toggle{position:sticky;left:0;z-index:2;background:#f8fbf8}
+  .canvas-wrap{width:100%;min-height:0}
+  .canvas{width:100%;max-height:none}
+  .canvas-controls{gap:5px;min-height:42px;flex-wrap:wrap}
+  .inspector{max-height:none;height:auto;overflow:visible;padding:0 12px 12px}
+  .workspace.inspector-collapsed .inspector{display:none}
+}
+@media(max-width:420px){
+  .panel-toggle{padding:0 8px;gap:5px}
+  .panel-toggle span{font-size:10px}
+  .canvas-controls .button{min-height:38px}
+}

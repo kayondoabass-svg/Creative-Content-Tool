@@ -1,6 +1,6 @@
 import type { Lesson, Page, StageState } from "./types";
 import { initialState, newLesson } from "./types";
-import { assertPageLimit, FREE_PAGE_LIMIT } from "./page-limits";
+import { assertPageLimit, FREE_PAGE_LIMIT, LEGACY_PAGE_LIMIT } from "./page-limits";
 
 export const MAX_FILE = 25 * 1024 * 1024;
 export const MAX_LESSON_FILE = 64 * 1024 * 1024;
@@ -10,7 +10,7 @@ export function validLesson(value: unknown): value is Lesson {
   if (!value || typeof value !== "object") return false;
   const x = value as Lesson;
   return x.format === "brightboard-tv" && x.version === 1 && typeof x.id === "string" && typeof x.title === "string" &&
-    x.title.length > 0 && x.title.length <= 200 && typeof x.updatedAt === "string" && Array.isArray(x.pages) && x.pages.length > 0 && x.pages.length <= 60 &&
+    x.title.length > 0 && x.title.length <= 200 && typeof x.updatedAt === "string" && Array.isArray(x.pages) && x.pages.length > 0 && x.pages.length <= LEGACY_PAGE_LIMIT &&
     x.pages.every((p: Page) => p && typeof p.id === "string" && typeof p.title === "string" && p.title.length <= 200 &&
       ["light", "dark", "lined", "grid"].includes(p.background) && Array.isArray(p.ink) && p.ink.length <= 2000 &&
       p.ink.every(s => s && typeof s.id === "string" && /^#[\da-f]{6}$/i.test(s.color) && Number.isFinite(s.width) && s.width >= .1 && s.width <= 100 &&

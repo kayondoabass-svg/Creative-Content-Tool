@@ -13,7 +13,13 @@ The approved hosted BrightboardTV page-limit plan is 20 pages for free users, 50
 
 **Why:** The user explicitly selected “Use 20/50/100 by plan” when reviewing the attached open-source improvement research.
 
-**How to apply:** Treat this as approved planning direction, not proof of implementation. Check current entitlement on the hosted server and apply totals consistently to page creation, duplication, imports, merges and sharing. Preserve oversized documents for recovery rather than truncating them. Standalone and founder limits were not settled by this hosted-limits answer; keep standalone usable without account dependencies and do not infer a founder bypass.
+**How to apply:** Check current entitlement on the hosted server and apply totals consistently to page creation, duplication, imports, merges and sharing. Preserve oversized documents for recovery rather than truncating them. Keep standalone usable without account dependencies and do not infer an unlimited founder bypass.
+
+Adding PowerPoint import must not convert existing content or rewrite saved lessons.
+
+**Why:** The user explicitly clarified, “dont convert old content. just add ppt.”
+
+**How to apply:** PowerPoint is an additional user-selected import option. Leave existing lesson files, page content and stored document formats unchanged; import only the file the user chooses.
 
 Destructive page actions need visible in-app confirmations, not native browser confirmation popups.
 

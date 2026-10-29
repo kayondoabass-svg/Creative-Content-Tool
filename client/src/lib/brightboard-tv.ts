@@ -1,5 +1,5 @@
 import type { Lesson, Page, BoardObject } from "../../../packages/brightboard-tv/src/types";
-import { assertPageLimit, FREE_PAGE_LIMIT, PAID_PAGE_LIMIT, LEGACY_PAGE_LIMIT } from "../../../packages/brightboard-tv/src/page-limits";
+import { assertPageLimit, verifiedPageLimit, LEGACY_PAGE_LIMIT } from "../../../packages/brightboard-tv/src/page-limits";
 const object = (text: string, y: number, fontSize = 32): BoardObject =>
   ({ id: crypto.randomUUID(), type: "text", x: .07, y, width: .86, height: .12, text, color: "#183a40", fontSize });
 function page(title: string, body = "", notes = ""): Page {
@@ -84,7 +84,7 @@ export async function openInBrightboardTV(type: string, content: string, mergeFr
   const response = await fetch("/api/tv/library-access", { credentials: "include", headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error("Could not verify your BrightboardTV page limit. Keep this creation and retry when connected.");
   const access = await response.json();
-  const pageLimit = access.canSaveLibrary === true && access.maxPages === PAID_PAGE_LIMIT ? PAID_PAGE_LIMIT : FREE_PAGE_LIMIT;
+  const pageLimit = verifiedPageLimit(access.maxPages);
   const lesson = await buildBrightboardTVLesson(type, content, pageLimit);
   try { localStorage.setItem("brightboard-tv-import", JSON.stringify({ lesson })); }
   catch { throw new Error("This presentation is too large for the transfer buffer. Download its images or PDF and import them in BrightboardTV."); }
