@@ -22,6 +22,8 @@ import bcrypt from "bcryptjs";
 import { registerTVDownloadRoutes } from "./tv-downloads";
 import { startContentCleanup } from "./content-retention";
 import { canSaveTVLibrary } from "./tv-library-access";
+import { registerTVLibraryRoutes } from "./tv-library-routes";
+import { TVLibraryStore } from "./tv-library-store";
 
 // ── Rate limiters ────────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
@@ -1457,6 +1459,7 @@ ${pages.map(p => `  <url>
   }
 
   registerTVDownloadRoutes(app, isOwnerMiddleware);
+  registerTVLibraryRoutes(app, new TVLibraryStore(pool), customAuth.getUserById);
   const stopContentCleanup = startContentCleanup(storage);
   app.get("/api/tv/library-access", async (req: any, res) => {
     res.setHeader("Cache-Control", "private, no-store");

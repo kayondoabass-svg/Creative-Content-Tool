@@ -411,6 +411,7 @@ export async function getUserById(userId: string) {
     profileImageUrl: user.profileImageUrl,
     subscriptionTier: user.subscriptionTier,
     subscriptionStatus: user.subscriptionStatus,
+    subscriptionEndsAt: user.subscriptionEndsAt,
     emailVerified: user.emailVerified,
     isOwner: user.isOwner,
   };

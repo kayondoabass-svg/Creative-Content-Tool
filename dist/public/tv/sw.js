@@ -1,5 +1,5 @@
 /* Application-only caching. Never intercept BrightBoard accounts or API data. */
-const SHELL = "brightboardtv-f8a6280d9503-shell", ASSETS = "brightboardtv-v1-assets";
+const SHELL = "brightboardtv-8148a96bf77b-shell", ASSETS = "brightboardtv-v1-assets";
 const root = new URL("./", self.location).href;
 self.addEventListener("install", event => {
   event.waitUntil((async () => {

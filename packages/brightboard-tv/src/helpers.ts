@@ -66,7 +66,7 @@ export async function fileToModelDataUrl(file: File): Promise<string> {
   if (file.size > MAX_FILE) throw new Error("Model must be 25 MB or smaller.");
   const bytes = new Uint8Array(await file.arrayBuffer());
   let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + 0x8000)));
   return `data:model/gltf-binary;base64,${btoa(binary)}`;
 }
 export function freshLesson() { return newLesson(); }

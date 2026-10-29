@@ -14,6 +14,8 @@ import { afroaiSessionGuard } from "./afroaiSessionGuard";
 import { paymentSecurityHeaders } from "./payment-security";
 import { initializePaymentCheckoutSchema } from "./payment-checkout-schema";
 import { registerReleaseRoute } from "./release";
+import { pool } from "./db";
+import { initializeTVLibrary } from "./tv-library-store";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -33,16 +35,16 @@ declare module "http" {
   }
 }
 
-app.use(
-  express.json({
-    limit: '50mb',
-    verify: (req, _res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
-);
-
-app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+const defaultJsonParser = express.json({
+  limit: "50mb",
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+});
+const defaultFormParser = express.urlencoded({ extended: false, limit: "50mb" });
+const isLibraryRequest = (req: Request) => /^\/api\/tv\/library(?:\/|$)/.test(req.path);
+// Library uploads are authenticated and entitlement-checked before parsing,
+// with their own bounded 64 MB lesson limit.
+app.use((req, res, next) => isLibraryRequest(req) ? next() : defaultJsonParser(req, res, next));
+app.use((req, res, next) => isLibraryRequest(req) ? next() : defaultFormParser(req, res, next));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -88,6 +90,7 @@ app.use((req, res, next) => {
 (async () => {
   await initializeReferralSchema();
   await initializePaymentCheckoutSchema();
+  await initializeTVLibrary(pool);
   const tvRelay = createTvRelay({ hostedLibrary: true, pageLimitForRequest: async (req: any) => {
     const user = req.session?.userId ? await getUserById(req.session.userId) : null;
     return canSaveTVLibrary(user) ? 20 : 10;

@@ -13,6 +13,8 @@ import { workspaceStorage } from "./workspace-storage";
 import { useConfirmation } from "./useConfirmation";
 import { chooseLocalLessonFile, openLocalLesson, supportsLocalFiles, writeLessonFile, type LocalLessonFile } from "./local-files";
 import { assertPageLimit, FREE_PAGE_LIMIT, PAID_PAGE_LIMIT, replacesEmptyStarter } from "./page-limits";
+import { CloudLibrary } from "./CloudLibrary";
+import { CloudLibraryError, openCloudLesson, saveCloudLesson } from "./cloud-library";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 type Tool = "pen" | "highlighter" | "eraser" | "text" | "rect" | "ellipse" | "arrow" | "line" | "select" | "move";
@@ -153,6 +155,10 @@ function App() {
   const [library, setLibrary] = useState<Lesson[]>(readLibrary);
   const [libraryAccess, setLibraryAccess] = useState<LibraryAccessStatus>("checking");
   const [hostedLibrary, setHostedLibrary] = useState<boolean | null>(null);
+  const [cloudRefresh, setCloudRefresh] = useState(0);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  // Only a version actually opened/saved in this editor may be overwritten.
+  const cloudRevisions = useRef(new Map<string, string>());
   const [pageLimit, setPageLimit] = useState(FREE_PAGE_LIMIT);
   const livePageLimit = useRef(pageLimit);
   livePageLimit.current = pageLimit;
@@ -239,6 +245,12 @@ function App() {
     window.addEventListener("bbtv-toast", fn); return () => window.removeEventListener("bbtv-toast", fn);
   }, [notify]);
   useEffect(() => { void checkLibraryAccess(); }, [checkLibraryAccess]);
+  useEffect(() => {
+    const recheck = () => { void checkLibraryAccess(); };
+    window.addEventListener("focus", recheck);
+    window.addEventListener("online", recheck);
+    return () => { window.removeEventListener("focus", recheck); window.removeEventListener("online", recheck); };
+  }, [checkLibraryAccess]);
   useEffect(() => { const online = () => setOnline(true), offline = () => setOnline(false);
     window.addEventListener("online", online); window.addEventListener("offline", offline);
     const install = (e: Event) => { e.preventDefault?.(); setInstallPrompt(e); };
@@ -414,15 +426,41 @@ function App() {
   const resizeSelected = (direction: number) => updatePage(p => ({ ...p, objects: p.objects.map(o => o.id === selectedId ? { ...o, width: Math.max(.04, Math.min(.9, o.width + direction * .03)), height: Math.max(.04, Math.min(.9, o.height + direction * .02)) } : o) }));
   const toggleLock = () => updatePage(p => ({ ...p, objects: p.objects.map(o => o.id === selectedId ? { ...o, locked: !o.locked } : o) }));
   const removeSelected = () => { updatePage(p => ({ ...p, objects: p.objects.filter(o => o.id !== selectedId) })); setSelectedId(null); };
-  const saveToLibrary = async () => {
+  const saveToLibrary = async (snapshot = lesson) => {
     if (libraryAccess !== "allowed") {
       notify(libraryAccess === "restricted"
         ? "Saved lesson library saving is part of a paid BrightBoard plan. Download a .bbtv backup to keep a copy."
         : "Library access could not be verified. Download a .bbtv backup, reconnect, and retry the access check.", true);
       return;
     }
-    try { assertPageLimit(lesson.pages.length, pageLimit); setLibrary(await workspaceStorage.saveLibrary(lesson)); notify("Saved to your lesson library."); }
-    catch (error) { notify(error instanceof Error ? error.message : "Could not save to library. Export a backup or remove large images.", true); }
+    setCloudBusy(true);
+    try {
+      assertPageLimit(snapshot.pages.length, pageLimit);
+      if (hostedLibrary === true) {
+        const saved = await saveCloudLesson(snapshot, cloudRevisions.current.get(snapshot.id));
+        cloudRevisions.current.set(snapshot.id, saved.revision);
+        setCloudRefresh(value => value + 1);
+        notify("Saved to your private account library. Open it on any signed-in device.");
+      } else if (hostedLibrary === false) {
+        setLibrary(await workspaceStorage.saveLibrary(snapshot)); notify("Saved to this device’s lesson library.");
+      } else throw new Error("Hosting status is unknown. Download a .bbtv backup and retry online.");
+    }
+    catch (error) {
+      if (hostedLibrary === true && error instanceof CloudLibraryError && error.status === 409) {
+        // Never silently replace a version this editor has not seen.
+        try {
+          const latest = await openCloudLesson(snapshot.id);
+          requestConfirmation({ title: "Replace the account copy?", confirmLabel: "Replace account copy",
+            description: `“${latest.lesson.title}” is already saved or changed on another device. Replace it with this editor’s snapshot? Cancel to open or download the account version first. Your device recovery copies stay unchanged.`,
+            run: async () => {
+              const saved = await saveCloudLesson(snapshot, latest.revision);
+              cloudRevisions.current.set(snapshot.id, saved.revision);
+              setCloudRefresh(value => value + 1); notify("Account lesson updated.");
+            } });
+        } catch (failure) { notify(failure instanceof Error ? failure.message : "Could not check the account copy. Download a backup and retry.", true); }
+      } else notify(error instanceof Error ? error.message : "Could not save to library. Export a backup or remove large images.", true);
+    }
+    finally { setCloudBusy(false); }
   };
   const exportLesson = () => downloadBlob(new Blob([JSON.stringify(lesson, null, 2)], { type: "application/json" }), `${safeName(lesson.title)}.bbtv`);
   const loadLesson = async (selected: Lesson) => {
@@ -439,7 +477,7 @@ function App() {
       }
     }
     setUndoStack([]); setRedoStack([]); restoreLesson(selected); setStage(asStage(selected)); setModal(null);
-    notify("Presentation opened. Your previous presentation is kept in the saved library.");
+    notify("Presentation opened. Your previous presentation is kept in device recovery copies.");
     return true;
   };
   const openLocalFile = async () => {
@@ -755,13 +793,13 @@ function App() {
     <div className={`thumb ${p.background}`}><span className="thumb-count">{String(i + 1).padStart(2, "0")}</span><div className="thumb-content">{p.objects.find(o => o.type === "text")?.text || p.title}{p.model ? ` · ${p.model.name}` : ""}</div></div><span className="page-name">{p.title}</span>
   </button>;
   const libraryAccessHelp = libraryAccess === "restricted" && hostedLibrary === true
-    ? <p className="notice library-access-help">Saved lesson library saving is included with paid BrightBoard plans. Free and anonymous accounts can still download backups. <a className="button small" href="/pricing">View plans</a></p>
+    ? <p className="notice library-access-help">Saving, renaming and deleting account lessons require a current paid BrightBoard plan. Sign in to open and download existing account lessons, even after your plan expires. Device recovery copies and exports remain available. <a className="button small" href="/pricing">View plans</a></p>
     : libraryAccess === "unavailable"
       ? <div className="notice library-access-help" role="status">Couldn’t verify library access, so saving is paused to protect your work. Download a .bbtv backup, reconnect, then retry. <button className="button small" onClick={() => void checkLibraryAccess()}>Retry access check</button></div>
       : libraryAccess === "checking"
         ? <p className="notice library-access-help" role="status">Checking library access. Manual saving stays disabled until verified; download a backup if you need a copy now.</p>
         : null;
-  const librarySaveDisabled = libraryAccess !== "allowed";
+  const librarySaveDisabled = libraryAccess !== "allowed" || cloudBusy;
   const librarySaveDisabledReason = libraryAccess === "restricted"
     ? "Saved lesson library is available with paid BrightBoard plans."
     : libraryAccess === "unavailable"
@@ -873,7 +911,7 @@ function App() {
         <section className="panel-section"><div className="section-title">Private presenter notes <Lock size={14} color="#618779" /></div><textarea className="textarea" value={page.notes} placeholder="Talking points, reminders, questions…" onChange={e => updatePage(p => ({ ...p, notes: e.target.value }), false)} /><p className="notice">Only you and approved controller remotes receive these notes. They never appear on the display.</p></section>
         <section className="panel-section"><div className="section-title">Stage clock <Clock3 size={15} /></div><TimerControl state={stage} onCommand={dispatchCommand} open={() => setModal("timer")} /><StopwatchControl /></section>
         {page.model && <section className="panel-section"><div className="section-title">3D scene <Maximize2 size={15} /></div><p className="notice">{page.model.name} · {page.model.attribution} · {page.model.license}</p><div className="row wrap"><button className="button small" onClick={saveCurrentCamera}><Save size={14} /> Save view</button><button className="button small" onClick={resetCameraView}><RotateCcw size={14} /> Reset view</button><button className="button small danger" onClick={() => updatePage(p => ({ ...p, model: undefined }))}><Trash2 size={14} /> Remove model</button></div><p className="notice">Rotate in Select or Move mode. To add a hotspot, close dialogs and tap a point on the model surface. Ink tools pause model gestures.</p>{page.model.hotspots.map(h => <p className="notice" key={h.id}>{h.label} <button className="button small danger" onClick={() => updatePage(p => p.model ? { ...p, model: { ...p.model, hotspots: p.model.hotspots.filter(x => x.id !== h.id) } } : p)}>Remove</button></p>)}</section>}
-        <section className="panel-section"><div className="section-title">Export & backup</div><div className="stack"><button className="button" onClick={saveToLibrary} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={15} /> Save to lesson library</button>{libraryAccessHelp}<button className="button" onClick={exportLesson}><Download size={15} /> Download .bbtv backup</button><div className="row"><button className="button small" onClick={() => void exportPNG()}><FileImage size={14} /> PNG</button><button className="button small" onClick={() => void exportPDF()}><FileText size={14} /> PDF</button></div><button className="button small" onClick={() => jsonRef.current?.click()}><Import size={14} /> Import lesson file</button></div></section>
+        <section className="panel-section"><div className="section-title">Export & backup</div><div className="stack"><button className="button" onClick={() => void saveToLibrary()} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={15} /> {cloudBusy ? "Saving…" : "Save to lesson library"}</button>{libraryAccessHelp}<button className="button" onClick={exportLesson}><Download size={15} /> Download .bbtv backup</button><div className="row"><button className="button small" onClick={() => void exportPNG()}><FileImage size={14} /> PNG</button><button className="button small" onClick={() => void exportPDF()}><FileText size={14} /> PDF</button></div><button className="button small" onClick={() => jsonRef.current?.click()}><Import size={14} /> Import lesson file</button></div></section>
         <section className="panel-section"><div className="section-title">Offline & install</div><p className="notice">{isOnline ? "Your draft saves locally as you work." : "Offline mode: local editing and exports are available. Pairing needs internet."} Browser data can be removed by device settings—download a backup.</p><div className="stack"><button className="button small" onClick={() => void prepareOffline()}><Download size={14} /> Prepare offline</button><button className="button small" onClick={() => void installApp()}><Plus size={14} /> Install BrightboardTV</button>{installMessage && <p className="notice">{installMessage}</p>}</div></section>
         <section className="panel-section"><button className="button small danger" onClick={clearLocal}><Trash2 size={14} /> Clear local workspace & names</button></section>
       </aside>
@@ -881,26 +919,34 @@ function App() {
     <input ref={fileRef} type="file" accept="image/*" hidden onChange={importImage} /><input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden onChange={importPDF} /><input ref={jsonRef} type="file" accept=".bbtv,.json,application/json" hidden onChange={handleImportJSON} /><input ref={libraryImportRef} type="file" accept=".bbtv,.json,application/json,application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif" hidden onChange={importFromDevice} />
     {modal === "library" && <ModalShell title="Saved lesson library" close={() => setModal(null)}>
       <div className="row spread" style={{ marginBottom: 14 }}>
-        <p className="notice">Stored only in this browser. Download backups before clearing site data.</p>
-        <button className="button primary small" onClick={saveToLibrary} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={14} /> Save current</button>
+        <p className="notice">{hostedLibrary === true ? "Save deliberately to your account for cross-device access. Device drafts are not automatically uploaded." : "Device copies remain in this browser. Download backups before clearing site data."}</p>
+        <button className="button primary small" onClick={() => void saveToLibrary()} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={14} /> {cloudBusy ? "Saving…" : "Save current"}</button>
       </div>
       {libraryAccessHelp}
+      {hostedLibrary === true && <CloudLibrary canWrite={!librarySaveDisabled} refreshKey={cloudRefresh}
+        onOpen={async (selected, revision) => { if (await loadLesson(selected)) cloudRevisions.current.set(selected.id, revision); }}
+        confirmDelete={(entry, run) => requestConfirmation({ title: "Delete account lesson?", confirmLabel: "Delete account lesson",
+          description: `Remove “${entry.title}” from your account on all devices? Download a backup first. Device recovery copies and your open presentation are not deleted.`,
+          run: async () => { await run(); cloudRevisions.current.delete(entry.id); notify("Account lesson deleted."); } })} />}
+      <h3>{hostedLibrary === false ? "Device lesson library" : "Device recovery copies (not synced)"}</h3>
+      <p className="notice">These copies stay on this browser, including lessons saved before account libraries were added. Opening another lesson backs up your previous work here. Shared devices may contain another teacher’s local copies; only upload lessons you own.</p>
       {library.length ? <div className="library-grid">{library.map(l => <div key={l.id} className="library-card">
         <button style={{ border: 0, background: "transparent", padding: 0, color: "inherit", textAlign: "left", width: "100%" }} onClick={() => void loadLesson(l)}>
           <strong>{l.title}</strong><span className="notice">{l.pages.length} pages · Updated {new Date(l.updatedAt).toLocaleDateString()}</span>
         </button>
         <div className="row" style={{ marginTop: 12 }}>
           <button className="button small" onClick={() => void loadLesson(l)}>Open</button>
+          {hostedLibrary === true && <button className="button small" disabled={librarySaveDisabled} onClick={() => void saveToLibrary(l)}>Upload to account</button>}
           <button className="button small" aria-label={`Download ${l.title}`} onClick={() => downloadBlob(new Blob([JSON.stringify(l, null, 2)], { type: "application/json" }), `${safeName(l.title)}.bbtv`)}><Download size={14} /></button>
           <button className="button small danger" aria-label={`Delete ${l.title}`} onClick={() => removeFromLibrary(l.id)}><Trash2 size={14} /></button>
         </div>
-      </div>)}</div> : <div className="empty">Your lesson shelf is ready. Save a presentation to keep it here.</div>}
+      </div>)}</div> : <div className="empty">No device copies yet. Keep a .bbtv backup for offline use.</div>}
       <div className="device-import-panel"><div className="row">
         <button className="button" onClick={() => chooseDeviceImport("open")}><Import size={15} /> Choose file to open</button>
         <button className="button primary" onClick={() => chooseDeviceImport("merge")}><Import size={15} /> Choose file to merge</button>
         <button className="button" onClick={exportLesson}><Download size={15} /> Export current</button>
       </div>
-        <p className="notice" role="status">{deviceImportMode === "merge" ? "Merge selected: .bbtv/JSON lesson pages append to your current presentation; its title, notes, models, assets and existing pages stay in place." : "Open selected: a .bbtv/JSON lesson opens as the presentation, with the current lesson backed up in Saved lessons first."}</p>
+        <p className="notice" role="status">{deviceImportMode === "merge" ? "Merge selected: .bbtv/JSON lesson pages append to your current presentation; its title, notes, models, assets and existing pages stay in place." : "Open selected: a .bbtv/JSON lesson opens as the presentation, with the current lesson backed up in device recovery copies first."}</p>
         <p className="notice">Your limit is {pageLimit} pages: 10 free / 20 paid. Imports and merges cannot exceed that total. Supported files: .bbtv or JSON lessons (up to 64 MB), PDFs, and PNG, JPEG, WebP, or GIF images. Individual PDFs, images and models must be 25 MB or smaller. PDF pages are added after the current page, or replace an unused blank starter. An image is placed on the current page. Oversized imports are rejected without removing existing pages.</p>
       </div>
     </ModalShell>}

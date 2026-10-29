@@ -26,3 +26,9 @@ Verify Cloudflare write permissions independently of connection health and read 
 **Why:** A healthy connected OAuth grant could list R2 buckets and read the Workers subdomain while bucket creation returned authentication error 10000. This did not involve any AfroAI key.
 
 **How to apply:** Check the granted permissions and the actual required operation before claiming cloud storage is configured. Resolve Cloudflare authorization through its secure connection flow, not by rotating unrelated application keys.
+
+The account lesson library uses bounded private PostgreSQL binary storage until an application-capable Cloudflare connection is approved. Cloudflare remains the requested direction for hosted file storage; do not claim that account lesson assets are currently stored there.
+
+**Why:** The available Cloudflare connection exposes management tools only, which application code cannot call. Using the existing private database avoids blocking cross-device access or inventing credentials, with atomic ownership, quota and document updates. This is a scoped storage tradeoff, not permission to replace the account database or silently fall back between backends.
+
+**How to apply:** If moving library assets to Cloudflare, first establish runtime upload/read/delete permissions and migrate existing account copies safely. Preserve downloads, account isolation and saved-versus-recent retention boundaries.
