@@ -15,3 +15,16 @@ public probes even when an authenticated origin check succeeds.
 environment. Use read-only origin checks over trusted SSH, and report public
 protection blocks explicitly. Set deployment credentials in GitHub Actions'
 secure settings, never chat or source; workspace secrets are a different store.
+
+BrightboardTV must distinguish the running build, the build deployed on its own
+server, and the latest downloadable GitHub release. Updates remain explicit and
+must preserve the editor's unsaved-work protection.
+
+**Why:** Correct public release downloads coexisted with an older hosted editor.
+Refreshing a browser cannot install code that its server has not deployed, and
+one package version can identify multiple development/hosted builds.
+
+**How to apply:** Show both package version and independent source build identity.
+Do not expose private repository history through standalone metadata. A version
+check must not reload, activate a waiting worker, or clear lesson storage. Before
+an explicit reload, save and recheck any edits made during update preparation.

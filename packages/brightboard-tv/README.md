@@ -1,5 +1,21 @@
 # BrightboardTV
 
+## Version and update checks
+
+The presenter controls show the running application version and a short build
+identifier. **Check for updates** separately checks this server's uncached
+`version.json` and the latest stable public GitHub release. Offline, protected,
+rate-limited and older servers are reported as unavailable, not up to date.
+
+**Save & reload** is offered only when a different build is already deployed on
+this server. It uses the editor's existing unsaved-work guard, checks saving
+again before reloading, and never clears lesson storage. Linked lesson files
+still require an explicit file save. Merely checking never reloads the editor.
+
+A new GitHub release does not update the hosted BrightBoard website or files
+already extracted on a standalone server. Administrators must deploy that build
+first; release links are downloads, not automatic software installation.
+
 **Open-source interactive presentations for teachers, public speakers, CEOs,
 managers, trainers and anyone who wants to present with more interaction.**
 

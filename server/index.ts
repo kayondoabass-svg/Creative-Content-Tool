@@ -99,7 +99,10 @@ app.use((req, res, next) => {
   const tvDirectory = process.env.NODE_ENV === "production"
     ? path.resolve("dist/public/tv") : path.resolve("packages/brightboard-tv/dist");
   app.get(/^\/tv$/, (_req, res) => res.redirect(302, "/tv/"));
-  app.use("/tv", express.static(tvDirectory, { index: "index.html" }));
+  app.use("/tv", express.static(tvDirectory, { index: "index.html", setHeaders(res, file) {
+    if (path.basename(file) === "version.json") res.setHeader("Cache-Control", "no-store");
+    else if (["index.html", "sw.js"].includes(path.basename(file))) res.setHeader("Cache-Control", "no-cache");
+  } }));
   app.use("/tv-assets", express.static(path.join(tvDirectory, "tv-assets")));
   registerChatbotWidget(app);
   await setupAuth(app);

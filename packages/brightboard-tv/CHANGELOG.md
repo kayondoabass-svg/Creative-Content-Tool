@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Visible running version/build and an explicit update check, distinguishing the
+  current server build from published GitHub downloads.
+- Save-guarded reloads for deployed server updates, without clearing lessons or
+  silently applying an update during editing.
+
 ## 1.0.2
 
 - Prepare a version-aligned source and ready-to-run release after updating the

@@ -1,6 +1,9 @@
 /* Application-only caching. Never intercept BrightBoard accounts or API data. */
-const SHELL = "brightboardtv-5be078a18b2b-shell", ASSETS = "brightboardtv-v1-assets";
+const SHELL = "brightboardtv-f751dc1dc7cd-shell", ASSETS = "brightboardtv-v1-assets";
 const root = new URL("./", self.location).href;
+self.addEventListener("message", event => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const response = await fetch(new URL("precache.json", root), { cache: "no-store" });
@@ -21,6 +24,8 @@ self.addEventListener("activate", event => {
 });
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
+  // Version probes must reach the server rather than an old offline response.
+  if (url.href.split("?")[0] === new URL("version.json", root).href) return;
   if (event.request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
   const appPath = new URL(root).pathname;
   if (!url.pathname.startsWith(appPath) && !url.pathname.startsWith("/tv-assets/")) return;

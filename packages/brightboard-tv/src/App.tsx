@@ -18,6 +18,8 @@ import { CloudLibrary } from "./CloudLibrary";
 import { CloudLibraryError, openCloudLesson, saveCloudLesson } from "./cloud-library";
 import { PresentationSize } from "./PresentationSize";
 import { formatBytes, hasOversizedRelayAsset, lessonBlob, MAX_RELAY_BYTES, presentationSizes } from "./presentation-size";
+import { VersionUpdates } from "./VersionUpdates";
+import { prepareServerReload } from "./update-check";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 type Tool = "pen" | "highlighter" | "eraser" | "text" | "rect" | "ellipse" | "arrow" | "line" | "select" | "move";
@@ -512,6 +514,20 @@ function App() {
   const localStale = linkedFile.current?.lessonId === lesson.id && localSnapshot !== lesson;
   const saveGuard = useSaveGuard(lesson, editor, localStale, localSaving, saveLocalFile);
   const saveStatus = saveGuard.status;
+  const applyServerUpdate = async () => {
+    const approvedSnapshot = liveLesson.current;
+    if (!await saveGuard.guard()) return false;
+    await prepareServerReload();
+    if (!await saveGuard.flush()) {
+      notify("Your draft could not be saved. Download a backup before updating.", true);
+      return false;
+    }
+    // Ask again only if editing continued during preparation. Honor an explicit
+    // backup-and-leave choice for an unchanged, already reviewed snapshot.
+    if (liveLesson.current !== approvedSnapshot && !await saveGuard.guard()) return false;
+    location.reload();
+    return true;
+  };
   const removeFromLibrary = (id: string) => requestConfirmation({
     title: "Delete saved lesson?", confirmLabel: "Delete saved lesson",
     description: "Remove this saved copy from this device? The presentation currently open in the editor is not deleted. Download a backup first if you want to keep the saved copy.",
@@ -984,7 +1000,7 @@ function App() {
         <section className="panel-section"><div className="section-title">Stage clock <Clock3 size={15} /></div><TimerControl state={stage} onCommand={dispatchCommand} open={() => setModal("timer")} /><StopwatchControl /></section>
         {page.model && <section className="panel-section"><div className="section-title">3D scene <Maximize2 size={15} /></div><p className="notice">{page.model.name} · {page.model.attribution} · {page.model.license}</p><div className="row wrap"><button className="button small" onClick={saveCurrentCamera}><Save size={14} /> Save view</button><button className="button small" onClick={resetCameraView}><RotateCcw size={14} /> Reset view</button><button className="button small danger" onClick={() => updatePage(p => ({ ...p, model: undefined }))}><Trash2 size={14} /> Remove model</button></div><p className="notice">Rotate in Select or Move mode. To add a hotspot, close dialogs and tap a point on the model surface. Ink tools pause model gestures.</p>{page.model.hotspots.map(h => <p className="notice" key={h.id}>{h.label} <button className="button small danger" onClick={() => updatePage(p => p.model ? { ...p, model: { ...p.model, hotspots: p.model.hotspots.filter(x => x.id !== h.id) } } : p)}>Remove</button></p>)}</section>}
         <section className="panel-section"><div className="section-title">Export & backup</div><div className="stack"><button className="button" onClick={() => void saveToLibrary()} disabled={librarySaveDisabled} title={librarySaveDisabledReason}><Save size={15} /> {cloudBusy ? "Saving…" : "Save to lesson library"}</button>{libraryAccessHelp}<button className="button" onClick={exportLesson}><Download size={15} /> Download .bbtv backup</button><div className="row"><button className="button small" onClick={() => void exportPNG()}><FileImage size={14} /> PNG</button><button className="button small" onClick={() => void exportPDF()}><FileText size={14} /> PDF</button></div><button className="button small" onClick={() => jsonRef.current?.click()}><Import size={14} /> Import lesson file</button></div></section>
-        <section className="panel-section"><div className="section-title">Offline & install</div><p className="notice">{isOnline ? "Browser drafts save locally as you work; linked local files require Save local file." : "Offline mode: local editing and exports are available. Pairing needs internet."} Browser data can be removed by device settings—download a backup. Close warnings and final saves may not run, especially on mobile or when force-closing the app.</p><div className="stack"><button className="button small" onClick={() => void prepareOffline()}><Download size={14} /> Prepare offline</button><button className="button small" onClick={() => void installApp()}><Plus size={14} /> Install BrightboardTV</button>{installMessage && <p className="notice">{installMessage}</p>}</div></section>
+        <section className="panel-section"><div className="section-title">Offline & install</div><p className="notice">{isOnline ? "Browser drafts save locally as you work; linked local files require Save local file." : "Offline mode: local editing and exports are available. Pairing needs internet."} Browser data can be removed by device settings—download a backup. Close warnings and final saves may not run, especially on mobile or when force-closing the app.</p><div className="stack"><button className="button small" onClick={() => void prepareOffline()}><Download size={14} /> Prepare offline</button><button className="button small" onClick={() => void installApp()}><Plus size={14} /> Install BrightboardTV</button>{installMessage && <p className="notice">{installMessage}</p>}</div><VersionUpdates onApplyUpdate={applyServerUpdate} /></section>
         <section className="panel-section"><button className="button small danger" onClick={clearLocal}><Trash2 size={14} /> Clear local workspace & names</button></section>
       </aside>
     </main>

@@ -7,7 +7,10 @@ app.use(express.json({ limit: "13mb" }));
 const relay = createTvRelay();
 app.use("/api/tv", relay.router);
 // Run `npm start` from the repository root. Never serve the source/server folder.
-app.use(express.static(path.resolve("dist"), { index: "index.html" }));
+app.use(express.static(path.resolve("dist"), { index: "index.html", setHeaders(res, file) {
+  if (path.basename(file) === "version.json") res.setHeader("Cache-Control", "no-store");
+  else if (["index.html", "sw.js"].includes(path.basename(file))) res.setHeader("Cache-Control", "no-cache");
+} }));
 app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   res.status(error.status === 413 ? 413 : 500).json({ error: error.status === 413 ? "Presentation exceeds sharing size limit." : "Request failed." });
 });
