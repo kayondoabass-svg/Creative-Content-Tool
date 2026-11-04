@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, UserPlus, Sparkles, Download, Share2, Lightbulb, Image, Presentation, FileText, Video, FileSpreadsheet, Gamepad2, CheckCircle2, ArrowRight, GraduationCap, Clock, Zap, Globe, Shield } from "lucide-react";
 import { Link } from "wouter";
 import { Footer } from "@/components/footer";
-import { useTranslation } from "react-i18next";
+import { useProductPageCopy } from "@/lib/product-page-copy";
+import { CurrentProductTools } from "@/components/current-product-tools";
 import { useEffect } from "react";
 
 const steps = [
@@ -20,15 +21,16 @@ const contentTypes = [
   { icon: FileSpreadsheet, color: "from-orange-500 to-amber-500", titleKey: "howItWorks.typeWorksheetTitle", descKey: "howItWorks.typeWorksheetDesc", examplesKey: "howItWorks.typeWorksheetExamples" },
   { icon: Gamepad2, color: "from-green-500 to-emerald-500", titleKey: "howItWorks.typeGameTitle", descKey: "howItWorks.typeGameDesc", examplesKey: "howItWorks.typeGameExamples" },
   { icon: Video, color: "from-purple-500 to-violet-500", titleKey: "howItWorks.typeVideoTitle", descKey: "howItWorks.typeVideoDesc", examplesKey: "howItWorks.typeVideoExamples" },
+  { icon: Lightbulb, color: "from-violet-500 to-teal-500", titleKey: "howItWorks.typeMindmapTitle", descKey: "howItWorks.typeMindmapDesc", examplesKey: "howItWorks.typeMindmapExamples" },
 ];
 
 export default function HowItWorks() {
-  const { t } = useTranslation();
+  const { t } = useProductPageCopy();
 
   useEffect(() => {
-    document.title = "How BrightBoard Works | AI Content Creation for Teachers";
+    document.title = "How BrightBoard Works | Teacher Studio, TV & Editor";
     const meta = document.querySelector('meta[name="description"]');
-    const desc = "Learn how BrightBoard helps teachers create educational images, presentations, worksheets, games, and video storyboards in four simple steps.";
+    const desc = "Learn how to create teaching materials, use Teacher Studio, present with BrightboardTV, and make images, animation and audio locally in the free BrightBoard Editor.";
     if (meta) meta.setAttribute("content", desc);
     else {
       const m = document.createElement("meta");
@@ -56,6 +58,8 @@ export default function HowItWorks() {
             {t("howItWorks.subtitle")}
           </p>
         </div>
+
+        <CurrentProductTools workflow />
 
         <section className="mb-20">
           <h2 className="text-2xl font-bold text-center mb-12">{t("howItWorks.stepsTitle")}</h2>
@@ -181,6 +185,9 @@ export default function HowItWorks() {
                 </Button>
                 <Button variant="outline" asChild data-testid="button-how-pricing">
                   <Link href="/pricing">{t("common.pricing")}</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/editor">Open free BrightBoard Editor</Link>
                 </Button>
               </div>
             </div>

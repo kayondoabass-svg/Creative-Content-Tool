@@ -396,3 +396,45 @@ mtime_ms = 1793831273983
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/a89b9a6c-5e57-4acf-a56f-a6bad79a4cdc/bc52cc83-be4b-4540-9177-8521dedf1054"
 storage_version_token = "1793831317207126"
 content_type = "text/plain"
+
+[[outputs]]
+id = "5UuHtHkUZpvq8sWtD2yYJ"
+uri = "file://generated-artifacts/brightboard-editor/with-guide/BrightBoard-Editor-source-v1.0.0.zip"
+type = "unspecified"
+title = "BrightBoard Editor source — with usage guide"
+description = "Updated source including src/UsageGuide.tsx. Preserve the src and scripts folders when uploading."
+logical_id = "1c23489d-0df8-451b-8a7c-d9def794bda4"
+content_hash = "sha256:20993f997852a87d889ab28c4bcdbd95c7f9467e2075d5e8c92a03784f74df1c"
+size = 50047
+mtime_ms = 1793833687139
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/1c23489d-0df8-451b-8a7c-d9def794bda4/3212000b-9a8e-4608-9a22-807829530bde"
+storage_version_token = "1793833721975090"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "ALDJe5OGvZgjlNtXKP5MB"
+uri = "file://generated-artifacts/brightboard-editor/with-guide/BrightBoard-Editor-prebuilt-v1.0.0.zip"
+type = "unspecified"
+title = "BrightBoard Editor offline — with usage guide"
+description = "Ready-to-run offline editor with the built-in step-by-step guide. No .env or private backend files."
+logical_id = "2ffc4a44-79c8-463f-8ee0-09b846aa5f79"
+content_hash = "sha256:091f51029f53bc0d7e5685ae21de49c561a3a22c264781a22b1e60093208e9bd"
+size = 151570
+mtime_ms = 1793833687187
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/2ffc4a44-79c8-463f-8ee0-09b846aa5f79/7ea9dbb1-5e50-41bc-8bc6-5498b67602cf"
+storage_version_token = "1793833723861736"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "nqfrRCDaUsx7_L58PYFgl"
+uri = "file://generated-artifacts/brightboard-editor/with-guide/BrightBoard-Editor-SHA256SUMS.txt"
+type = "text"
+title = "Updated guide-edition checksums"
+description = "Checksums for these updated ZIPs; do not use the earlier release checksum file."
+logical_id = "c2d5c5dc-f21f-4927-a7cb-588b184890c0"
+content_hash = "sha256:7f8a1d9bb2f3e6975ed2864a9512fd388930ed71d181208709a19a9e4905895c"
+size = 208
+mtime_ms = 1793833687195
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/c2d5c5dc-f21f-4927-a7cb-588b184890c0/56cc2733-017c-4aa6-abbb-f9ed6b9b6ef5"
+storage_version_token = "1793833725032879"
+content_type = "text/plain"

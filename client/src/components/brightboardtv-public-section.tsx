@@ -10,7 +10,7 @@ export function BrightboardTVPublicSection({ detailed = false }: { detailed?: bo
   const text = (key: string, defaultValue: string) => t(`tvPublic.${key}`, { defaultValue });
   const headingId = detailed ? "tv-features-heading" : "tv-about-heading";
   const highlights: [LucideIcon, string, string, string, string][] = detailed ? [
-    [PenTool, "drawTitle", "Draw, import and explain", "drawText", "Use the whiteboard, explore compatible 3D models, and import PDFs, images or .bbtv lessons. Merge lesson pages without replacing your current presentation."],
+    [PenTool, "drawTitle", "Draw, import and explain", "drawTextCurrent", "Use the whiteboard, explore compatible 3D models, and import .pptx presentations, PDFs, images or .bbtv lessons. Use supported lesson merging within the page limit; not every PowerPoint effect or layout will transfer exactly."],
     [Smartphone, "remoteTitle", "Control it from your phone or tablet", "remoteText", "Pair with a QR code, approve the controller, change pages, use a laser pointer and read private speaker notes while the audience sees the presentation."],
     [Monitor, "displayTitle", "Use ordinary screens too", "displayText", "Connect a computer to a TV or projector, including by HDMI. BrightboardTV synchronises its own presentation; native casting and whole-device screen/audio mirroring depend on your hardware."],
   ] : [
@@ -42,6 +42,6 @@ export function BrightboardTVPublicSection({ detailed = false }: { detailed?: bo
         </ul>
       </div>
     </div>
-    <p className="text-sm text-muted-foreground border-t mt-7 pt-5">{text("plans", "The independent open-source app is free to use and does not require BrightBoard AI keys or a paid account. BrightBoard's hosted AI generation and plans are separate. Manual saving to the hosted lesson library requires a paid plan and stores lessons in that browser; export and device import remain available. New BrightBoard generations stay in private recent history for 24 hours, so download or export anything you want to keep.")}</p>
+    <p className="text-sm text-muted-foreground border-t mt-7 pt-5">{text("plansCurrent", "The independent open-source app is free to use without BrightBoard AI keys or a paid account. The hosted website has 20 free / 50 standard / 100 business pages per presentation. Saving to the account-based hosted lesson library requires eligible access; the standalone edition uses device-local storage. Export and supported device imports remain available. Keep .bbtv backups separately. AI-generated BrightBoard creations stay in private recent history for 24 hours—this is separate from saved lesson files.")}</p>
   </section>;
 }

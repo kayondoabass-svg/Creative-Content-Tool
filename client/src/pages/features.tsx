@@ -4,7 +4,8 @@ import { ArrowLeft, Image, Presentation, FileText, Video, FileSpreadsheet, Gamep
 import { Link } from "wouter";
 import { Footer } from "@/components/footer";
 import { BrightboardTVPublicSection } from "@/components/brightboardtv-public-section";
-import { useTranslation } from "react-i18next";
+import { useProductPageCopy } from "@/lib/product-page-copy";
+import { CurrentProductTools } from "@/components/current-product-tools";
 import { useEffect } from "react";
 
 const featureSections = [
@@ -74,12 +75,12 @@ const platformFeatures = [
 ];
 
 export default function Features() {
-  const { t } = useTranslation();
+  const { t } = useProductPageCopy();
 
   useEffect(() => {
-    document.title = "Features | BrightBoard AI Tools & BrightboardTV";
+    document.title = "Features | BrightBoard Editor, Teacher Studio, TV & AI Tools";
     const meta = document.querySelector('meta[name="description"]');
-    const desc = "Explore BrightBoard AI teaching tools, Teacher Studio and open-source BrightboardTV: interactive presentations, device imports, QR remotes, downloads and self-hosting.";
+    const desc = "Explore BrightBoard AI teaching resources, Teacher Studio, BrightboardTV, the free offline media Editor, and developer API and SDK tools. MCP is coming soon.";
     if (meta) meta.setAttribute("content", desc);
     else {
       const m = document.createElement("meta");
@@ -107,6 +108,8 @@ export default function Features() {
             {t("features.subtitle")}
           </p>
         </div>
+
+        <CurrentProductTools />
 
         <BrightboardTVPublicSection detailed />
 
@@ -201,6 +204,9 @@ export default function Features() {
               </Button>
               <Button variant="outline" asChild data-testid="button-features-how">
                 <Link href="/how-it-works">{t("features.seeHowItWorks")}</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/editor">Open free BrightBoard Editor</Link>
               </Button>
             </div>
           </Card>

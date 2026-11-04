@@ -22,6 +22,9 @@ server at http://127.0.0.1:4178. The build output is in `dist`.
 
 ## Create and keep work
 
+Open **How to use BrightBoard Editor** above the workspace for the built-in
+step-by-step guide. The guide is included locally and works offline.
+
 Choose one of six scenes (flow, tree, waves, pattern, mark, 3D sculpture).
 Add/edit/move/resize/reorder/hide text, cards and ellipses. The 3D mode is a
 perspective-projected rotating cube, not a general mesh/model editor.

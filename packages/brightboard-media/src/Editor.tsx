@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { newProject, validateProject, renderSVG, MODES, type Project, type Layer } from "./engine";
 import { download, exportImage, audioFile, playAudio, recordVideo, supportedVideo } from "./browser";
 import "./editor.css";
+import UsageGuide from "./UsageGuide";
 
 const KEY = "brightboard-media-project-v1";
 const names = { flow: "Flow field", tree: "Swaying tree", waves: "Wave terrain", pattern: "Geometric pattern", mark: "Geometric mark", sculpture: "3D sculpture" };
@@ -138,6 +139,7 @@ export default function Editor({ hosted = false }: { hosted?: boolean }) {
         <button disabled={!!busy} onClick={() => input.current?.click()}>Open project</button><button className="bm-primary" onClick={saveProject}>Save project</button><button disabled={!!busy} onClick={() => requestReplace(newProject())}>New</button>
         <input ref={input} type="file" accept=".json,.bbmedia" hidden onChange={e => { void open(e.target.files?.[0]); e.target.value = ""; }} /></div></div>
     <div className={`bm-message ${error ? "bm-error" : ""}`} role={error ? "alert" : "status"}>{message}</div>
+    <UsageGuide />
     <div className="bm-workspace">
       <aside className="bm-panel"><fieldset disabled={!!busy}><legend>Scene & composition</legend>
         <label className="bm-field">Procedural scene<select value={p.mode} onChange={e => patch({ mode: e.target.value as Project["mode"] })}>{MODES.map(m => <option key={m} value={m}>{names[m]}</option>)}</select></label>
