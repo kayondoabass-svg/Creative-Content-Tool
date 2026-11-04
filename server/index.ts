@@ -113,13 +113,13 @@ app.use((req, res, next) => {
   app.post("/api/tv/sessions", afroaiSessionGuard);
   app.use("/api/tv", tvRelay.router);
   registerReleaseRoute(app);
-  const mediaDownloads = new Set(["BrightBoard-Media-Studio-source-v1.0.0.zip", "BrightBoard-Media-Studio-prebuilt-v1.0.0.zip", "BrightBoard-Media-Studio-SHA256SUMS.txt"]);
+  const mediaDownloads = new Set(["BrightBoard-Editor-source-v1.0.0.zip", "BrightBoard-Editor-prebuilt-v1.0.0.zip", "BrightBoard-Editor-SHA256SUMS.txt"]);
   app.get("/releases/:filename", (req, res, next) => {
     if (!mediaDownloads.has(req.params.filename)) return next();
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.download(path.resolve("dist/releases", req.params.filename), req.params.filename, error => {
-      if (error && !res.headersSent) res.status(503).send("Media Studio download unavailable. Please try again later.");
+      if (error && !res.headersSent) res.status(503).send("BrightBoard Editor download unavailable. Please try again later.");
     });
   });
   app.get("/media-sdk.js", (_req, res) => {

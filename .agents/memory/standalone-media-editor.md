@@ -15,6 +15,12 @@ The user selected “Add to BrightBoard” after being offered a BrightBoard too
 
 **How to apply:** Keep this within BrightBoard’s product and branding while retaining independent offline operation; do not reinterpret “standalone” as permission to reorganize the whole project or replace BrightboardTV.
 
+The user chose the product name “BrightBoard Editor,” distinct from Teacher Studio and BrightboardTV.
+
+**Why:** The user explicitly approved renaming the media tool before uploading its open-source release.
+
+**How to apply:** Use BrightBoard Editor for customer-facing branding and public downloads. Preserve existing saved-project formats, local draft storage and API compatibility when changing names.
+
 The user said: “Keep it complete free for now. I will use it first and see then we adjust were necessary.”
 
 **Why:** The user wants to test the media software before deciding on changes or monetization.

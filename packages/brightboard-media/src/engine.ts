@@ -1,4 +1,4 @@
-/** BrightBoard Media Studio — independent procedural engine (MIT).
+/** BrightBoard Editor — independent procedural engine (MIT).
  * No network, DOM, credentials or private BrightBoard dependencies.
  */
 export const MODES = ["flow", "tree", "waves", "pattern", "mark", "sculpture"] as const;

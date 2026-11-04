@@ -25,22 +25,22 @@ async function audit(directory) {
 export async function packageMedia(output = path.resolve("dist/releases")) {
   await mkdir(output, { recursive: true });
   const stage = await mkdtemp(path.join(output, ".media-stage-"));
-  const zip = promisify(execFile), names = ["BrightBoard-Media-Studio-source-v1.0.0.zip", "BrightBoard-Media-Studio-prebuilt-v1.0.0.zip"];
+  const zip = promisify(execFile), names = ["BrightBoard-Editor-source-v1.0.0.zip", "BrightBoard-Editor-prebuilt-v1.0.0.zip"];
   try {
-    const source = path.join(stage, "source", "BrightBoard-Media-Studio");
+    const source = path.join(stage, "source", "BrightBoard-Editor");
     await mkdir(source, { recursive: true });
     for (const name of files) await cp(path.join(root, name), path.join(source, name), { recursive: true });
-    const prebuilt = path.join(stage, "prebuilt", "BrightBoard-Media-Studio");
+    const prebuilt = path.join(stage, "prebuilt", "BrightBoard-Editor");
     await cp(path.join(root, "dist"), prebuilt, { recursive: true });
     await audit(source); await audit(prebuilt);
     for (const [i, folder] of ["source", "prebuilt"].entries()) {
       const file = path.join(output, names[i]);
       await rm(file, { force: true });
-      await zip("zip", ["-qr", file, "BrightBoard-Media-Studio"], { cwd: path.join(stage, folder) });
+      await zip("zip", ["-qr", file, "BrightBoard-Editor"], { cwd: path.join(stage, folder) });
     }
     const hashes = await Promise.all(names.map(async name => `${createHash("sha256").update(await readFile(path.join(output, name))).digest("hex")}  ${name}`));
-    await writeFile(path.join(output, "BrightBoard-Media-Studio-SHA256SUMS.txt"), hashes.join("\n") + "\n");
-    console.log("Audited public Media Studio source/prebuilt ZIPs: no environment files or private imports.");
+    await writeFile(path.join(output, "BrightBoard-Editor-SHA256SUMS.txt"), hashes.join("\n") + "\n");
+    console.log("Audited public BrightBoard Editor source/prebuilt ZIPs: no environment files or private imports.");
     return names;
   } finally { await rm(stage, { recursive: true, force: true }); }
 }

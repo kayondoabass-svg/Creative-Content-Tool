@@ -366,10 +366,10 @@ export default function Home() {
                   </div>
                 </div>
               </Card></a>
-              <Link href="/media-studio" aria-label="Open free Media Studio"><Card data-testid="card-type-media-studio" className="w-[140px] sm:w-auto flex-shrink-0 sm:flex-shrink p-3 cursor-pointer hover:border-primary">
+              <Link href="/editor" aria-label="Open free BrightBoard Editor"><Card data-testid="card-type-media-studio" className="w-[140px] sm:w-auto flex-shrink-0 sm:flex-shrink p-3 cursor-pointer hover:border-primary">
                 <div className="flex flex-col items-center text-center gap-2 sm:flex-row sm:items-start sm:text-left sm:gap-3">
                   <div className="p-2 rounded-lg bg-teal-800 text-white font-bold" aria-hidden="true">M</div>
-                  <div className="flex-1 min-w-0"><h3 className="font-semibold text-xs sm:text-sm">Media Studio</h3><p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Free local image, video & audio creation. Open source.</p></div>
+                  <div className="flex-1 min-w-0"><h3 className="font-semibold text-xs sm:text-sm">BrightBoard Editor</h3><p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Free local image, video & audio creation. Open source.</p></div>
                 </div>
               </Card></Link>
             </div>

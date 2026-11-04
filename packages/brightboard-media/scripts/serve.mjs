@@ -13,4 +13,4 @@ createServer(async (req, res) => {
     const data = await readFile(file);
     res.writeHead(200, { "Content-Type": types[path.extname(file)] || "application/octet-stream", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "frame-ancestors 'self'" }); res.end(data);
   } catch { res.writeHead(404).end("File not found"); }
-}).listen(4178, "127.0.0.1", () => console.log("Offline Media Studio: http://127.0.0.1:4178"));
+}).listen(4178, "127.0.0.1", () => console.log("Offline BrightBoard Editor: http://127.0.0.1:4178"));

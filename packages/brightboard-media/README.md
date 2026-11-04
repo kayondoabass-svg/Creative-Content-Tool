@@ -1,4 +1,4 @@
-# BrightBoard Media Studio
+# BrightBoard Editor
 
 Free, MIT-licensed, browser-local procedural image, video and audio creation.
 This is not photorealistic AI, speech generation or a model API client.
@@ -67,8 +67,10 @@ offline editor do not require FFmpeg. Commercial pricing is not enabled.
 
 ## Publishing on GitHub
 
+Recommended repository name: `brightboard-editor`.
+
 Upload the contents of the SOURCE ZIP as repository files. Attach both SOURCE
-and PREBUILT ZIPs plus `SHA256SUMS.txt` to a v1.0.0 release. Do not upload your
+and PREBUILT ZIPs plus `BrightBoard-Editor-SHA256SUMS.txt` to a v1.0.0 release. Do not upload your
 private BrightBoard project, `.env`, keys, server database or private Git history.
 The two ZIPs have different purposes: one is editable source, one runs immediately.
 

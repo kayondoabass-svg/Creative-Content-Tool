@@ -354,3 +354,45 @@ mtime_ms = 1793816744217
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/34251a46-cfd1-4ba5-9766-38dd78b2a5a6/1eb33e15-6bd0-4c6c-aefb-ba81260fffbe"
 storage_version_token = "1793816811179666"
 content_type = "text/plain"
+
+[[outputs]]
+id = "J_i-MNhWRZLjJ4_rKOEpw"
+uri = "file://generated-artifacts/brightboard-editor/v1.0.0/BrightBoard-Editor-source-v1.0.0.zip"
+type = "unspecified"
+title = "BrightBoard Editor — Source ZIP"
+description = "Extract and upload the contents of the BrightBoard-Editor folder to your brightboard-editor GitHub repository. MIT licensed; no .env files or private backend."
+logical_id = "fcf0f0c2-5d2f-4ca5-9d51-915f5c769f46"
+content_hash = "sha256:2c7bf431818645166342113dd2dd154aeb657b452832fa9ef137192b1cd07314"
+size = 47517
+mtime_ms = 1793831273915
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/fcf0f0c2-5d2f-4ca5-9d51-915f5c769f46/d6c3faa0-06b8-4f1c-8758-23d79487fda6"
+storage_version_token = "1793831314091471"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "mhCikvzLzvXqMOWwZNpk6"
+uri = "file://generated-artifacts/brightboard-editor/v1.0.0/BrightBoard-Editor-prebuilt-v1.0.0.zip"
+type = "unspecified"
+title = "BrightBoard Editor — Ready-to-run ZIP"
+description = "Attach this ZIP to your GitHub release. Users extract the folder and open index.html."
+logical_id = "5bc75bc2-2400-4ad5-badd-19589a5c7390"
+content_hash = "sha256:e655d80f0b140d5fc65cc64f419a37db4b0137f15def255b34223fbb32cff039"
+size = 147723
+mtime_ms = 1793831273975
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/5bc75bc2-2400-4ad5-badd-19589a5c7390/61e3194e-b434-40d1-b7be-94836d2366ff"
+storage_version_token = "1793831316024943"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "k_JVDeBlm_mppUmesQt5C"
+uri = "file://generated-artifacts/brightboard-editor/v1.0.0/BrightBoard-Editor-SHA256SUMS.txt"
+type = "text"
+title = "BrightBoard Editor — Checksums"
+description = "Attach alongside both ZIP files so users can verify their downloads."
+logical_id = "a89b9a6c-5e57-4acf-a56f-a6bad79a4cdc"
+content_hash = "sha256:772375d81835d39c72f36bb95dc43566dc1c154b658941c59e6601c1c3383229"
+size = 208
+mtime_ms = 1793831273983
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/a89b9a6c-5e57-4acf-a56f-a6bad79a4cdc/bc52cc83-be4b-4540-9177-8521dedf1054"
+storage_version_token = "1793831317207126"
+content_type = "text/plain"

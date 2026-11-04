@@ -89,7 +89,8 @@ function Router() {
       <Route path="/affiliate" component={Affiliate} />
       <Route path="/about" component={About} />
       <Route path="/brightboardtv" component={BrightboardTVPage} />
-      <Route path="/media-studio" component={MediaStudioPage} />
+        <Route path="/editor" component={MediaStudioPage} />
+        <Route path="/media-studio" component={MediaStudioPage} />
       <Route path="/developers" component={DevelopersPage} />
       <Route path="/contact" component={Contact} />
       <Route path="/pricing" component={PricingPage} />
@@ -328,7 +329,7 @@ function AppShell() {
     );
   }
 
-  const standaloneRoutes = ["/", "/login", "/signup", "/verify-email", "/ads", "/payment/callback", "/checkout", "/file-tools", "/media-studio"];
+  const standaloneRoutes = ["/", "/login", "/signup", "/verify-email", "/ads", "/payment/callback", "/checkout", "/file-tools", "/editor", "/media-studio"];
   const hasPublicHeader = !standaloneRoutes.includes(location);
   return (
     <div className="min-h-screen w-full bg-background">
