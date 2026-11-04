@@ -312,3 +312,45 @@ mtime_ms = 1793246317979
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/f696552f-fde1-4705-8ac7-0bdadef2365d/43efd31a-e7c5-404c-9eb9-4a98969ef289"
 storage_version_token = "1793246803380313"
 content_type = "text/plain"
+
+[[outputs]]
+id = "OgsTKHmrNTdrGk53oZzI3"
+uri = "file://generated-artifacts/media-studio/v1.0.0/BrightBoard-Media-Studio-source-v1.0.0.zip"
+type = "unspecified"
+title = "Media Studio — Open-source ZIP"
+description = "MIT-licensed standalone source. Extract and upload its contents to your GitHub repository. No .env files, credentials or private BrightBoard backend."
+logical_id = "0fab7127-c460-4fed-8f31-e150da6420ee"
+content_hash = "sha256:32d74c4f6cee7a7f592dd243ddabcd6bbd7ed13aa291d6c842d49bc816dd658f"
+size = 47717
+mtime_ms = 1793816744205
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/0fab7127-c460-4fed-8f31-e150da6420ee/caeae7af-256c-4f80-b843-5e72ec5cee6e"
+storage_version_token = "1793816806629570"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "5PUd0eRHZhhrJjebRlERi"
+uri = "file://generated-artifacts/media-studio/v1.0.0/BrightBoard-Media-Studio-prebuilt-v1.0.0.zip"
+type = "unspecified"
+title = "Media Studio — Ready-to-run ZIP"
+description = "Extract the complete folder and open index.html in a supported desktop browser. Local image, video and audio generation; no account or external generation API required."
+logical_id = "a7e2d949-7c74-4c10-ac88-cf3b369dec6a"
+content_hash = "sha256:c17b22aa248914fa544e9579036a880fa06e1c578ff065a087fea462e8e52af3"
+size = 147816
+mtime_ms = 1793816744205
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/a7e2d949-7c74-4c10-ac88-cf3b369dec6a/5aeb3361-43dd-441a-9d97-09dba457cb11"
+storage_version_token = "1793816809784338"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "vnvDh2uh5iZ1wdzp_Wld3"
+uri = "file://generated-artifacts/media-studio/v1.0.0/SHA256SUMS.txt"
+type = "text"
+title = "Media Studio — Release checksums"
+description = "Verified SHA-256 checksums for both ZIPs. Attach alongside the ZIPs in your GitHub release."
+logical_id = "34251a46-cfd1-4ba5-9766-38dd78b2a5a6"
+content_hash = "sha256:0f711396618cbaad64fcc0c952c1f283341a8ccbe4469429c9ece96b2dbbb0a8"
+size = 220
+mtime_ms = 1793816744217
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:c7f3672c-59cc-4a1d-a7ac-2cba3cd09cea/34251a46-cfd1-4ba5-9766-38dd78b2a5a6/1eb33e15-6bd0-4c6c-aefb-ba81260fffbe"
+storage_version_token = "1793816811179666"
+content_type = "text/plain"

@@ -4,6 +4,7 @@ node_modules
 .env.*
 !.env.example
 /generated-artifacts/
+/packages/brightboard-media/dist/
 .DS_Store
 server/public
 vite.config.ts.*

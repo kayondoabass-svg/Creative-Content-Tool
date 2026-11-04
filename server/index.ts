@@ -15,6 +15,7 @@ import { paymentSecurityHeaders } from "./payment-security";
 import { initializePaymentCheckoutSchema } from "./payment-checkout-schema";
 import { registerReleaseRoute } from "./release";
 import { pool } from "./db";
+import { registerMediaAPI } from "./media-api";
 import { initializeTVLibrary } from "./tv-library-store";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
@@ -40,11 +41,12 @@ const defaultJsonParser = express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; },
 });
 const defaultFormParser = express.urlencoded({ extended: false, limit: "50mb" });
+const mediaJsonParser = express.json({ limit: "256kb" });
 const isLibraryRequest = (req: Request) => /^\/api\/tv\/library(?:\/|$)/.test(req.path);
 // Library uploads are authenticated and entitlement-checked before parsing,
 // with their own bounded 64 MB lesson limit.
-app.use((req, res, next) => isLibraryRequest(req) ? next() : defaultJsonParser(req, res, next));
-app.use((req, res, next) => isLibraryRequest(req) ? next() : defaultFormParser(req, res, next));
+app.use((req, res, next) => req.path.startsWith("/api/media/") ? mediaJsonParser(req, res, next) : isLibraryRequest(req) ? next() : defaultJsonParser(req, res, next));
+app.use((req, res, next) => isLibraryRequest(req) || req.path.startsWith("/api/media/") ? next() : defaultFormParser(req, res, next));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -74,7 +76,7 @@ app.use((req, res, next) => {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse && !path.startsWith("/api/chatbot-widget/") && !path.startsWith("/api/auth/") &&
         !path.startsWith("/api/referrals") && !path.startsWith("/api/affiliates") && !path.startsWith("/api/tv") &&
-        !path.startsWith("/api/settings")) {
+        !path.startsWith("/api/settings") && !path.startsWith("/api/media")) {
         if (!path.startsWith("/api/pesapal") && !path.startsWith("/api/payments")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
         }
@@ -111,8 +113,23 @@ app.use((req, res, next) => {
   app.post("/api/tv/sessions", afroaiSessionGuard);
   app.use("/api/tv", tvRelay.router);
   registerReleaseRoute(app);
+  const mediaDownloads = new Set(["BrightBoard-Media-Studio-source-v1.0.0.zip", "BrightBoard-Media-Studio-prebuilt-v1.0.0.zip", "BrightBoard-Media-Studio-SHA256SUMS.txt"]);
+  app.get("/releases/:filename", (req, res, next) => {
+    if (!mediaDownloads.has(req.params.filename)) return next();
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.download(path.resolve("dist/releases", req.params.filename), req.params.filename, error => {
+      if (error && !res.headersSent) res.status(503).send("Media Studio download unavailable. Please try again later.");
+    });
+  });
+  app.get("/media-sdk.js", (_req, res) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.sendFile(path.resolve(process.env.NODE_ENV === "production" ? "dist/public/media-sdk.js" : "packages/brightboard-media/dist/media-sdk.js"));
+  });
+  app.use("/media-offline", express.static(path.resolve(process.env.NODE_ENV === "production" ? "dist/public/media-offline" : "packages/brightboard-media/dist")));
   
   await registerRoutes(httpServer, app);
+  await registerMediaAPI(app);
   startReferralNotificationWorker();
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

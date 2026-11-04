@@ -70,6 +70,7 @@ export function Footer() {
                 </Link>
                 <p className="text-xs text-muted-foreground mt-1">{t("footer.tvDescription", { defaultValue: "Open-source presentations. Use, customise and build." })}</p>
               </li>
+              <li><Link href="/media-studio" className="font-semibold text-primary hover:underline" data-testid="link-media-studio-footer">Media Studio</Link><p className="text-xs text-muted-foreground mt-1">Free open-source image, video & audio creation.</p></li>
               <li>
                 <Link href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-pricing">
                   {t('common.pricing')}
@@ -158,6 +159,7 @@ export function Footer() {
                   {t('footer.about')}
                 </Link>
               </li>
+              <li><Link href="/developers" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-developers-footer">Developers</Link></li>
               <li>
                 <Link href="/blog" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-blog">
                   {t('footer.blog')}

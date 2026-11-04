@@ -1,5 +1,7 @@
 import { Switch, Route, Link, useLocation } from "wouter";
 import BrightboardTVPage from "@/pages/brightboardtv";
+import MediaStudioPage from "@/pages/media-studio";
+import DevelopersPage from "@/pages/developers";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -87,6 +89,8 @@ function Router() {
       <Route path="/affiliate" component={Affiliate} />
       <Route path="/about" component={About} />
       <Route path="/brightboardtv" component={BrightboardTVPage} />
+      <Route path="/media-studio" component={MediaStudioPage} />
+      <Route path="/developers" component={DevelopersPage} />
       <Route path="/contact" component={Contact} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/checkout" component={CheckoutPage} />
@@ -324,7 +328,7 @@ function AppShell() {
     );
   }
 
-  const standaloneRoutes = ["/", "/login", "/signup", "/verify-email", "/ads", "/payment/callback", "/checkout", "/file-tools"];
+  const standaloneRoutes = ["/", "/login", "/signup", "/verify-email", "/ads", "/payment/callback", "/checkout", "/file-tools", "/media-studio"];
   const hasPublicHeader = !standaloneRoutes.includes(location);
   return (
     <div className="min-h-screen w-full bg-background">

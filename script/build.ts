@@ -2,6 +2,8 @@ import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile, cp } from "fs/promises";
 import { packageTV } from "./package-tv.mjs";
+import { packageMedia } from "./package-media.mjs";
+import { buildMedia } from "../packages/brightboard-media/scripts/build.mjs";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -64,6 +66,10 @@ async function buildAll() {
   await import("../packages/brightboard-tv/scripts/build.mjs");
   await cp("packages/brightboard-tv/dist", "dist/public/tv", { recursive: true });
   await packageTV();
+  await buildMedia();
+  await cp("packages/brightboard-media/dist/media-sdk.js", "dist/public/media-sdk.js");
+  await cp("packages/brightboard-media/dist", "dist/public/media-offline", { recursive: true });
+  await packageMedia();
 }
 
 buildAll().catch((err) => {

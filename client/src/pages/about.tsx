@@ -27,7 +27,7 @@ export default function About() {
   const { t } = useTranslation();
   const tr = (key: string, fallback: string) => t(key, { defaultValue: fallback });
   useEffect(() => {
-    document.title = "About BrightBoard | AI Teaching Tools & Open-Source Presentations";
+    document.title = "About BrightBoard | Teaching Tools, Open-Source Presentations & Media Studio";
     document.querySelector('meta[name="description"]')?.setAttribute("content",
       "Meet BrightBoard and BrightboardTV: AI tools for educators and open-source interactive presentations for teachers, speakers, CEOs and teams. Use, customise and contribute.");
   }, []);
@@ -54,6 +54,13 @@ export default function About() {
         </header>
 
         <BrightboardTVPublicSection />
+        <section className="bb-surface p-7 md:p-9 mb-7" aria-labelledby="about-media-title">
+          <p className="bb-eyebrow mb-3">Free · Local-first · Open source</p>
+          <h2 id="about-media-title" className="bb-display text-2xl md:text-3xl font-bold mb-4">Create beyond the classroom with Media Studio.</h2>
+          <p className="text-muted-foreground leading-relaxed max-w-3xl">BrightBoard Media Studio brings procedural artwork, editable text and shapes, animated video and synthesized audio into a browser-local editor. Create with mathematical patterns and 3D projection, then export images, clips and WAV audio without an external generation API. Download the offline edition to keep creating on your own device.</p>
+          <p className="text-muted-foreground leading-relaxed mt-3 max-w-3xl">The editor and local SDK are MIT licensed. Developer API access is also free at launch, with account-owned keys and hosted-compute safety limits. This complements our existing AI teaching tools and BrightboardTV—it does not replace them.</p>
+          <div className="flex flex-wrap gap-3 mt-5"><a href="/media-studio" className="rounded-xl bg-primary text-primary-foreground px-5 py-3 font-semibold">Open Media Studio</a><a href="/developers" className="rounded-xl border px-5 py-3 font-semibold">Developers & downloads</a></div>
+        </section>
         <section className="grid md:grid-cols-[.82fr_1.18fr] gap-5 mb-7">
           <article className="bb-surface p-7 md:p-8">
             <div className="w-11 h-11 rounded-xl bg-accent/10 text-accent grid place-items-center mb-5"><Target className="w-5 h-5" /></div>

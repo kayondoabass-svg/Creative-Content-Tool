@@ -1,0 +1,2 @@
+32d74c4f6cee7a7f592dd243ddabcd6bbd7ed13aa291d6c842d49bc816dd658f  BrightBoard-Media-Studio-source-v1.0.0.zip
+c17b22aa248914fa544e9579036a880fa06e1c578ff065a087fea462e8e52af3  BrightBoard-Media-Studio-prebuilt-v1.0.0.zip

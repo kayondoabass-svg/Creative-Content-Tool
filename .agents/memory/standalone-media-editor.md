@@ -14,3 +14,15 @@ The user selected “Add to BrightBoard” after being offered a BrightBoard too
 **Why:** The user explicitly chose the integrated BrightBoard option.
 
 **How to apply:** Keep this within BrightBoard’s product and branding while retaining independent offline operation; do not reinterpret “standalone” as permission to reorganize the whole project or replace BrightboardTV.
+
+The user said: “Keep it complete free for now. I will use it first and see then we adjust were necessary.”
+
+**Why:** The user wants to test the media software before deciding on changes or monetization.
+
+**How to apply:** Keep the media editor, downloads and developer API free at launch. Do not require a paid plan, add payment prompts or enable API billing until the user requests that change. Account-owned hosted API keys and technical abuse protections are separate from billing.
+
+Keep the public media software independent of BrightBoard's private website backend.
+
+**Why:** The user wants an open-source downloadable editor without `.env` files, while the main BrightBoard product is not open source.
+
+**How to apply:** Distribute the browser-local editor, renderer and local SDK from an explicit public allowlist. Never ZIP the project root or include private account/payment services, credentials or Git history in the public release.
