@@ -19,3 +19,4 @@
 - [Organisation logo ownership](organisation-logo-ownership.md) — saved branding is teacher-private; unknown global ownership is not permission to share, and logo use stays opt-in.
 - [GitHub credential rewrites](github-credential-rewrites.md) — inherited Git URL rewrites can add authentication even when the saved origin is clean; never print effective URLs.
 - [Release verification policy](release-verification-policy.md) — build, origin and public delivery are distinct; protected public probes never prove a rollout.
+- [Standalone media editor](standalone-media-editor.md) — user wants browser-local image, video and audio generation without external generation APIs.
