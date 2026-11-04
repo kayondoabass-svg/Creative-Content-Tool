@@ -1,6 +1,8 @@
 import { Switch, Route, Link, useLocation } from "wouter";
 import BrightboardTVPage from "@/pages/brightboardtv";
 import MediaStudioPage from "@/pages/media-studio";
+import EditorIntroduction from "@/pages/editor-introduction";
+import { EDITOR_WORKSPACE, hasEditorEntry, clearEditorEntry } from "@/lib/editor-entry";
 import DevelopersPage from "@/pages/developers";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
@@ -66,6 +68,14 @@ function PageTracker() {
 
 function Router() {
   const { user, isLoading, isAuthenticated } = useAuth();
+  const [location, setLocation] = useLocation();
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+    if (location === EDITOR_WORKSPACE) clearEditorEntry();
+    else if (["/", "/login", "/signup"].includes(location) && hasEditorEntry()) {
+      setLocation(EDITOR_WORKSPACE, { replace: true });
+    }
+  }, [isLoading, isAuthenticated, location, setLocation]);
 
   if (isLoading) {
     return (
@@ -89,7 +99,8 @@ function Router() {
       <Route path="/affiliate" component={Affiliate} />
       <Route path="/about" component={About} />
       <Route path="/brightboardtv" component={BrightboardTVPage} />
-        <Route path="/editor" component={MediaStudioPage} />
+      <Route path="/editor" component={EditorIntroduction} />
+      <Route path="/editor/workspace" component={MediaStudioPage} />
         <Route path="/media-studio" component={MediaStudioPage} />
       <Route path="/developers" component={DevelopersPage} />
       <Route path="/contact" component={Contact} />
@@ -329,7 +340,7 @@ function AppShell() {
     );
   }
 
-  const standaloneRoutes = ["/", "/login", "/signup", "/verify-email", "/ads", "/payment/callback", "/checkout", "/file-tools", "/editor", "/media-studio"];
+  const standaloneRoutes = ["/", "/login", "/signup", "/verify-email", "/ads", "/payment/callback", "/checkout", "/file-tools", "/editor/workspace", "/media-studio"];
   const hasPublicHeader = !standaloneRoutes.includes(location);
   return (
     <div className="min-h-screen w-full bg-background">

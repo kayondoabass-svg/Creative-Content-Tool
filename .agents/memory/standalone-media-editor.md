@@ -32,3 +32,9 @@ Keep the public media software independent of BrightBoard's private website back
 **Why:** The user wants an open-source downloadable editor without `.env` files, while the main BrightBoard product is not open source.
 
 **How to apply:** Distribute the browser-local editor, renderer and local SDK from an explicit public allowlist. Never ZIP the project root or include private account/payment services, credentials or Git history in the public release.
+
+Require sign-in for the hosted online Editor, even while it is free. Public links should show an introduction before the start action. The downloadable open-source edition remains usable offline without sign-in.
+
+**Why:** The user explicitly selected “Require sign-in” after reporting that footer navigation skipped product details and authentication.
+
+**How to apply:** Keep the introduction public, guard hosted workspace entry and legacy aliases, and preserve the intended destination after sign-in. Do not add account requirements to the independent offline package.

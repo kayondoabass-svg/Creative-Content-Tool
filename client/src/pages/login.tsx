@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
+import { loginDestination } from "@/lib/editor-entry";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,7 +43,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (isAuthenticated) setLocation("/");
+    if (isAuthenticated) setLocation(loginDestination());
   }, [isAuthenticated, setLocation]);
 
   useEffect(() => {
@@ -71,9 +72,7 @@ export default function LoginPage() {
       const recaptchaToken = await getRecaptchaToken("LOGIN");
       await login({ email, password, recaptchaToken });
       toast({ title: "Welcome back!" });
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirect = urlParams.get("redirect") || "/";
-      setLocation(redirect);
+      setLocation(loginDestination());
     } catch (error: any) {
       const errorMessage = error.message || "Please check your credentials";
       if (errorMessage.toLowerCase().includes("verify your email") || errorMessage.toLowerCase().includes("not verified")) {

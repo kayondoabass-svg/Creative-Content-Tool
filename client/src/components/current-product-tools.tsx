@@ -13,7 +13,7 @@ export function CurrentProductTools({ workflow = false }: { workflow?: boolean }
       text: "Build interactive lessons and talks, draw on pages, import .pptx, PDFs, images and .bbtv lessons, and pair approved QR controllers. Hosted page limits are 20 free / 50 standard / 100 business. Keep .bbtv backups; casting and screen mirroring depend on your hardware.",
       action: "Explore BrightboardTV" },
     { id: "editor", title: "BrightBoard Editor", href: "/editor",
-      text: "Free procedural image, animated video and synthesized audio creation. Edit text and shape layers, preview motion, save projects, and export PNG, JPEG, SVG, WAV and supported WebM/MP4 video. Includes five 2D scenes, a 3D sculpture, Undo/Redo and a built-in How to use guide.",
+      text: "Sign in to create procedural images, animated video and synthesized audio online for free. Edit text and shape layers, preview motion, save projects, and export PNG, JPEG, SVG, WAV and supported WebM/MP4 video. Includes five 2D scenes, a 3D sculpture, Undo/Redo and a built-in How to use guide.",
       action: "Open BrightBoard Editor" },
     { id: "developers", title: "Developer tools", href: "/developers",
       text: "Use the free local JavaScript SDK without an account, or create account-owned keys for the free hosted image, audio and video API. Hosted safety limits apply; server video needs FFmpeg. MCP is coming soon, not an available endpoint.",

@@ -9,7 +9,7 @@ const updates: Record<string, string> = {
   "howItWorks.step1Title": "Choose the right tool",
   "howItWorks.step1Desc": "Use the teaching workspace for AI content, Teacher Studio for school documents, BrightboardTV for presenting, or BrightBoard Editor for local image, video and audio creation.",
   "howItWorks.step1Detail1": "Sign up and confirm your email for account-based services",
-  "howItWorks.step1Detail2": "Open BrightBoard Editor without a paid subscription",
+  "howItWorks.step1Detail2": "Sign in to use BrightBoard Editor online for free",
   "howItWorks.step1Detail3": "Use the Editor’s downloadable offline edition without an account",
   "howItWorks.step2Title": "Describe, design or import",
   "howItWorks.step2Desc": "For AI tools, describe the topic and choose your subject, grade and available options. In Editor, choose a procedural scene and edit layers. In BrightboardTV, create pages or import supported files.",
