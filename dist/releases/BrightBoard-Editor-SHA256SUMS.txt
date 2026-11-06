@@ -1,2 +1,2 @@
-3213e1289112d7b3d66d3ebf244d33c52031d805cc558d071a70f4516dd2c9eb  BrightBoard-Editor-source-v1.0.0.zip
-883c29f7bfa90b28bf776e7ea1b6ca4b33ae7cf57d3d673d7148a2db2fd4db6b  BrightBoard-Editor-prebuilt-v1.0.0.zip
+f0b544667b658b733fb9525c4f80bd740bdfc75cca93a87417305f05f5108d8a  BrightBoard-Editor-source-v1.0.0.zip
+76eaa1e6cd6c08a67c08f427879a538f392f120d969e19f6a2d7de387f1b4feb  BrightBoard-Editor-prebuilt-v1.0.0.zip
