@@ -21,3 +21,4 @@
 - [Release verification policy](release-verification-policy.md) — build, origin and public delivery are distinct; protected public probes never prove a rollout.
 - [Standalone media editor](standalone-media-editor.md) — user wants browser-local image, video and audio generation without external generation APIs.
 - [Document sharing](document-sharing-scope.md) — sharing spans all BrightBoard documents, with authenticated recipients and owner-approved editing.
+- [Cloudflare storage authorization](cloudflare-storage-auth.md) — an active token does not prove account-scoped D1, R2 or Workers access.
