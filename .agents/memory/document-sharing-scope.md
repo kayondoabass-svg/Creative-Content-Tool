@@ -27,8 +27,8 @@ Use Cloudflare R2 for shared project snapshots and attachments, with D1 for the 
 
 **How to apply:** Keep R2 private and mediate access through authenticated BrightBoard routes. Apply this choice only to new sharing; do not migrate or replace existing account, BrightboardTV relay, remote-control or lesson-storage infrastructure. Do not call the earlier PostgreSQL-backed sharing release Cloudflare-backed.
 
-The user confirmed that the existing Cloudflare keys are saved on the VPS.
+Use new BrightBoard-specific Cloudflare credentials, not the existing AfroAI credentials.
 
-**Why:** The user explicitly identified the VPS as their location after asking to reuse the existing setup.
+**Why:** The user clarified that the earlier VPS credentials belong to AfroAI, not BrightBoard, and said they will create new ones.
 
-**How to apply:** Check configuration names and permissions without exposing values. Reuse the VPS configuration; absence from Replit Secrets is not evidence that the VPS credentials do not exist.
+**How to apply:** Keep AfroAI credentials and resources unchanged. Collect new credentials through secure secret entry, never chat or screenshots.
