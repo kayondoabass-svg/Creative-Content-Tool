@@ -423,7 +423,15 @@ export async function deleteUser(
 ): Promise<{ success: boolean; message: string }> {
   try {
     const normalizedEmail = email.toLowerCase();
-    
+    // Sharing uses a separate private D1/R2 service, not the account database.
+    // Do not leave live sharing access behind when this account is deleted.
+    const { CloudflareSharingStore, sharingStorageURL } = await import("./cloudflare-sharing-store");
+    if (sharingStorageURL()) {
+      const [existing] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+      if (existing) {
+        await new CloudflareSharingStore().removeAccount({id:existing.id,email:normalizedEmail,firstName:existing.firstName||undefined});
+      }
+    }
     // Delete verification codes first
     await db
       .delete(verificationCodes)

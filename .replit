@@ -66,9 +66,13 @@ integrations = ["javascript_openai_ai_integrations:2.0.0", "javascript_database:
 [userenv.shared]
 VITE_PADDLE_CLIENT_TOKEN = "${PADDLE_CLIENT_TOKEN}"
 VITE_RECAPTCHA_SITE_KEY = "${RECAPTCHA_SITE_KEY}"
+CLOUDFLARE_ACCOUNT_ID = "fe7bcfa7be264c172e444e854a6bccbb"
 
 [userenv.production]
 APP_URL = "https://brightboardapp.com"
+
+[userenv.development]
+SHARING_STORAGE_URL = "https://brightboard-sharing-preview.kayondoabass.workers.dev"
 
 [postMerge]
 path = "scripts/post-merge.sh"

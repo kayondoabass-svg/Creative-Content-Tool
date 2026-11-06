@@ -1,10 +1,11 @@
 import express, { type Express, type RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
-import { DocumentSharingStore, ShareError } from "./document-sharing-store";
+import { ShareError } from "./document-sharing-store";
+import { CloudflareSharingStore, type SharingStore } from "./cloudflare-sharing-store";
 
-export function registerDocumentSharing(app: Express, pool: Pool, getUser: (id: string) => Promise<any>) {
-  const store = new DocumentSharingStore(pool), router = express.Router();
+export function registerDocumentSharing(app: Express, _pool: Pool, getUser: (id: string) => Promise<any>, storeOverride?: SharingStore) {
+  const store = storeOverride || new CloudflareSharingStore(), router = express.Router();
   router.use((_req, res, next) => { res.setHeader("Cache-Control", "private, no-store"); res.setHeader("X-Content-Type-Options", "nosniff"); next(); });
   router.use(async (req: any, res, next) => {
     try {

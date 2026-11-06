@@ -99,7 +99,7 @@ test("complete authenticated sharing lifecycle and cross-account isolation", { s
     });
     const app = express();
     app.use((req: any, _res, next) => { const id = req.get("x-test-user"); req.session = id ? { userId: id } : {}; next(); });
-    registerDocumentSharing(app, pool, async id => [owner,reader,other].find(v => v.id === id) || (id === "unverified" ? { id, email: "unverified@example.invalid", emailVerified: false } : null));
+    registerDocumentSharing(app, pool, async id => [owner,reader,other].find(v => v.id === id) || (id === "unverified" ? { id, email: "unverified@example.invalid", emailVerified: false } : null), store);
     server = app.listen(0, "127.0.0.1");
     await new Promise<void>(resolve => server!.once("listening", resolve));
     const address = server.address() as any;

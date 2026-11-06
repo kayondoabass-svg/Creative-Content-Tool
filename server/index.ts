@@ -17,7 +17,6 @@ import { registerReleaseRoute } from "./release";
 import { pool } from "./db";
 import { registerMediaAPI } from "./media-api";
 import { initializeTVLibrary } from "./tv-library-store";
-import { initializeDocumentSharing } from "./document-sharing-store";
 import { registerDocumentSharing } from "./document-sharing-routes";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
@@ -95,7 +94,6 @@ app.use((req, res, next) => {
   await initializeReferralSchema();
   await initializePaymentCheckoutSchema();
   await initializeTVLibrary(pool);
-  await initializeDocumentSharing(pool);
   const tvRelay = createTvRelay({ hostedLibrary: true, pageLimitForRequest: async (req: any) => {
     const user = req.session?.userId ? await getUserById(req.session.userId) : null;
     return tvPageLimit(user);
