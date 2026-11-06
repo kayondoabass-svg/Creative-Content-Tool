@@ -3,6 +3,12 @@ name: BrightboardTV presenter product scope
 description: Broad presenter audience, open-source boundaries, QR remote control and installation guidance
 ---
 
+Add new developments without disorganizing BrightboardTV or replacing its existing infrastructure. Preserve remote control, pairing, relay, casting, storage and approval behavior.
+
+**Why:** While sharing was being added, the user explicitly said: “Dont touch the existing infrastructure. Add the new developments without disorganizing the existing things in the BrightboardTV.”
+
+**How to apply:** Keep document sharing independent of live presentation sessions. Make additive TV integration changes and check the existing remote-control regressions before release.
+
 BrightboardTV is open-source interactive presentation software used directly
 through Brightboardapp. Its audience includes teachers, public speakers, CEOs,
 managers and anyone making interactive presentations. Preserve the footer link

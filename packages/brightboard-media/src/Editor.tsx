@@ -22,8 +22,10 @@ function NumericField({ label, value, commit, min, max, step, disabled }: { labe
     onChange={e=>{setDraft(e.target.value);setInvalid(false);}} onBlur={apply} onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.blur();if(e.key==="Escape"){cancelled.current=true;setDraft(String(value));setInvalid(false);e.currentTarget.blur();}}} />
     {invalid&&<span role="alert" style={{color:"#a83e36"}}>Choose {min}–{max}. Press Enter to apply.</span>}</label>;
 }
-export default function Editor({ hosted = false }: { hosted?: boolean }) {
-  const [p, setP] = useState(newProject), [selected, setSelected] = useState("headline");
+export default function Editor({ hosted = false, initialProject, onProjectChange, allowExports = true }: { hosted?: boolean; initialProject?: Project; onProjectChange?: (project: Project) => void; allowExports?: boolean }) {
+  const [p, setP] = useState(() => initialProject ? validateProject(initialProject) : newProject()), [selected, setSelected] = useState("headline");
+  const changeListener = useRef(onProjectChange);
+  changeListener.current = onProjectChange;
   const [past, setPast] = useState<Project[]>([]), [future, setFuture] = useState<Project[]>([]);
   const [time, setTime] = useState(0), [playing, setPlaying] = useState(false);
   const [message, setMessage] = useState("Create locally. Your project never goes to a generation service.");
@@ -38,7 +40,7 @@ export default function Editor({ hosted = false }: { hosted?: boolean }) {
   const announce = useCallback((s: string, bad = false) => { setMessage(s); setError(bad); }, []);
   useEffect(() => {
     try {
-      const value = localStorage.getItem(KEY);
+      const value = initialProject ? null : localStorage.getItem(KEY);
       if (value) { const project = validateProject(JSON.parse(value)); setP(project); setSelected(project.layers[0]?.id || ""); saved.current = JSON.stringify(project); }
       setReady(true);
     } catch { setStatus("Draft recovery failed"); announce("The previous draft could not be read. It has not been overwritten. Open a project file or choose New project to continue saving.", true); }
@@ -46,6 +48,7 @@ export default function Editor({ hosted = false }: { hosted?: boolean }) {
   }, [announce]);
   useEffect(() => {
     if (!ready) return;
+    if (changeListener.current) { changeListener.current(p); setStatus("Shared draft · publish to save online"); return; }
     setStatus("Saving on this device…");
     const id = setTimeout(() => {
       try { const data = JSON.stringify(validateProject(p)); localStorage.setItem(KEY, data); saved.current = data; setStatus("Saved on this device"); }
@@ -54,12 +57,12 @@ export default function Editor({ hosted = false }: { hosted?: boolean }) {
     return () => clearTimeout(id);
   }, [p, ready, announce]);
   useEffect(() => {
-    const leave = (e: BeforeUnloadEvent) => { if (abort.current || JSON.stringify(latest.current) !== saved.current) { e.preventDefault(); e.returnValue = ""; } };
+    const leave = (e: BeforeUnloadEvent) => { if (abort.current || (!changeListener.current && JSON.stringify(latest.current) !== saved.current)) { e.preventDefault(); e.returnValue = ""; } };
     window.addEventListener("beforeunload", leave); return () => window.removeEventListener("beforeunload", leave);
   }, []);
   useEffect(() => {
     const changed = (event: StorageEvent) => {
-      if (event.key === KEY && event.newValue !== saved.current) {
+      if (!changeListener.current && event.key === KEY && event.newValue !== saved.current) {
         setReady(false); setStatus("Draft changed in another tab");
         announce("Another tab changed this device’s draft. Autosave is paused to protect both projects. Download your current project, then open that backup or choose New to resume.", true);
       }
@@ -133,10 +136,10 @@ export default function Editor({ hosted = false }: { hosted?: boolean }) {
   const reorder = (direction: number) => update(p => { const at = p.layers.findIndex(l => l.id === selected), to = at + direction; if (to >= 0 && to < p.layers.length) [p.layers[at], p.layers[to]] = [p.layers[to], p.layers[at]]; return p; });
   return <div className="bm-studio">
     <header className="bm-header"><a href={hosted ? "/" : "https://www.brightboardapp.com"} className="bm-brand"><img src={hosted ? "/brand-logo.png" : "./brand-logo.png"} alt="BrightBoard" /><span>BrightBoard <b>Editor</b></span></a>
-      <span className="bm-local">Local-first · Open source</span><nav><a href={hosted ? "/developers" : "https://www.brightboardapp.com/developers"}>Developers</a><a href={hosted ? "/releases/BrightBoard-Editor-prebuilt-v1.0.0.zip" : "./README.md"}>{hosted ? "Download offline" : "Read me"}</a></nav></header>
+      <span className="bm-local">Local-first · Open source</span><nav>{hosted && !onProjectChange && <button onClick={() => window.dispatchEvent(new CustomEvent("brightboard-share", { detail: { kind: "editor", title: p.title, content: p } }))}>Share project</button>}<a href={hosted ? "/developers" : "https://www.brightboardapp.com/developers"}>Developers</a><a href={hosted ? "/releases/BrightBoard-Editor-prebuilt-v1.0.0.zip" : "./README.md"}>{hosted ? "Download offline" : "Read me"}</a></nav></header>
     <div className="bm-project-bar"><div><input aria-label="Project title" className="bm-project-title" value={p.title} maxLength={160} onChange={e => patch({ title: e.target.value })} disabled={!!busy} /><small role="status">{status}</small></div>
       <div className="bm-actions"><button disabled={!past.length || !!busy} onClick={() => { const before = past[past.length - 1]; setFuture(v => [p, ...v]); setPast(v => v.slice(0, -1)); setP(before); }}>Undo</button><button disabled={!future.length || !!busy} onClick={() => { setPast(v => [...v, p]); setP(future[0]); setFuture(v => v.slice(1)); }}>Redo</button>
-        <button disabled={!!busy} onClick={() => input.current?.click()}>Open project</button><button className="bm-primary" onClick={saveProject}>Save project</button><button disabled={!!busy} onClick={() => requestReplace(newProject())}>New</button>
+        <button disabled={!!busy} onClick={() => input.current?.click()}>Open project</button>{allowExports && <button className="bm-primary" onClick={saveProject}>Save project</button>}<button disabled={!!busy} onClick={() => requestReplace(newProject())}>New</button>
         <input ref={input} type="file" accept=".json,.bbmedia" hidden onChange={e => { void open(e.target.files?.[0]); e.target.value = ""; }} /></div></div>
     <div className={`bm-message ${error ? "bm-error" : ""}`} role={error ? "alert" : "status"}>{message}</div>
     <UsageGuide />
@@ -172,7 +175,7 @@ export default function Editor({ hosted = false }: { hosted?: boolean }) {
           </svg></div>
         <div className="bm-transport"><button disabled={!!busy} onClick={() => setPlaying(v => !v)}>{playing ? "Pause" : "Play preview"}</button><input aria-label="Preview time" type="range" min="0" max={p.duration} step=".01" value={time} onChange={e => { setPlaying(false); setTime(+e.target.value); }} /><span>{time.toFixed(1)} / {p.duration}s</span></div>
         <p className="bm-caption">Procedural geometry, editable layers and real 3D projection. No prompts sent to an AI service. Audio plays only when you choose it.</p>
-        <section className="bm-export"><h2>Export your composition</h2><div className="bm-export-fields">
+        <section className="bm-export" style={allowExports ? undefined : { display: "none" }}><h2>Export your composition</h2><div className="bm-export-fields">
           <label className="bm-field">Output size<select value={size} disabled={!!busy} onChange={e => setSize(e.target.value)}><option value="native">Project dimensions</option><option value="1920">Full HD · 1920px edge</option><option value="3840">4K · 3840px edge</option><option value="7680">8K still · 7680px edge</option></select></label>
           {numberField("JPEG quality", quality, setQuality, 0.1, 1, .05)}{numberField("Video FPS target", fps, setFPS, 12, 60)}{numberField("Video bitrate (Mbps)", bitrate, setBitrate, 2, 40)}</div>
           <p className="bm-caption">{dimensions().width} × {dimensions().height} pixels. High-resolution geometry is rerendered, not a stretched preview. Large canvases depend on device memory. Video records in real time; FPS is a target, not a guarantee.</p>

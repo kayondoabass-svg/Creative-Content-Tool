@@ -17,6 +17,8 @@ import { registerReleaseRoute } from "./release";
 import { pool } from "./db";
 import { registerMediaAPI } from "./media-api";
 import { initializeTVLibrary } from "./tv-library-store";
+import { initializeDocumentSharing } from "./document-sharing-store";
+import { registerDocumentSharing } from "./document-sharing-routes";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -42,7 +44,7 @@ const defaultJsonParser = express.json({
 });
 const defaultFormParser = express.urlencoded({ extended: false, limit: "50mb" });
 const mediaJsonParser = express.json({ limit: "256kb" });
-const isLibraryRequest = (req: Request) => /^\/api\/tv\/library(?:\/|$)/.test(req.path);
+const isLibraryRequest = (req: Request) => /^\/api\/(?:tv\/library|sharing\/documents)(?:\/|$)/.test(req.path);
 // Library uploads are authenticated and entitlement-checked before parsing,
 // with their own bounded 64 MB lesson limit.
 app.use((req, res, next) => req.path.startsWith("/api/media/") ? mediaJsonParser(req, res, next) : isLibraryRequest(req) ? next() : defaultJsonParser(req, res, next));
@@ -76,7 +78,7 @@ app.use((req, res, next) => {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse && !path.startsWith("/api/chatbot-widget/") && !path.startsWith("/api/auth/") &&
         !path.startsWith("/api/referrals") && !path.startsWith("/api/affiliates") && !path.startsWith("/api/tv") &&
-        !path.startsWith("/api/settings") && !path.startsWith("/api/media")) {
+        !path.startsWith("/api/settings") && !path.startsWith("/api/media") && !path.startsWith("/api/sharing")) {
         if (!path.startsWith("/api/pesapal") && !path.startsWith("/api/payments")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
         }
@@ -93,6 +95,7 @@ app.use((req, res, next) => {
   await initializeReferralSchema();
   await initializePaymentCheckoutSchema();
   await initializeTVLibrary(pool);
+  await initializeDocumentSharing(pool);
   const tvRelay = createTvRelay({ hostedLibrary: true, pageLimitForRequest: async (req: any) => {
     const user = req.session?.userId ? await getUserById(req.session.userId) : null;
     return tvPageLimit(user);
@@ -129,6 +132,7 @@ app.use((req, res, next) => {
   app.use("/media-offline", express.static(path.resolve(process.env.NODE_ENV === "production" ? "dist/public/media-offline" : "packages/brightboard-media/dist")));
   
   await registerRoutes(httpServer, app);
+  registerDocumentSharing(app, pool, getUserById);
   await registerMediaAPI(app);
   startReferralNotificationWorker();
 

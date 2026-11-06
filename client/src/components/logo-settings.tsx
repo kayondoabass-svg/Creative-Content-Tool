@@ -19,6 +19,7 @@ import { apiRequest } from "@/lib/queryClient";
 import type { OrganizationSettings } from "@shared/schema";
 import { useOrganizationSettings } from "@/hooks/use-organization-settings";
 import { useAuth } from "@/hooks/use-auth";
+import { ShareButton } from "@/components/document-sharing";
 
 const COLOR_SCHEMES = [
   { id: "purple-teal", name: "Purple & Teal", colors: ["#7C3AED", "#14B8A6"], preview: "bg-gradient-to-r from-purple-600 to-teal-500" },
@@ -413,10 +414,17 @@ export function LogoSettings() {
                         alt={`Logo option ${index + 1}`}
                         className="w-full aspect-square object-contain rounded bg-white"
                       />
-                      <div className="mt-1 flex items-center justify-between">
+                      <div className="mt-1 flex items-center justify-between gap-1">
                         <Badge variant="secondary" className="text-xs truncate max-w-[80%]">
                           {logoVariations[index]?.split(",")[0] || `Option ${index + 1}`}
                         </Badge>
+                        <div onClick={e => e.stopPropagation()}>
+                          <ShareButton
+                            kind="image"
+                            title={`${orgName.trim() || "School"} logo · Option ${index + 1}`}
+                            content={{ type: "image", body: JSON.stringify({ imageUrl: logo, variation: logoVariations[index] || "" }) }}
+                          />
+                        </div>
                         <button
                           type="button"
                           onClick={(e) => {

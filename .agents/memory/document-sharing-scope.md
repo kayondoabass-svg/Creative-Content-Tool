@@ -13,4 +13,10 @@ The user requested complete-project sharing using a URL and unique QR when a new
 
 **Why:** These are the user's stated sharing requirements.
 
-**How to apply:** Preserve the destination through sign-in and signup/verification, enforce owner-approved editing permissions, and distinguish existing accounts from authenticated sessions. Stable project links plus unique published-revision links were recommended, not yet explicitly confirmed as the exact revision policy.
+**How to apply:** Preserve the destination through sign-in and signup/verification, enforce owner-approved editing permissions, and distinguish existing accounts from authenticated sessions. The user approved building the proposed plan: stable project links plus unique URLs and QR codes for explicitly published revisions, rather than publishing every keystroke.
+
+Shared published documents have a separate retention policy from the 24-hour recent-generation history and must not silently expire with that history.
+
+**Why:** The user approved the sharing plan, including durable complete snapshots and preserved older versions; automatic generation-history deletion would break those shared links.
+
+**How to apply:** Keep intentionally published copies until the owner deletes them, distinguish link access expiry from data deletion, and keep free storage bounded with explicit limits.

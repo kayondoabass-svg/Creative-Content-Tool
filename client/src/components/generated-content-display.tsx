@@ -18,6 +18,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { openInBrightboardTV } from "@/lib/brightboard-tv";
 import { LogoAdjustmentEditor } from "@/components/logo-adjustment-editor";
 import type { GeneratedContent } from "@shared/schema";
+import { ShareButton } from "@/components/document-sharing";
 
 interface QuickStartChip {
   label: string;
@@ -692,6 +693,13 @@ export function GeneratedContentDisplay({
           {type}
         </Badge>
         <div className="flex items-center gap-2 flex-wrap">
+          {["image", "text", "presentation", "worksheet", "activity", "storyboard", "mindmap"].includes(type) && (
+            <ShareButton
+              kind={type as "image" | "text" | "presentation" | "worksheet" | "activity" | "storyboard" | "mindmap"}
+              title={`${type.charAt(0).toUpperCase()}${type.slice(1)}`}
+              content={{ type, body: content }}
+            />
+          )}
           {["image", "presentation", "mindmap", "worksheet", "text", "storyboard", "activity"].includes(type) && <><Button variant="outline" size="sm" data-testid="button-open-brightboardtv" onClick={async () => {
             try { await openInBrightboardTV(type, content); }
             catch (error) { toast({ title: "Could not open BrightboardTV", description: error instanceof Error ? error.message : "Import failed.", variant: "destructive" }); }

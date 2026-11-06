@@ -932,6 +932,14 @@ function App() {
       <div className="top-actions"><span className="status-pill" role="status"><i />{saveStatus === "saved" ? `SAVED ON THIS DEVICE${isOnline ? "" : " · OFFLINE"}` : saveStatus === "saving" ? "SAVING…" : "NOT SAVED · EXPORT BACKUP"}</span>
         <button className="button icon hide-mobile" aria-label="Undo" title="Undo" onClick={undo} disabled={!undoStack.length}><Undo2 size={17} /></button><button className="button icon hide-mobile" aria-label="Redo" title="Redo" onClick={redo} disabled={!redoStack.length}><Redo2 size={17} /></button>
         <button className="button hide-mobile" onClick={() => setModal("library")}><BookOpen size={16} /> Library</button>
+        {hostedLibrary === true && <button className="button" onClick={() => {
+          try {
+            const capture = crypto.randomUUID();
+            localStorage.setItem(`brightboard-share-capture:${capture}`, JSON.stringify({ kind: "tv", title: lesson.title, content: lesson }));
+            const target = new URL("/shared", location.origin); target.searchParams.set("capture", capture);
+            window.open(target.href, "_blank", "noopener");
+          } catch { notify("Could not prepare sharing. Device storage may be full. Export a .bbtv backup first.", true); }
+        }}><Share2 size={16} /> Share lesson</button>}
         <button className="button" onClick={() => void openShare()}><Share2 size={16} /> <span className="hide-mobile">Pair</span></button>
         <button className="button primary" onClick={() => void openLocalPresentation()}><Play size={16} /> Present</button>
         <button className="button icon mobile-tools" aria-label="More options" onClick={() => setModal("settings")}><MoreHorizontal size={20} /></button>

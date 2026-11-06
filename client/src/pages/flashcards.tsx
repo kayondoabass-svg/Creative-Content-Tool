@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Download, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { ShareDocumentButton } from "@/components/document-sharing";
 
 const SETS = [
   { id: "animals",    emoji: "🦁", label: "Animals",          bg: "from-orange-400 to-amber-500",   words: ["cat","dog","bird","fish","elephant","lion","giraffe","monkey","rabbit","horse"] },
@@ -40,9 +41,20 @@ type Orientation = "portrait" | "landscape";
 
 export default function FlashcardsPage() {
   const { toast } = useToast();
-  const [activeSet, setActiveSet] = useState<typeof SETS[0] | null>(null);
+  const [activeSet, setActiveSet] = useState<typeof SETS[0] | null>(() => {
+    if (typeof window === "undefined") return null;
+    const setId = new URLSearchParams(window.location.search).get("set");
+    return SETS.find(set => set.id === setId) || null;
+  });
   const [layout, setLayout] = useState<Layout>(4);
   const [orientation, setOrientation] = useState<Orientation>("landscape");
+  const selectSet = (set: typeof SETS[0] | null) => {
+    setActiveSet(set);
+    const url = new URL(window.location.href);
+    if (set) url.searchParams.set("set", set.id);
+    else url.searchParams.delete("set");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  };
 
   const pdfMutation = useMutation({
     mutationFn: async () => {
@@ -73,7 +85,7 @@ export default function FlashcardsPage() {
         <div className={`bg-gradient-to-r ${activeSet.bg} text-white py-8`}>
           <div className="container mx-auto px-4">
             <button
-              onClick={() => setActiveSet(null)}
+              onClick={() => selectSet(null)}
               className="flex items-center gap-2 text-white/80 hover:text-white text-sm mb-4 transition-colors"
               data-testid="button-flashcard-back"
             >
@@ -126,7 +138,23 @@ export default function FlashcardsPage() {
               </div>
             </div>
 
-            <div className="ml-auto">
+            <div className="ml-auto flex flex-wrap gap-2">
+              <ShareDocumentButton
+                kind="studio"
+                title={`${activeSet.label} flashcards`}
+                label="Share set"
+                content={{
+                  type: "flashcards",
+                  body: JSON.stringify({
+                    setId: activeSet.id,
+                    setName: activeSet.label,
+                    words: activeSet.words.map(word => ({
+                      word,
+                      imageUrl: `/flashcard-images/${activeSet.id}/${word.toLowerCase()}.png`,
+                    })),
+                  }),
+                }}
+              />
               <Button
                 onClick={() => pdfMutation.mutate()}
                 disabled={pdfMutation.isPending}
@@ -222,7 +250,7 @@ export default function FlashcardsPage() {
           {SETS.map(set => (
             <button
               key={set.id}
-              onClick={() => setActiveSet(set)}
+              onClick={() => selectSet(set)}
               className="group rounded-2xl overflow-hidden border-2 border-transparent hover:border-purple-400 hover:shadow-xl hover:-translate-y-1 transition-all text-left cursor-pointer"
               data-testid={`button-flashcard-set-${set.id}`}
             >

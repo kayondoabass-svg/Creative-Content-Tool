@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
-import { loginDestination } from "@/lib/editor-entry";
+import { loginDestination, rememberAuthReturn } from "@/lib/editor-entry";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,10 @@ export default function LoginPage() {
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("redirect");
+    if (requested) rememberAuthReturn(requested);
+  }, []);
 
   const { data: socialProviders } = useQuery<{ google: boolean; facebook: boolean; tiktok: boolean }>({
     queryKey: ["/api/auth/social-providers"],

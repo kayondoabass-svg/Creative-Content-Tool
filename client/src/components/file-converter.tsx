@@ -20,6 +20,7 @@ import {
 import { FileType, Upload, Download, Loader2, ArrowRight, File, Image, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { ShareDocumentButton } from "@/components/document-sharing";
 
 const formatOptions = [
   { value: "pdf", label: "PDF" },
@@ -31,6 +32,8 @@ export function FileConverter() {
   const [open, setOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{ data: string; name: string; type: string } | null>(null);
   const [targetFormat, setTargetFormat] = useState<string>("");
+  const [convertedFile, setConvertedFile] = useState<{ data: string; name: string; mime: string } | null>(null);
+  const [shareError, setShareError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -46,6 +49,13 @@ export function FileConverter() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      const match = typeof data.file === "string" ? data.file.match(/^data:([^;,]+);base64,/i) : null;
+      if (match) { setConvertedFile({ data: data.file, name: data.fileName || "brightboard-converted-file", mime: match[1] }); setShareError(""); }
+      else {
+        setConvertedFile(null);
+        setShareError("The download started, but the converter did not return a self-contained file. No temporary link will be shared.");
+      }
       
       toast({
         title: "Conversion complete",
@@ -79,6 +89,8 @@ export function FileConverter() {
 
     const reader = new FileReader();
     reader.onload = () => {
+      setConvertedFile(null);
+      setShareError("");
       setSelectedFile({
         data: reader.result as string,
         name: file.name,
@@ -90,6 +102,8 @@ export function FileConverter() {
 
   const handleConvert = () => {
     if (!selectedFile || !targetFormat) return;
+    setConvertedFile(null);
+    setShareError("");
     
     const fromFormat = selectedFile.name.split(".").pop() || "unknown";
     
@@ -149,6 +163,8 @@ export function FileConverter() {
                   onClick={() => {
                     setSelectedFile(null);
                     setTargetFormat("");
+                    setConvertedFile(null);
+                    setShareError("");
                     if (fileInputRef.current) fileInputRef.current.value = "";
                   }}
                   data-testid="button-clear-file"
@@ -216,6 +232,11 @@ export function FileConverter() {
               </Button>
             </>
           )}
+          {convertedFile && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#d8dfd4] bg-[#edf2eb] p-3">
+            <div className="min-w-0"><p className="text-sm font-semibold">Converted snapshot</p><p className="truncate text-xs text-muted-foreground">{convertedFile.name}</p></div>
+            <ShareDocumentButton kind="file" title={convertedFile.name} content={{ name: convertedFile.name, mime: convertedFile.mime, data: convertedFile.data }} label="Share file" />
+          </div>}
+          {shareError && <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">{shareError}</p>}
         </div>
       </DialogContent>
     </Dialog>

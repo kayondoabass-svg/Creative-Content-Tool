@@ -92,6 +92,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/shared" className="text-muted-foreground hover:text-primary transition-colors font-medium" data-testid="link-shared-documents">
+                  Shared documents
+                </Link>
+              </li>
+              <li>
                 <Link href="/flashcards" className="text-muted-foreground hover:text-primary transition-colors font-medium" data-testid="link-flashcards">
                   Free Flashcards
                 </Link>

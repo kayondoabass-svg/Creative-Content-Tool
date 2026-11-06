@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, CheckCircle, ArrowLeft, Sparkles } from "lucide-react";
+import { loginDestination } from "@/lib/editor-entry";
 
 export default function VerifyEmailPage() {
   const [, setLocation] = useLocation();
@@ -30,7 +31,7 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      setLocation("/");
+      setLocation(loginDestination());
     }
   }, [isAuthenticated, setLocation]);
 

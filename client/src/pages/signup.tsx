@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SiFacebook, SiTiktok, SiGoogle } from "react-icons/si";
+import { loginDestination } from "@/lib/editor-entry";
 
 const RECAPTCHA_SITE_KEY = "6LfKupcsAAAAAFjtAAYI191p9gV13VpHkenZ-KJe";
 
@@ -39,7 +40,7 @@ export default function SignupPage() {
   const [verificationCode, setVerificationCode] = useState("");
 
   useEffect(() => {
-    if (isAuthenticated) setLocation("/");
+    if (isAuthenticated) setLocation(loginDestination());
   }, [isAuthenticated, setLocation]);
 
   const handleSignup = async (e: React.FormEvent) => {

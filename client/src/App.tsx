@@ -2,7 +2,11 @@ import { Switch, Route, Link, useLocation } from "wouter";
 import BrightboardTVPage from "@/pages/brightboardtv";
 import MediaStudioPage from "@/pages/media-studio";
 import EditorIntroduction from "@/pages/editor-introduction";
-import { EDITOR_WORKSPACE, hasEditorEntry, clearEditorEntry } from "@/lib/editor-entry";
+import { pendingAuthReturn, clearAuthReturn } from "@/lib/editor-entry";
+import SharedDocumentPage from "@/pages/shared-document";
+import SharedDocumentsPage from "@/pages/shared-documents";
+import { SharedAuthGate, SharingBridge } from "@/components/sharing-bridge";
+import { SharingInboxLink } from "@/components/sharing-inbox-link";
 import DevelopersPage from "@/pages/developers";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
@@ -71,9 +75,11 @@ function Router() {
   const [location, setLocation] = useLocation();
   useEffect(() => {
     if (isLoading || !isAuthenticated) return;
-    if (location === EDITOR_WORKSPACE) clearEditorEntry();
-    else if (["/", "/login", "/signup"].includes(location) && hasEditorEntry()) {
-      setLocation(EDITOR_WORKSPACE, { replace: true });
+    const destination = pendingAuthReturn();
+    if (!destination) return;
+    if (location + window.location.search === destination) clearAuthReturn();
+    else if (["/", "/login", "/signup", "/verify-email"].includes(location)) {
+      setLocation(destination, { replace: true });
     }
   }, [isLoading, isAuthenticated, location, setLocation]);
 
@@ -103,6 +109,8 @@ function Router() {
       <Route path="/editor/workspace" component={MediaStudioPage} />
         <Route path="/media-studio" component={MediaStudioPage} />
       <Route path="/developers" component={DevelopersPage} />
+      <Route path="/shared">{() => <SharedAuthGate><SharedDocumentsPage /></SharedAuthGate>}</Route>
+      <Route path="/share/:id">{() => <SharedAuthGate><SharedDocumentPage /></SharedAuthGate>}</Route>
       <Route path="/contact" component={Contact} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/checkout" component={CheckoutPage} />
@@ -272,6 +280,7 @@ function HeaderWithLogo() {
         <FileConverter />
         <GamesLauncher />
         <LogoSettings />
+        <SharingInboxLink />
         <LanguageSelector />
         <ThemeToggle />
         <UserMenu />
@@ -357,6 +366,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AppShell />
+          <SharingBridge />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

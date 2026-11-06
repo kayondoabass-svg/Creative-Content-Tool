@@ -14,6 +14,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Footer } from "@/components/footer";
 import { LogoSettings } from "@/components/logo-settings";
 import { FileConverter } from "@/components/file-converter";
+import { ShareButton } from "@/components/document-sharing";
 import { Link } from "wouter";
 import {
   FileText, Award, Palette, FolderOpen, Crown, Sparkles, Upload, Download,
@@ -1045,6 +1046,7 @@ export default function StudioPage() {
                   <Button variant="outline" size="sm" onClick={() => setCvStep("input")}><ChevronLeft className="w-4 h-4 mr-1" />Edit Details</Button>
                   <h2 className="text-2xl font-bold">Your Professional CV</h2>
                   <div className="ml-auto flex gap-2 flex-wrap">
+                    <ShareButton kind="studio" title={`${cvData.personalInfo.fullName || "Educator"} CV`} content={{ type: "cv", body: JSON.stringify({ cvData, template: cvTemplate }) }} />
                     <Button variant="outline" size="sm" onClick={() => { setCvData(null); setCvStep("template"); setCvForm({ fullName: "", email: "", phone: "", location: "", summary: "", experience: "", education: "", skills: "", languages: "", subjects: "" }); }}><RefreshCw className="w-4 h-4 mr-1" />Start Over</Button>
                     <Button variant="outline" size="sm" onClick={() => downloadPreviewAsPDF("cv-print-area", `CV-${cvData.personalInfo.fullName || "Teacher"}.pdf`)} data-testid="button-download-cv-pdf"><Printer className="w-4 h-4 mr-1" />Print / Save PDF</Button>
                     <Button size="sm" className="bg-gradient-to-r from-purple-600 to-teal-600" onClick={() => {
@@ -1149,6 +1151,7 @@ export default function StudioPage() {
                   <Button variant="outline" size="sm" onClick={() => setCertStep("form")}><ChevronLeft className="w-4 h-4 mr-1" />Edit</Button>
                   <h2 className="text-2xl font-bold">Certificate Preview</h2>
                   <div className="ml-auto flex gap-2">
+                    <ShareButton kind="studio" title={certResult.certContent.title || "Certificate"} content={{ type: "certificate", body: JSON.stringify(certResult) }} />
                     <Button variant="outline" size="sm" onClick={() => { setCertResult(null); setCertStep("template"); setCertForm({ studentName: "", course: "", achievement: "", teacherName: "", schoolName: "", date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) }); }}><RefreshCw className="w-4 h-4 mr-1" />New Certificate</Button>
                     <Button size="sm" className="bg-gradient-to-r from-purple-600 to-teal-600" onClick={() => downloadCertAsPDF("cert-print-area", `Certificate-${certResult.studentName}.pdf`)} data-testid="button-download-cert"><Printer className="w-4 h-4 mr-1" />Print / Save PDF</Button>
                   </div>
@@ -1908,6 +1911,7 @@ export default function StudioPage() {
                           {rcPreviewEdit ? <><Check className="w-4 h-4" />Done editing</> : <><Pencil className="w-4 h-4" />Edit this card</>}
                         </Button>
                         <div className="flex gap-2 flex-wrap">
+                          <ShareButton kind="studio" title={`${student.name} · Report card`} content={{ type: "report-card", body: JSON.stringify({ student, categories: rcCategories, ratingScale: rcRatingScale, comment: rcComments[student.id] || "", school: { schoolName: rcExtracted?.schoolName, className: rcExtracted?.className, period: rcExtracted?.period } }) }} />
                           <Button variant="outline" onClick={() => rcFillTemplateMutation.mutate(rcPreviewIdx)} disabled={rcFillTemplateMutation.isPending || !rcTemplatePdfBase64} className="gap-2 text-sm" data-testid="button-rc-preview-dl-one">
                             {rcFillTemplateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} This card only
                           </Button>
