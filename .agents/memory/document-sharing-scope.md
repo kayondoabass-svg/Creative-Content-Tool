@@ -26,3 +26,9 @@ Use Cloudflare R2 for shared project snapshots and attachments, with D1 for the 
 **Why:** The user explicitly selected “R2 + D1 sharing” after clarifying that they expect sharing storage on their Cloudflare account.
 
 **How to apply:** Keep R2 private and mediate access through authenticated BrightBoard routes. Apply this choice only to new sharing; do not migrate or replace existing account, BrightboardTV relay, remote-control or lesson-storage infrastructure. Do not call the earlier PostgreSQL-backed sharing release Cloudflare-backed.
+
+The user confirmed that the existing Cloudflare keys are saved on the VPS.
+
+**Why:** The user explicitly identified the VPS as their location after asking to reuse the existing setup.
+
+**How to apply:** Check configuration names and permissions without exposing values. Reuse the VPS configuration; absence from Replit Secrets is not evidence that the VPS credentials do not exist.
