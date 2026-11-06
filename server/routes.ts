@@ -15,6 +15,8 @@ import PptxGenJS from "pptxgenjs";
 import * as paymentService from "./paymentService";
 import { generateVideoFromStoryboard } from "./videoService";
 import { jobQueue } from "./jobQueue";
+import { registerPrivateAccessRoutes } from "./private-access";
+import { publicFlashcard } from "../shared/flashcard-catalog";
 import fs from "fs";
 import path from "path";
 import rateLimit from "express-rate-limit";
@@ -972,10 +974,10 @@ ${pages.map(p => `  <url>
     });
   });
 
-  // ─── Flashcard routes (public — no auth required) ───────────────────────────
+  // Built-in flashcard illustrations are public catalog assets; AI generation is private.
 
   // Generate AI images for a set of vocabulary words
-  app.post("/api/flashcards/images", async (req: any, res: any) => {
+  app.post("/api/flashcards/images", isAuthenticated, generateLimiter, async (req: any, res: any) => {
     try {
       const { words } = req.body;
       if (!Array.isArray(words) || words.length === 0) {
@@ -991,7 +993,7 @@ ${pages.map(p => `  <url>
           const b64 = (result as any)?.data?.[0]?.b64_json;
           if (b64) images[word] = b64;
         } catch (e) {
-          console.error(`Flashcard image error for "${word}":`, e);
+          console.error("Flashcard image generation failed");
         }
       }));
 
@@ -1063,9 +1065,10 @@ ${pages.map(p => `  <url>
 
       // Pre-load static images from disk (one read per unique word)
       const imgCache: Record<string, Buffer | null> = {};
-      if (setId) {
+      if (typeof setId === "string") {
         const imgDir = path.join(process.cwd(), "public", "flashcard-images", setId);
         for (const word of words) {
+          if (typeof word !== "string" || !publicFlashcard(setId, word.toLowerCase())) continue;
           const key = word.toLowerCase();
           if (imgCache[key] !== undefined) continue;
           const filePath = path.join(imgDir, `${key}.png`);
@@ -1378,66 +1381,7 @@ ${pages.map(p => `  <url>
     }
   });
 
-  // Emergency CEO account delete (for fresh start)
-  app.post("/api/auth/emergency-delete", async (req, res) => {
-    try {
-      const { email, adminKey } = req.body;
-      const CEO_EMAIL = "kayondoabass@gmail.com";
-      const ADMIN_KEY = process.env.ADMIN_RESET_KEY || "brightboard-emergency-2026";
-      
-      if (email?.toLowerCase() !== CEO_EMAIL) {
-        return res.status(403).json({ error: "Not authorized" });
-      }
-      
-      if (adminKey !== ADMIN_KEY) {
-        return res.status(403).json({ error: "Invalid admin key" });
-      }
-      
-      const result = await customAuth.deleteUser(email);
-      
-      if (!result.success) {
-        return res.status(400).json({ error: result.message });
-      }
-      
-      res.json({ message: "Account deleted. You can now sign up fresh." });
-    } catch (error) {
-      console.error("Emergency delete error:", error);
-      res.status(500).json({ error: "Failed to delete account" });
-    }
-  });
-
-  // Emergency CEO password reset (for bootstrapping when email isn't configured)
-  app.post("/api/auth/emergency-reset", async (req, res) => {
-    try {
-      const { email, newPassword, adminKey } = req.body;
-      const CEO_EMAIL = "kayondoabass@gmail.com";
-      const ADMIN_KEY = process.env.ADMIN_RESET_KEY || "brightboard-emergency-2026";
-      
-      // Only allow for CEO email with correct admin key
-      if (email?.toLowerCase() !== CEO_EMAIL) {
-        return res.status(403).json({ error: "Not authorized" });
-      }
-      
-      if (adminKey !== ADMIN_KEY) {
-        return res.status(403).json({ error: "Invalid admin key" });
-      }
-      
-      if (!newPassword || newPassword.length < 8) {
-        return res.status(400).json({ error: "Password must be at least 8 characters" });
-      }
-      
-      const result = await customAuth.emergencyPasswordReset(email, newPassword);
-      
-      if (!result.success) {
-        return res.status(400).json({ error: result.message });
-      }
-      
-      res.json({ message: "Password reset successfully. You can now log in." });
-    } catch (error) {
-      console.error("Emergency reset error:", error);
-      res.status(500).json({ error: "Failed to reset password" });
-    }
-  });
+  registerPrivateAccessRoutes(app, jobQueue);
 
   // ========== END CUSTOM AUTH ROUTES ==========
 
@@ -2185,7 +2129,7 @@ ${pages.map(p => `  <url>
 
   // Get organization settings
   // Diagnostic: list available Gemini models for this API key (owner only)
-  app.get("/api/list-models", async (req, res) => {
+  app.get("/api/list-models", isOwnerMiddleware, async (req, res) => {
     try {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) return res.status(400).json({ error: "GEMINI_API_KEY not set" });
@@ -3319,13 +3263,6 @@ This should look like it was designed by a world-class branding agency. Make it 
     }
   });
 
-  // Job status polling endpoint
-  app.get("/api/generate/job/:jobId", (req, res) => {
-    const job = jobQueue.getJob(req.params.jobId);
-    if (!job) return res.status(404).json({ error: "Job not found or expired" });
-    res.json(job);
-  });
-
   // Queue stats (public monitoring)
   app.get("/api/queue/stats", (_req, res) => {
     res.json(jobQueue.stats);
@@ -3354,7 +3291,7 @@ This should look like it was designed by a world-class branding agency. Make it 
       }
 
       // Create job and return immediately
-      const jobId = jobQueue.createJob();
+      const jobId = jobQueue.createJob(userId);
       res.json({ jobId });
 
       // Capture values for background closure

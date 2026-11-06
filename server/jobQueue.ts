@@ -16,19 +16,22 @@ export interface Job {
   updatedAt: number;
 }
 
-class JobQueue {
+export class JobQueue {
   private jobs = new Map<string, Job>();
+  private owners = new Map<string, string>();
   private queue: Array<{ jobId: string; fn: () => Promise<any> }> = [];
   private running = 0;
   private maxConcurrent: number;
 
   constructor(maxConcurrent = 20) {
     this.maxConcurrent = maxConcurrent;
-    setInterval(() => this.cleanup(), 10 * 60 * 1000);
+    setInterval(() => this.cleanup(), 10 * 60 * 1000).unref();
   }
 
-  createJob(): string {
+  createJob(ownerId: string): string {
+    if (!ownerId) throw new Error("A job owner is required");
     const id = randomUUID();
+    this.owners.set(id, ownerId);
     const position = this.queue.length + 1;
     this.jobs.set(id, {
       id,
@@ -43,6 +46,11 @@ class JobQueue {
   }
 
   getJob(id: string): Job | undefined {
+    return this.jobs.get(id);
+  }
+
+  getOwnedJob(id: string, userId: string): Job | undefined {
+    if (!userId || this.owners.get(id) !== userId) return undefined;
     return this.jobs.get(id);
   }
 
@@ -129,6 +137,7 @@ class JobQueue {
     for (const [id, job] of this.jobs.entries()) {
       if (now - job.createdAt > maxAge) {
         this.jobs.delete(id);
+        this.owners.delete(id);
       }
     }
   }

@@ -85,7 +85,7 @@ async function logEmailExpense(emailType: string, recipient: string): Promise<vo
       metadata: JSON.stringify({ emailType, recipient }),
     });
   } catch (error) {
-    console.error("Failed to log AfroAI email expense:", error);
+    console.error("Failed to log email expense; private diagnostics suppressed.");
   }
 }
 
@@ -216,11 +216,11 @@ export async function sendContactNotification(name: string, email: string, subje
       email
     );
 
-    console.log('Contact notification sent:', result);
+    console.log('Contact notification sent.');
     await logEmailExpense("Contact Form", email);
     return true;
   } catch (error) {
-    console.error('Error sending contact notification:', error);
+    console.error('Contact notification failed; private diagnostics suppressed.');
     return false;
   }
 }
@@ -265,11 +265,11 @@ export async function sendAffiliateStatusEmail(name: string, email: string, stat
       `
     );
 
-    console.log('Affiliate status email sent:', result);
+    console.log('Affiliate status email sent.');
     await logEmailExpense("Affiliate Status", email);
     return true;
   } catch (error) {
-    console.error('Error sending affiliate status email:', error);
+    console.error('Affiliate status email failed; private diagnostics suppressed.');
     return false;
   }
 }
@@ -308,11 +308,11 @@ export async function sendNewsletterWelcomeEmail(email: string, name?: string): 
       `
     );
 
-    console.log('Newsletter welcome email sent:', result);
+    console.log('Newsletter welcome email sent.');
     await logEmailExpense("Newsletter Welcome", email);
     return true;
   } catch (error) {
-    console.error('Error sending newsletter welcome email:', error);
+    console.error('Newsletter welcome email failed; private diagnostics suppressed.');
     return false;
   }
 }
@@ -404,11 +404,11 @@ export async function sendPaymentReceiptEmail(email: string, data: PaymentReceip
       `
     );
 
-    console.log('Payment receipt email sent:', result);
+    console.log('Payment receipt email sent.');
     await logEmailExpense("Payment Receipt", email);
     return true;
   } catch (error) {
-    console.error('Error sending payment receipt email:', error);
+    console.error('Payment receipt email failed; private diagnostics suppressed.');
     return false;
   }
 }
@@ -517,11 +517,11 @@ export async function sendMarketingBlastEmail(email: string, firstName: string, 
       `
     );
 
-    console.log('Marketing blast sent to:', email, result);
+    console.log('Marketing email sent.');
     await logEmailExpense("Marketing Blast", email);
     return true;
   } catch (error) {
-    console.error('Error sending marketing blast to', email, ':', error);
+    console.error('Marketing email failed; private diagnostics suppressed.');
     return false;
   }
 }
@@ -597,11 +597,11 @@ export async function sendActivationEmail(email: string, firstName: string): Pro
       `
     );
 
-    console.log('Activation email sent to:', email, result);
+    console.log('Activation email sent.');
     await logEmailExpense("Activation", email);
     return true;
   } catch (error) {
-    console.error('Error sending activation email to', email, ':', error);
+    console.error('Activation email failed; private diagnostics suppressed.');
     return false;
   }
 }
@@ -672,7 +672,7 @@ export async function sendPaymentCongratulationsEmail(email: string, name: strin
     await logEmailExpense("PaymentCongratulations", email);
     return result.success;
   } catch (error) {
-    console.error('Error sending congratulations email to', email, ':', error);
+    console.error('Congratulations email failed; private diagnostics suppressed.');
     return false;
   }
 }
@@ -737,7 +737,7 @@ export async function sendPaymentNudgeEmail(email: string, name: string, tier: s
     await logEmailExpense("PaymentNudge", email);
     return result.success;
   } catch (error) {
-    console.error('Error sending nudge email to', email, ':', error);
+    console.error('Nudge email failed; private diagnostics suppressed.');
     return false;
   }
 }

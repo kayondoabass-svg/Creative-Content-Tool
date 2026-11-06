@@ -18,6 +18,7 @@ import { pool } from "./db";
 import { registerMediaAPI } from "./media-api";
 import { initializeTVLibrary } from "./tv-library-store";
 import { registerDocumentSharing } from "./document-sharing-routes";
+import { registerFlashcardCatalog } from "./flashcard-catalog";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
 process.on("uncaughtException", (err) => {
@@ -63,26 +64,11 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse && !path.startsWith("/api/chatbot-widget/") && !path.startsWith("/api/auth/") &&
-        !path.startsWith("/api/referrals") && !path.startsWith("/api/affiliates") && !path.startsWith("/api/tv") &&
-        !path.startsWith("/api/settings") && !path.startsWith("/api/media") && !path.startsWith("/api/sharing")) {
-        if (!path.startsWith("/api/pesapal") && !path.startsWith("/api/payments")) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-        }
-      }
-
+      const logLine = `${req.method} ${path.split("/").map(segment => segment.includes("@") || /%40/i.test(segment) ? "[redacted]" : segment).join("/")} ${res.statusCode} in ${duration}ms`;
       log(logLine);
     }
   });
@@ -196,7 +182,7 @@ app.use((req, res, next) => {
   }, 10 * 60 * 1000);
 
   // Serve flashcard images from root public/ in both dev and production
-  app.use("/flashcard-images", express.static(path.join(process.cwd(), "public", "flashcard-images")));
+  registerFlashcardCatalog(app);
 
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
