@@ -17,15 +17,15 @@ export default function VerifyEmailPage() {
   
   const params = new URLSearchParams(search);
   const [usesLink, setUsesLink] = useState(params.get("method") === "link");
-  const emailFromUrl = params.get("email") || localStorage.getItem("pendingVerificationEmail") || "";
+  const emailFromUrl = params.get("email") || "";
   
   const [email, setEmail] = useState(emailFromUrl);
 
   useEffect(() => {
-    if (email) {
-      localStorage.setItem("pendingVerificationEmail", email);
-    }
-  }, [email]);
+    // Remove legacy persisted addresses; the current verification form uses
+    // its URL/state only and never stores an email on a shared device.
+    localStorage.removeItem("pendingVerificationEmail");
+  }, []);
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerified, setIsVerified] = useState(false);
 

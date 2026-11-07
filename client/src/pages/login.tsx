@@ -80,7 +80,7 @@ export default function LoginPage() {
     } catch (error: any) {
       const errorMessage = error.message || "Please check your credentials";
       if (errorMessage.toLowerCase().includes("verify your email") || errorMessage.toLowerCase().includes("not verified")) {
-        localStorage.setItem("pendingVerificationEmail", email);
+        localStorage.removeItem("pendingVerificationEmail");
         toast({ title: "Email not verified", description: "Redirecting you to verify your email...", variant: "destructive" });
         setTimeout(() => setLocation(`/verify-email?email=${encodeURIComponent(email)}&method=link`), 1500);
         return;

@@ -58,7 +58,7 @@ export default function SignupPage() {
       const urlParams = new URLSearchParams(window.location.search);
       const ref = urlParams.get("ref") || undefined;
       const result = await signup({ email, password, firstName, lastName, recaptchaToken, ref });
-      localStorage.setItem("pendingVerificationEmail", email);
+      localStorage.removeItem("pendingVerificationEmail");
       const usesLink = result.verificationMethod === "link";
       toast({ title: "Account created!", description: usesLink ? "Open the confirmation link in your email, then sign in." : "Enter the 6-digit code we sent to your email." });
       setLocation(`/verify-email?email=${encodeURIComponent(email)}${usesLink ? "&method=link" : ""}`);
