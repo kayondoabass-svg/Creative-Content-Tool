@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { expenseProviderLabels, ownerReportRefreshOptions } from "@/lib/owner-reporting";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 import { 
@@ -48,8 +49,9 @@ interface ExpenseSummary {
 }
 
 const categoryInfo: Record<string, { label: string; icon: any; color: string }> = {
-  openai: { label: "OpenAI API", icon: Bot, color: "bg-emerald-500" },
-  gemini: { label: "OpenAI API", icon: Bot, color: "bg-emerald-500" },
+  openai: { label: expenseProviderLabels.openai, icon: Bot, color: "bg-emerald-500" },
+  gemini: { label: expenseProviderLabels.gemini, icon: Bot, color: "bg-emerald-500" },
+  afroai: { label: expenseProviderLabels.afroai, icon: Mail, color: "bg-violet-500" },
   resend: { label: "Resend Emails", icon: Mail, color: "bg-blue-500" },
   replit: { label: "Replit", icon: Cloud, color: "bg-orange-500" },
   cloudflare: { label: "Cloudflare", icon: SiCloudflare, color: "bg-yellow-500" },
@@ -77,11 +79,15 @@ export default function OwnerExpenses() {
   });
 
   const { data: expenses, isLoading: expensesLoading } = useQuery<Expense[]>({
+    ...ownerReportRefreshOptions,
     queryKey: ["/api/owner/expenses"],
+    enabled: !!user?.isOwner,
   });
 
   const { data: summary, isLoading: summaryLoading } = useQuery<ExpenseSummary>({
+    ...ownerReportRefreshOptions,
     queryKey: ["/api/owner/expenses/summary"],
+    enabled: !!user?.isOwner,
   });
 
   const addExpenseMutation = useMutation({
@@ -204,7 +210,7 @@ export default function OwnerExpenses() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold">Expenses Tracker</h1>
-              <p className="text-muted-foreground">Track all your business costs</p>
+              <p className="text-muted-foreground">Track recorded costs. Refreshes every minute while this page is visible.</p>
             </div>
           </div>
         </div>
@@ -235,7 +241,7 @@ export default function OwnerExpenses() {
               <div className="text-2xl font-bold text-emerald-600" data-testid="text-auto-expenses">
                 {summaryLoading ? "..." : formatCurrency(summary?.totals.automatic || 0)}
               </div>
-              <p className="text-xs text-muted-foreground">OpenAI, Resend (tracked)</p>
+              <p className="text-xs text-muted-foreground">Recorded API costs and email activity</p>
             </CardContent>
           </Card>
 
@@ -459,10 +465,12 @@ export default function OwnerExpenses() {
           <CardContent className="pt-6">
             <h3 className="font-semibold mb-2">Cost Tracking Tips</h3>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• <strong>OpenAI & Resend</strong>: Automatically tracked when content is generated or emails are sent</li>
+              <li>• <strong>Google Gemini & AfroAI</strong>: Recorded generation costs and BrightBoard-sent email activity. Historical OpenAI and Resend entries keep their original categories.</li>
+              <li>• <strong>Signup confirmation</strong>: Emails sent directly by AfroAI Auth do not automatically create a BrightBoard expense entry. A missing entry does not mean a missing account.</li>
+              <li>• <strong>Recorded amounts</strong>: Zero-value email entries record activity, not a confirmed provider charge. Reconcile costs against your provider invoices.</li>
               <li>• <strong>Replit</strong>: Add your monthly subscription cost (Core/Pro plan)</li>
               <li>• <strong>Cloudflare</strong>: Usually free for basic DNS, add if using paid features</li>
-              <li>• <strong>Paddle Fees</strong>: ~5% + $0.50 per subscription transaction</li>
+              <li>• <strong>Payment fees</strong>: Use the actual provider statement. Historical Paddle records remain unchanged; do not assume its fee schedule applies to PesaPal.</li>
               <li>• <strong>Ad Spend</strong>: Track your TikTok, Meta (Facebook/Instagram), and Google ad campaigns</li>
             </ul>
           </CardContent>

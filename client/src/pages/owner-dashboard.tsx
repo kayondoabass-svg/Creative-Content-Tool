@@ -16,6 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { ownerReportRefreshOptions } from "@/lib/owner-reporting";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { ReferralOwner } from "@/components/referral-owner";
@@ -631,11 +632,13 @@ export default function OwnerDashboard() {
   const { t } = useTranslation();
 
   const { data: stats, isLoading: statsLoading } = useQuery<OwnerStats>({
+    ...ownerReportRefreshOptions,
     queryKey: ["/api/owner/stats"],
     enabled: !!user?.isOwner,
   });
 
   const { data: trends, isLoading: trendsLoading } = useQuery<TrendData>({
+    ...ownerReportRefreshOptions,
     queryKey: ["/api/owner/trends"],
     enabled: !!user?.isOwner,
   });
@@ -937,7 +940,7 @@ export default function OwnerDashboard() {
             <Calendar className="h-5 w-5" />
             Recent Signups
           </CardTitle>
-          <CardDescription>Latest users who joined BrightBoard</CardDescription>
+          <CardDescription>Latest users who joined BrightBoard. Refreshes every minute while this page is visible.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
