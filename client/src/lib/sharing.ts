@@ -16,10 +16,15 @@ export class SharingError extends Error {
 export async function sharingRequest<T = any>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-  const response = await fetch(path, {
-    credentials: "include", cache: "no-store", ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      credentials: "include", cache: "no-store", ...init,
+      signal: init.signal ?? AbortSignal.timeout(60_000), headers,
+    });
+  } catch {
+    throw new SharingError("The sharing server did not respond. Your work is unchanged. Reopen Share and check existing shares before publishing again.", 503);
+  }
   if (response.status === 401) {
     const returnTo = window.location.pathname + window.location.search;
     window.location.assign(`/login?redirect=${encodeURIComponent(returnTo)}`);
@@ -58,6 +63,13 @@ export function isPrivateShareKey(key: string) {
 }
 
 export async function prepareShareSnapshot(value: any, kind?: string, includePrivate = true): Promise<any> {
+  const preparationSignal = AbortSignal.timeout(30_000);
+  let bytes = 0;
+  const bounded = (text: string) => {
+    bytes += new Blob([text]).size;
+    if (bytes > 16 * 1024 * 1024) throw new Error("This snapshot exceeds the 16 MB sharing limit. Download a backup and reduce large media before sharing.");
+    return text;
+  };
   if (kind === "file") {
     const data = value?.data;
     const match = typeof data === "string" ? data.match(/^data:([^;,]+);base64,/i) : null;
@@ -70,6 +82,7 @@ export async function prepareShareSnapshot(value: any, kind?: string, includePri
     }
   }
   const visit = async (item: any, key = "", imageContext = false): Promise<any> => {
+    if (preparationSignal.aborted) throw new Error("Preparing images took too long. Your work was not shared; save a backup and retry.");
     if (Array.isArray(item)) return Promise.all(item.map(v => visit(v, key, imageContext)));
     if (item && typeof item === "object") {
       const result: Record<string, any> = {};
@@ -82,14 +95,15 @@ export async function prepareShareSnapshot(value: any, kind?: string, includePri
     }
     if (typeof item !== "string") return item;
     if (kind === "tv" && key === "src" && /^\/tv-assets\/models\/[a-z0-9-]+\.glb$/.test(item)) {
-      const response = await fetch(item, { credentials: "include" });
+      const response = await fetch(item, { credentials: "include", signal: AbortSignal.any([preparationSignal, AbortSignal.timeout(20_000)]) });
       if (!response.ok) throw new Error("The complete 3D model could not be embedded. Nothing was shared.");
       const data = await response.arrayBuffer();
       if (data.byteLength > 11 * 1024 * 1024) throw new Error("This 3D model is too large for a 16 MB shared snapshot.");
       return new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
+        reader.onload = () => { try { resolve(bounded(String(reader.result))); } catch (error) { reject(error); } };
         reader.onerror = () => reject(new Error("Could not embed the 3D model."));
+        reader.onabort = () => reject(new Error("3D embedding was cancelled."));
         reader.readAsDataURL(new Blob([data], { type: "model/gltf-binary" }));
       });
     }
@@ -97,12 +111,13 @@ export async function prepareShareSnapshot(value: any, kind?: string, includePri
     // Inspect and rewrite its image fields without changing the public payload
     // shape expected by existing BrightBoard renderers.
     if (key === "body" && /^[\s]*(\{|\[)/.test(item)) {
+      if (new Blob([item]).size > 16 * 1024 * 1024) throw new Error("This snapshot exceeds the 16 MB sharing limit. Download a backup and reduce large media before sharing.");
       try { return JSON.stringify(await visit(JSON.parse(item), "", imageContext || kind === "image")); } catch (error) {
         if (error instanceof Error && /image|embed|host|share/i.test(error.message)) throw error;
       }
     }
     if (/^data:image\/svg\+xml(?:[;,])/i.test(item)) throw new Error("SVG images cannot be shared. Export the logo as PNG, JPEG, WebP, or GIF first.");
-    if (/^data:image\//i.test(item)) return item;
+    if (/^data:image\//i.test(item)) return bounded(item);
     const isImageBody = kind === "image" && key === "body";
     const isKnownRelativeImagePath = /^(?:\.\/)?\/?(?:generated-images?|uploads?|api)\/[^?#]+/i.test(item);
     const isRelativeImageFilename = /^(?:\.\/)?[\w./-]+\.(?:png|jpe?g|webp|gif|bmp|avif|tiff?)(?:[?#].*)?$/i.test(item);
@@ -117,19 +132,22 @@ export async function prepareShareSnapshot(value: any, kind?: string, includePri
       try { url = new URL(item, window.location.origin); } catch { throw new Error(`Could not prepare image in “${key}”.`); }
       if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Temporary image links cannot be shared. Save the image and try again.");
       try {
-        const response = await fetch(url.href, { mode: "cors", credentials: url.origin === window.location.origin ? "include" : "omit" });
+        const response = await fetch(url.href, { mode: "cors", credentials: url.origin === window.location.origin ? "include" : "omit", signal: AbortSignal.any([preparationSignal, AbortSignal.timeout(20_000)]) });
         if (!response.ok) throw new Error();
+        if (Number(response.headers.get("content-length") || 0) > 12 * 1024 * 1024) throw new Error("Image exceeds the sharing size limit.");
         const blob = await response.blob();
+        if (blob.size > 12 * 1024 * 1024) throw new Error("Image exceeds the sharing size limit.");
         if (!blob.type.startsWith("image/") || blob.type.toLowerCase() === "image/svg+xml") throw new Error();
         return await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
+          reader.onload = () => { try { resolve(bounded(String(reader.result))); } catch (error) { reject(error); } };
           reader.onerror = () => reject(new Error());
+          reader.onabort = () => reject(new Error());
           reader.readAsDataURL(blob);
         });
       } catch { throw new Error("An image could not be embedded (the image host may block access). Nothing was shared."); }
     }
-    return item;
+    return bounded(item);
   };
   return visit(value);
 }

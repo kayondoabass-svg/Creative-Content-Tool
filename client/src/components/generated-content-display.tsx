@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { worksheetLines } from "@shared/worksheet-quality";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Copy, Check, RefreshCw, Loader2, FileDown, Play, Sparkles, FileText, Image as ImageIcon, Film, Gamepad2, Crown, Pencil, Plus, Palette, X } from "lucide-react";
@@ -764,7 +765,7 @@ export function GeneratedContentDisplay({
               </Button>
             </>
           ) : type === "worksheet" ? (
-            <WorksheetDownloadButtons content={content} toast={toast} isPremium={isPremium} />
+            null
           ) : type === "activity" ? (
             <>
               <Button 
@@ -806,6 +807,11 @@ export function GeneratedContentDisplay({
           Logo adjustment is unavailable because original sources were not retained, expired, or reached the private storage limit. Sources are kept for up to 24 hours after creation, within 128MB per account. Your finished design is unchanged.
         </p>
       )}
+      {type === "worksheet" && <section className="mb-4 rounded-xl border bg-muted/30 p-3" aria-label="Worksheet downloads">
+        <h3 className="mb-2 font-semibold">Download your worksheet</h3>
+        <WorksheetDownloadButtons key={contentId || content.slice(0, 160)} content={content} toast={toast} isPremium={isPremium} />
+        <p className="mt-2 text-xs text-muted-foreground">Review facts and answers before classroom use. AI review reduces errors but cannot guarantee factual accuracy. On iPhone, an opened PDF can be saved through Share → Save to Files.</p>
+      </section>}
       <div className="overflow-auto max-h-[600px]">
         <ContentErrorBoundary>
           {renderContent()}
@@ -1481,23 +1487,13 @@ function StoryboardContent({ content }: { content: string }) {
 function WorksheetDownloadButtons({ content, toast, isPremium }: { content: string; toast: any; isPremium?: boolean }) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [imagePages, setImagePages] = useState<{ file: string; fileName: string }[]>([]);
+  const [pdfFile, setPdfFile] = useState<{ file: string; fileName: string } | null>(null);
 
   const copyToClipboard = async () => {
     try {
       const data = JSON.parse(content);
-      let text = `${data.title}\n${"=".repeat(data.title?.length || 10)}\n\n`;
-      if (data.instructions) text += `Instructions: ${data.instructions}\n\n`;
-      data.sections?.forEach((section: any) => {
-        if (section.title) text += `${section.title}\n${"-".repeat(section.title.length)}\n`;
-        section.content?.forEach((item: string, i: number) => {
-          text += `${i + 1}. ${item}\n`;
-        });
-        if (section.answers?.length) {
-          text += `\nAnswer Key:\n`;
-          section.answers.forEach((a: string, i: number) => { text += `${i + 1}. ${a}\n`; });
-        }
-        text += "\n";
-      });
+      const text = worksheetLines(data).join("\n");
       await navigator.clipboard.writeText(text);
       setCopied(true);
       toast({ title: "Copied!", description: "Worksheet text copied to clipboard. Paste into Google Docs or Word." });
@@ -1510,8 +1506,9 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
   const downloadAsPDF = async () => {
     setDownloading("pdf");
     try {
-      const res = await apiRequest("POST", "/api/worksheet-to-pdf", { content });
+      const res = await apiRequest("POST", "/api/worksheets/export", { content, format: "pdf" });
       const data = await res.json();
+      setPdfFile(data);
       
       const link = document.createElement("a");
       link.href = data.file;
@@ -1520,7 +1517,7 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
       link.click();
       document.body.removeChild(link);
       
-      toast({ title: "Downloaded", description: "PDF file downloaded successfully." });
+      toast({ title: "PDF ready", description: "If your browser did not save it, use the Save PDF link below." });
     } catch (error) {
       toast({ title: "Download failed", description: "Could not create PDF.", variant: "destructive" });
     } finally {
@@ -1531,17 +1528,18 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
   const downloadAsImage = async () => {
     setDownloading("jpeg");
     try {
-      const res = await apiRequest("POST", "/api/worksheet-to-image", { content });
+      const res = await apiRequest("POST", "/api/worksheets/export", { content, format: "jpeg" });
       const data = await res.json();
+      // Multiple pages must remain selectable on mobile, not silently cropped.
+      setImagePages(data.files);
+      if (data.files.length === 1) {
+        const link = document.createElement("a");
+        link.href = data.files[0].file;
+        link.download = data.files[0].fileName;
+        document.body.appendChild(link); link.click(); link.remove();
+      }
       
-      const link = document.createElement("a");
-      link.href = data.file;
-      link.download = data.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast({ title: "Downloaded", description: "Image file downloaded successfully." });
+      toast({ title: "JPEG ready", description: "Use the page links below to save each worksheet page." });
     } catch (error) {
       toast({ title: "Download failed", description: "Could not create image.", variant: "destructive" });
     } finally {
@@ -1552,24 +1550,15 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
   const downloadAsText = () => {
     try {
       const data = JSON.parse(content);
-      let text = `${data.title}\n${"=".repeat(data.title.length)}\n\n`;
-      text += `Instructions: ${data.instructions}\n\n`;
-      
-      data.sections?.forEach((section: any, idx: number) => {
-        if (section.title) text += `${section.title}\n${"-".repeat(section.title.length)}\n`;
-        section.content?.forEach((item: string, i: number) => {
-          text += `${i + 1}. ${item}\n`;
-        });
-        text += "\n";
-      });
+      const text = worksheetLines(data).join("\n");
       
       const blob = new Blob([text], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `${data.title || "worksheet"}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
       
       toast({ title: "Downloaded", description: "Text file downloaded successfully." });
     } catch (error) {
@@ -1581,16 +1570,19 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
     <div className="flex gap-2 flex-wrap">
       <Button variant="outline" size="sm" onClick={downloadAsPDF} disabled={!!downloading} data-testid="button-download-pdf">
         {downloading === "pdf" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
-        PDF
+        Download PDF
       </Button>
       <Button variant="outline" size="sm" onClick={downloadAsImage} disabled={!!downloading} data-testid="button-download-jpeg">
         {downloading === "jpeg" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <ImageIcon className="h-4 w-4 mr-1.5" />}
-        JPEG
+        Download JPEG
       </Button>
       <Button variant="outline" size="sm" onClick={copyToClipboard} disabled={copied} data-testid="button-copy-worksheet">
         {copied ? <Check className="h-4 w-4 mr-1.5 text-green-500" /> : <Copy className="h-4 w-4 mr-1.5" />}
         {copied ? "Copied!" : "Copy Text"}
       </Button>
+      <Button variant="outline" size="sm" onClick={downloadAsText} data-testid="button-download-worksheet-text">Download Text</Button>
+      {pdfFile && <a href={pdfFile.file} download={pdfFile.fileName} className="text-sm underline p-2">Save PDF</a>}
+      {imagePages.map((page, i) => <a key={page.fileName} href={page.file} download={page.fileName} className="text-sm underline p-2">Save JPEG page {i + 1}</a>)}
     </div>
   );
 }
@@ -1636,6 +1628,18 @@ function WorksheetContent({ content }: { content: string }) {
       </div>
     );
 
+    if (layout === "wordSearch") return (
+      <div className="space-y-4" data-testid="worksheet-content">
+        <WorksheetHeader />
+        <p className="text-sm text-muted-foreground">Every listed word is placed in this grid. Find words from left to right.</p>
+        <div className="overflow-x-auto"><table className="mx-auto border-collapse font-mono text-center" aria-label="Word search puzzle"><tbody>
+          {data.grid.map((row: string[], r: number) => <tr key={r}>{row.map((letter: string, c: number) => <td key={c} className="border p-1 sm:p-2 min-w-6">{letter}</td>)}</tr>)}
+        </tbody></table></div>
+        <p className="font-semibold">{data.words.join(" · ")}</p>
+        <button type="button" onClick={() => setShowAnswers(v => !v)} className="text-sm underline">{showAnswers ? "Hide answer key" : "Show answer key"}</button>
+        {showAnswers && <ul className="text-sm">{data.answerKey?.map((p: any) => <li key={p.word}>{p.word}: row {p.row + 1}, column {p.column + 1}, left to right</li>)}</ul>}
+      </div>
+    );
     // ── PICTURE GRID ──────────────────────────────────────────────────────────
     if (layout === "pictureGrid") {
       const questions = data.questions || [];
@@ -1730,7 +1734,7 @@ function WorksheetContent({ content }: { content: string }) {
     // ── MATCHING ──────────────────────────────────────────────────────────────
     if (layout === "matching") {
       const pairs = data.pairs || [];
-      const shuffledRight = [...pairs].sort(() => Math.random() - 0.5);
+      const shuffledRight = pairs.length ? [...pairs.slice(1), pairs[0]] : [];
       return (
         <div className="space-y-4" data-testid="worksheet-content">
           <WorksheetHeader />

@@ -24,11 +24,26 @@ function ShareDialogInternal({ open, onOpenChange, source, onPublished }: { open
   const [qr, setQr] = useState("");
   const [name, setName] = useState(source.title || "Untitled document");
   const wasOpen = useRef(false);
-  const createdSourceKey = useRef<string | null>(null);
-  const sourceKey = () => JSON.stringify([source.kind, source.title, source.content]);
+  const createdSourceKey = useRef<{ kind: string; title: string; content: any } | null>(null);
+  // Retain references instead of serialising megabytes of base64 on every
+  // mobile render (which can exhaust memory and blank the page).
+  const sourceKey = () => ({ kind: source.kind, title: source.title, content: source.content?.body ?? source.content });
+  // QR rendering is independent of publishing: failure here must never discard
+  // a real link or encourage publishing duplicate documents.
+  useEffect(() => {
+    let cancelled = false;
+    setQr("");
+    if (document) {
+      void QRCode.toDataURL(stableShareUrl(document.id, document.revision), { width: 240, margin: 2, errorCorrectionLevel: "M", color: { dark: "#183c40", light: "#ffffff" } })
+        .then(image => { if (!cancelled) setQr(image); })
+        .catch(() => { if (!cancelled) setError("Your link was created, but the QR could not render. Reopen Share to retry the QR without publishing again."); });
+    }
+    return () => { cancelled = true; };
+  }, [document?.id, document?.revision]);
   useEffect(() => {
     if (open && !wasOpen.current) {
-      if (document && createdSourceKey.current === sourceKey()) {
+      const previous = createdSourceKey.current, current = sourceKey();
+      if (document && previous?.kind === current.kind && previous?.title === current.title && previous?.content === current.content) {
         setName(document.title);
         setOptions({ audience: document.audience, allowRequests: document.allowRequests, allowDownload: document.allowDownload, includePrivate: document.includePrivate, expiresAt: document.expiresAt });
         setTargetId(document.id);
@@ -92,8 +107,6 @@ function ShareDialogInternal({ open, onOpenChange, source, onPublished }: { open
       setTargetDetail(detail); setTargetId(detail.id);
       setOptions({ audience: detail.audience, allowRequests: detail.allowRequests, allowDownload: detail.allowDownload, includePrivate: detail.includePrivate, expiresAt: detail.expiresAt });
       onPublished?.();
-      const image = await QRCode.toDataURL(stableShareUrl(detail.id), { width: 180, margin: 1, color: { dark: "#183c40", light: "#f8f6ef" } });
-      setQr(image);
     } catch (e) {
       if (e instanceof SharingError && e.status === 409 && targetDetail) {
         try {
@@ -132,7 +145,7 @@ function ShareDialogInternal({ open, onOpenChange, source, onPublished }: { open
   };
   const copy = async () => {
     if (!document) return;
-    try { await navigator.clipboard.writeText(stableShareUrl(document.id)); setCopied(true); setTimeout(() => setCopied(false), 1800); }
+    try { await navigator.clipboard.writeText(stableShareUrl(document.id, document.revision)); setCopied(true); setTimeout(() => setCopied(false), 1800); }
     catch { setError("Clipboard unavailable. Copy the link from the address below."); }
   };
   const close = () => { onOpenChange(false); setError(""); };
@@ -145,14 +158,14 @@ function ShareDialogInternal({ open, onOpenChange, source, onPublished }: { open
           <button type="button" onClick={close} className="rounded-full p-2 hover:bg-[#e9eee6]" aria-label="Close"><X className="h-5 w-5" /></button>
         </header>
         <div className="space-y-5 p-6">
-          {!document ? <>
+          {!document ? <div key="publish-form" className="space-y-5">
             {!isAuthenticated ? <div className="rounded-xl border border-[#e8c9b6] bg-[#fbf0e8] p-4 text-sm">Sign in to create and manage document shares. Your work stays here until you publish it.<Link href={`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`} className="ml-2 font-semibold text-[#2f7472] underline">Sign in</Link></div> : <>
               <div>
-                <Label htmlFor="share-destination">Publish destination</Label>
-                <select id="share-destination" value={targetId} onChange={e => void chooseTarget(e.target.value)} disabled={busy} className="mt-1 w-full rounded-lg border border-[#cbd8cf] bg-white px-3 py-2.5 text-sm">
-                  <option value="new">Create a new share</option>
-                  {(ownedDocuments || []).map(item => <option key={item.id} value={item.id}>Update “{item.title}” · {new Date(item.updatedAt).toLocaleDateString()}</option>)}
-                </select>
+                <p id="share-destination-label" className="text-sm font-medium">Publish destination</p>
+                <div role="radiogroup" aria-labelledby="share-destination-label" className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-[#cbd8cf] bg-white p-3 text-sm">
+                  <label className="flex items-start gap-2 py-1"><input type="radio" name="share-destination" checked={targetId === "new"} onChange={() => void chooseTarget("new")} disabled={busy} /><span>Create a new share</span></label>
+                  {(ownedDocuments || []).map(item => <label key={item.id} className="flex items-start gap-2 py-1"><input type="radio" name="share-destination" checked={targetId === item.id} onChange={() => void chooseTarget(item.id)} disabled={busy} /><span>{`Update “${item.title}” · ${new Date(item.updatedAt).toLocaleDateString()}`}</span></label>)}
+                </div>
                 {ownedDocuments === null && <p className="mt-1 text-xs text-[#617574]">Checking existing shares…</p>}
                 {ownedDocuments?.length === 0 && <p className="mt-1 text-xs text-[#617574]">No owned shares of this type yet.</p>}
                 {ownedDocuments === null && error && <button type="button" onClick={() => { setError(""); void sharingRequest<{ documents: SharedDocument[] }>("/api/sharing/documents").then(r => setOwnedDocuments((r.documents || []).filter(d => d.role === "owner" && d.kind === source.kind))).catch(e => setError(e instanceof Error ? e.message : "Could not load your shares.")); }} className="mt-1 text-xs font-semibold text-[#2f7472] underline">Retry existing shares</button>}
@@ -171,10 +184,10 @@ function ShareDialogInternal({ open, onOpenChange, source, onPublished }: { open
               {targetId === "new" ? <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={options.includePrivate} onChange={e => setOptions(v => ({ ...v, includePrivate: e.target.checked }))} className="mt-1 accent-[#2f7472]" /><span><strong>Include private notes and answer keys</strong><span className="block text-xs text-[#a45636]">Off by default. Server filtering only recognizes known structured fields; names and answers written in prose need your review. Only opt in after checking this snapshot.</span></span></label> : <p className="rounded-xl bg-[#f1eee4] p-3 text-xs text-[#617574]">Private notes and answer keys are {targetDetail?.includePrivate ? "included" : "excluded"} according to the original share. This setting is immutable for an existing document.</p>}
               {targetId === "new" && <div><Label htmlFor="share-expiry" className="flex items-center gap-2"><CalendarDays className="h-4 w-4" /> Link expiry (optional)</Label><Input id="share-expiry" type="datetime-local" className="mt-1 bg-white" onChange={e => setOptions(v => ({ ...v, expiresAt: e.target.value ? new Date(e.target.value).toISOString() : null }))} /></div>}
             </>}
-          </> : <>
+          </div> : <div key="published-share" className="space-y-5">
             <div className="flex flex-col gap-4 rounded-2xl bg-[#edf2eb] p-4 sm:flex-row sm:items-center">
               {qr && <img src={qr} alt="QR code for the shared document" className="h-28 w-28 rounded-lg border bg-[#f8f6ef] p-1" />}
-              <div className="min-w-0 flex-1"><p className="mb-2 text-sm font-semibold">Stable document link</p><Input readOnly value={stableShareUrl(document.id)} className="bg-white font-mono text-xs" /><div className="mt-3 flex gap-2"><Button type="button" size="sm" onClick={copy}>{copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}{copied ? "Copied" : "Copy link"}</Button><a href={qr} download="brightboard-share-qr.png" className="inline-flex items-center rounded-lg border border-[#cbd8cf] px-3 text-sm hover:bg-white"><QrCode className="mr-2 h-4 w-4" /> QR</a></div></div>
+              <div className="min-w-0 flex-1"><p className="mb-2 text-sm font-semibold">This revision’s link and QR</p><Input aria-label="Revision share link" readOnly value={stableShareUrl(document.id, document.revision)} className="bg-white font-mono text-xs" /><div className="mt-3 flex gap-2"><Button type="button" size="sm" onClick={copy}>{copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}{copied ? "Copied" : "Copy link"}</Button>{qr && <a href={qr} download={`brightboard-share-${document.revision}-qr.png`} className="inline-flex items-center rounded-lg border border-[#cbd8cf] px-3 text-sm hover:bg-white"><QrCode className="mr-2 h-4 w-4" /> QR</a>}</div><p className="mt-3 text-xs">Always-latest project link:</p><Input aria-label="Latest project share link" readOnly value={stableShareUrl(document.id)} className="mt-1 bg-white font-mono text-xs" /></div>
             </div>
             <div><Label htmlFor="share-email">Invite by email</Label><div className="mt-1 flex gap-2"><Input id="share-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="colleague@school.org" className="bg-white" /><Button type="button" variant="outline" onClick={invite} disabled={busy || !email.trim()}>Invite</Button></div></div>
             {(document.members?.length ?? 0) > 0 && <ul className="divide-y rounded-xl border border-[#dce4d9]">{document.members?.map(m => <li key={m.id} className="flex items-center justify-between p-3 text-sm"><span>{m.email}</span><span className="text-xs capitalize text-[#617574]">{m.role}</span></li>)}</ul>}
@@ -187,9 +200,9 @@ function ShareDialogInternal({ open, onOpenChange, source, onPublished }: { open
             <p className="mt-3 rounded-xl bg-[#f1eee4] p-3 text-xs text-[#617574]">Private notes and answer keys are {document.includePrivate ? "included" : "excluded"} in this published snapshot. This choice cannot be changed after publishing; create a new share from the source to change it.</p>
               <div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={update} disabled={busy}>Save settings</Button><Button type="button" variant="outline" onClick={async () => { setBusy(true); try { await sharingRequest(`/api/sharing/documents/${document.id}`, { method: "PATCH", body: JSON.stringify({ audience: options.audience, allowRequests: options.allowRequests, allowDownload: options.allowDownload, expiresAt: options.expiresAt, enabled: !document.enabled }) }); setDocument(await sharingRequest<SharedDetail>(`/api/sharing/documents/${document.id}`)); } catch (e) { setError(e instanceof Error ? e.message : "Could not change link status."); } finally { setBusy(false); } }}>{document.enabled ? "Disable link" : "Enable link"}</Button></div>
           </div>
-          </>}
+          </div>}
           {error && <p role="alert" className="rounded-xl border border-[#d89a80] bg-[#fff0e9] p-3 text-sm text-[#9c452e]">{error}</p>}
-          {!document && isAuthenticated && <div className="flex justify-end gap-3 border-t border-[#dfe5dc] pt-4"><Button type="button" variant="ghost" onClick={close}>Cancel</Button><Button type="button" onClick={create} disabled={busy || !name.trim() || (ownedDocuments === null && !error) || (targetId !== "new" && !targetDetail)}>{busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Preparing snapshot…</> : ownedDocuments === null && !error ? "Checking existing shares…" : targetId === "new" ? "Create share" : "Publish as new revision"}</Button></div>}
+          {!document && isAuthenticated && <div className="flex justify-end gap-3 border-t border-[#dfe5dc] pt-4"><Button type="button" variant="ghost" onClick={close}>Cancel</Button><Button type="button" onClick={create} disabled={busy || !name.trim() || (targetId !== "new" && !targetDetail)}>{busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Preparing snapshot…</> : targetId === "new" ? "Create share" : "Publish as new revision"}</Button></div>}
           {document && <div className="flex justify-end border-t border-[#dfe5dc] pt-4"><Button type="button" onClick={close}>Done</Button></div>}
         </div>
       </section>

@@ -31,6 +31,7 @@ const worksheetColorModes = [
 ];
 
 const worksheetTypes = [
+  { value: "wordSearch",     emoji: "", label: "Word Search"     },
   { value: "mixed",          emoji: "🎲", label: "Mixed"           },
   { value: "fillBlank",      emoji: "✏️", label: "Fill Blanks"     },
   { value: "pictureGrid",    emoji: "🖼️", label: "Picture Grid"    },

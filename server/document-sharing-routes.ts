@@ -3,6 +3,19 @@ import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
 import { ShareError } from "./document-sharing-store";
 import { CloudflareSharingStore, type SharingStore } from "./cloudflare-sharing-store";
+import { trustedPaymentOrigins } from "./payment-security";
+
+export function sharingOriginAllowed(req: Pick<express.Request, "headers" | "get">) {
+  if (req.headers["sec-fetch-site"] === "cross-site") return false;
+  if (!req.headers.origin) return true; // non-browser clients still require session authentication
+  try {
+    const origin = new URL(String(req.headers.origin));
+    // Caddy can forward an internal Host. Only explicit app origins may differ;
+    // never trust arbitrary X-Forwarded-Host supplied by a caller.
+    return origin.origin === req.headers.origin &&
+      (origin.host === req.get("host") || trustedPaymentOrigins().has(origin.origin));
+  } catch { return false; }
+}
 
 export function registerDocumentSharing(app: Express, _pool: Pool, getUser: (id: string) => Promise<any>, storeOverride?: SharingStore) {
   const store = storeOverride || new CloudflareSharingStore(), router = express.Router();
@@ -14,9 +27,7 @@ export function registerDocumentSharing(app: Express, _pool: Pool, getUser: (id:
       if (!user) return res.status(401).json({ error: "Please sign in again." });
       if (!user.emailVerified) return res.status(403).json({ error: "Verify your email before sharing or opening documents." });
       if (!["GET", "HEAD"].includes(req.method)) {
-        let originOK = true;
-        try { if (req.headers.origin) originOK = new URL(req.headers.origin).host === req.get("host"); } catch { originOK = false; }
-        if (!originOK || req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Open BrightBoard directly to change document sharing." });
+        if (!sharingOriginAllowed(req)) return res.status(403).json({ error: "Open BrightBoard directly to change document sharing." });
         if (!req.is("application/json") && req.method !== "DELETE") return res.status(415).json({ error: "Use JSON for sharing requests." });
       }
       res.locals.viewer = user;

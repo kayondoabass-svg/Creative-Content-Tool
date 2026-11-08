@@ -10,6 +10,8 @@ import { GeneratedContentDisplay } from "@/components/generated-content-display"
 import { GenerationProgress } from "@/components/generation-progress";
 import { HistorySidebar } from "@/components/history-sidebar";
 import { Footer } from "@/components/footer";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -80,6 +82,7 @@ export default function Home() {
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [generatedContentId, setGeneratedContentId] = useState<number | null>(null);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<GeneratedContent | null>(null);
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const selectedHistoryRef = useRef(selectedHistoryItem);
   const generatedContentIdRef = useRef(generatedContentId);
   selectedHistoryRef.current = selectedHistoryItem;
@@ -283,6 +286,17 @@ export default function Home() {
       {/* Main Content — this is the single scroll container */}
       <div className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-7 md:py-10 space-y-8">
+          <div className="lg:hidden">
+            <Button variant="outline" onClick={() => setMobileHistoryOpen(true)} data-testid="button-mobile-history">Recent creations ({history.length})</Button>
+            <Sheet open={mobileHistoryOpen} onOpenChange={setMobileHistoryOpen}>
+              <SheetContent side="right" className="flex flex-col p-0">
+                <SheetHeader className="p-5"><SheetTitle>Recent creations</SheetTitle></SheetHeader>
+                <div className="min-h-0 flex-1 overflow-y-auto" data-testid="mobile-history">
+                  <HistorySidebar history={history} onSelect={item => { handleSelectHistory(item); setMobileHistoryOpen(false); }} onDelete={handleDelete} selectedId={selectedHistoryItem?.id} />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
 
           {/* Email verification banner */}
           {showVerifyBanner && (

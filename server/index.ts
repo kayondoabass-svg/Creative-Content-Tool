@@ -18,6 +18,7 @@ import { pool } from "./db";
 import { registerMediaAPI } from "./media-api";
 import { initializeTVLibrary } from "./tv-library-store";
 import { registerDocumentSharing } from "./document-sharing-routes";
+import { registerWorksheetExport } from "./worksheet-export";
 import { registerFlashcardCatalog } from "./flashcard-catalog";
 
 // ── Global crash guards — keep the process alive if any async error escapes ──
@@ -117,6 +118,7 @@ app.use((req, res, next) => {
   
   await registerRoutes(httpServer, app);
   registerDocumentSharing(app, pool, getUserById);
+  registerWorksheetExport(app);
   await registerMediaAPI(app);
   startReferralNotificationWorker();
 
