@@ -47,7 +47,7 @@ export function validateWorksheet(data: any) {
 }
 
 /** Student-only text is also the source for export; answer keys stay separate. */
-export function worksheetLines(data: any): string[] {
+export function worksheetLines(data: any, includeAnswers = false): string[] {
   // Old documents remain exportable even if they predate stricter generation
   // checks. Never modify the saved original or silently "repair" its answers.
   if (!data || typeof data !== "object" || !data.title) throw new Error("Worksheet data is missing.");
@@ -68,7 +68,12 @@ export function worksheetLines(data: any): string[] {
   } else if (data.prompts) {
     data.prompts.forEach((q: any, i: number) => lines.push(`${i + 1}. ${q.text}`, ...Array(Math.min(8, Math.max(2, q.lines || 4))).fill("________________________________________________")));
   } else {
-    data.sections.forEach((s: any) => lines.push(s.title || "", ...s.content.map((v: string, i: number) => `${i + 1}. ${v}`), ""));
+    data.sections.forEach((s: any) => {
+      lines.push(s.title || "", ...s.content.map((v: string, i: number) => `${i + 1}. ${v}`), "");
+      if (includeAnswers && s.answers?.length) {
+        lines.push("Answer Key:", ...s.answers.map((answer: string, i: number) => `${i + 1}. ${answer}`), "");
+      }
+    });
   }
   return lines;
 }

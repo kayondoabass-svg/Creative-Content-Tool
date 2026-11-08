@@ -1489,11 +1489,19 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
   const [copied, setCopied] = useState(false);
   const [imagePages, setImagePages] = useState<{ file: string; fileName: string }[]>([]);
   const [pdfFile, setPdfFile] = useState<{ file: string; fileName: string } | null>(null);
+  let supportsOriginalPDF = false;
+  let supportsOriginalJPEG = false;
+  try {
+    const worksheet = JSON.parse(content);
+    const layout = worksheet.layout || "mixed";
+    supportsOriginalPDF = ["mixed", "fillBlank", "pictureGrid", "multipleChoice", "matching", "trueOrFalse", "writing"].includes(layout);
+    supportsOriginalJPEG = layout === "mixed" && Array.isArray(worksheet.sections);
+  } catch { /* Invalid content is reported by the existing download handlers. */ }
 
   const copyToClipboard = async () => {
     try {
       const data = JSON.parse(content);
-      const text = worksheetLines(data).join("\n");
+      const text = worksheetLines(data, true).join("\n");
       await navigator.clipboard.writeText(text);
       setCopied(true);
       toast({ title: "Copied!", description: "Worksheet text copied to clipboard. Paste into Google Docs or Word." });
@@ -1503,10 +1511,10 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
     }
   };
 
-  const downloadAsPDF = async () => {
+  const downloadAsPDF = async (originalLayout = false) => {
     setDownloading("pdf");
     try {
-      const res = await apiRequest("POST", "/api/worksheets/export", { content, format: "pdf" });
+      const res = await apiRequest("POST", originalLayout ? "/api/worksheet-to-pdf" : "/api/worksheets/export", { content, format: "pdf" });
       const data = await res.json();
       setPdfFile(data);
       
@@ -1519,23 +1527,24 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
       
       toast({ title: "PDF ready", description: "If your browser did not save it, use the Save PDF link below." });
     } catch (error) {
-      toast({ title: "Download failed", description: "Could not create PDF.", variant: "destructive" });
+      toast({ title: "Download failed", description: originalLayout ? "The original PDF renderer could not export this worksheet. Try Download PDF for Unicode and multi-page support." : "Could not create PDF.", variant: "destructive" });
     } finally {
       setDownloading(null);
     }
   };
 
-  const downloadAsImage = async () => {
+  const downloadAsImage = async (originalLayout = false) => {
     setDownloading("jpeg");
     try {
-      const res = await apiRequest("POST", "/api/worksheets/export", { content, format: "jpeg" });
+      const res = await apiRequest("POST", originalLayout ? "/api/worksheet-to-image" : "/api/worksheets/export", { content, format: "jpeg" });
       const data = await res.json();
+      const files = originalLayout ? [{ file: data.file, fileName: data.fileName }] : data.files;
       // Multiple pages must remain selectable on mobile, not silently cropped.
-      setImagePages(data.files);
-      if (data.files.length === 1) {
+      setImagePages(files);
+      if (files.length === 1) {
         const link = document.createElement("a");
-        link.href = data.files[0].file;
-        link.download = data.files[0].fileName;
+        link.href = files[0].file;
+        link.download = files[0].fileName;
         document.body.appendChild(link); link.click(); link.remove();
       }
       
@@ -1568,11 +1577,11 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
 
   return (
     <div className="flex gap-2 flex-wrap">
-      <Button variant="outline" size="sm" onClick={downloadAsPDF} disabled={!!downloading} data-testid="button-download-pdf">
+      <Button variant="outline" size="sm" onClick={() => downloadAsPDF()} disabled={!!downloading} data-testid="button-download-pdf">
         {downloading === "pdf" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
         Download PDF
       </Button>
-      <Button variant="outline" size="sm" onClick={downloadAsImage} disabled={!!downloading} data-testid="button-download-jpeg">
+      <Button variant="outline" size="sm" onClick={() => downloadAsImage()} disabled={!!downloading} data-testid="button-download-jpeg">
         {downloading === "jpeg" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <ImageIcon className="h-4 w-4 mr-1.5" />}
         Download JPEG
       </Button>
@@ -1581,6 +1590,14 @@ function WorksheetDownloadButtons({ content, toast, isPremium }: { content: stri
         {copied ? "Copied!" : "Copy Text"}
       </Button>
       <Button variant="outline" size="sm" onClick={downloadAsText} data-testid="button-download-worksheet-text">Download Text</Button>
+      <details className="basis-full text-sm">
+        <summary className="cursor-pointer p-2">Original export layouts</summary>
+        <p className="px-2 pb-2 text-xs text-muted-foreground">Download PDF/JPEG above uses a Unicode-compatible text layout, with illustrations on separate pages. Original exports retain the previous formatting; the original JPEG supports mixed sections and may crop long worksheets. Use the newer downloads for Word Search.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => downloadAsPDF(true)} disabled={!!downloading || !supportsOriginalPDF} data-testid="button-original-worksheet-pdf">Original layout PDF</Button>
+          <Button variant="outline" size="sm" onClick={() => downloadAsImage(true)} disabled={!!downloading || !supportsOriginalJPEG} data-testid="button-original-worksheet-jpeg">Original layout JPEG</Button>
+        </div>
+      </details>
       {pdfFile && <a href={pdfFile.file} download={pdfFile.fileName} className="text-sm underline p-2">Save PDF</a>}
       {imagePages.map((page, i) => <a key={page.fileName} href={page.file} download={page.fileName} className="text-sm underline p-2">Save JPEG page {i + 1}</a>)}
     </div>

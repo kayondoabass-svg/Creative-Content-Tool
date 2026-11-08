@@ -10,9 +10,6 @@ export async function generateEducationalImage(
   referenceImage?: string,
   generate = generateGeminiImage,
 ) {
-  if (/\b(?:worksheet|word[\s-]*search|crossword|fill[\s-]*in[\s-]*the[\s-]*blank)\b/i.test(prompt)) {
-    throw new Error("For worksheets and puzzles, choose the Worksheet tool (Word Search for letter grids). It creates real, checked exercises with PDF downloads. An AI illustration cannot reliably draw correct puzzle letters or answer keys.");
-  }
   const { style = "animation", quality = "2d", layout = "single" } = options;
   const exact = options.logoMode === "exact";
   const logo = exact ? await prepareExactLogo(referenceImage) : undefined;
