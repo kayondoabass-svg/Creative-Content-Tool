@@ -21,6 +21,8 @@ import {
   bundleOutputs, convertWord, pdfToImages, pdfToWord, splitPdf, textToPresentation, textToWord, validateInput,
   WORD_MIME, type ToolOutput,
 } from "@/lib/file-tool-operations";
+import { abortable, pdfToPowerPoint } from "@/lib/pdf-powerpoint";
+import { compressFileLocally, convertImageLocally, mergeFilesLocally } from "@/lib/local-file-tools";
 
 const conversionOptions = [
   { from: "jpg", to: "pdf", label: "JPG to PDF", fromIcon: Image, toIcon: FileText },
@@ -139,6 +141,10 @@ export default function FileToolsPage() {
   const [conversionType, setConversionType] = useState("jpg-to-pdf");
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingLabel, setProcessingLabel] = useState("");
+  const [processingTab, setProcessingTab] = useState("");
+  const [pdfPowerPointMode, setPdfPowerPointMode] = useState<"pages" | "text">("pages");
+  const conversionAbortRef = useRef<AbortController | null>(null);
+  const operationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [operationError, setOperationError] = useState("");
   const [compressionLevel, setCompressionLevel] = useState("medium");
   const [splitFile, setSplitFile] = useState<File | null>(null);
@@ -158,6 +164,8 @@ export default function FileToolsPage() {
   const marked = !isPremium;
 
   useEffect(() => () => {
+    conversionAbortRef.current?.abort();
+    if (operationTimerRef.current) clearTimeout(operationTimerRef.current);
     objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
     objectUrlsRef.current = [];
   }, []);
@@ -170,16 +178,31 @@ export default function FileToolsPage() {
   };
 
   const startOperation = (label: string) => {
+    const controller = new AbortController();
+    conversionAbortRef.current = controller;
+    operationTimerRef.current = setTimeout(() => controller.abort(new Error("This task took too long. Your original files and previous results are unchanged. Try fewer pages or a smaller file.")), 180000);
     setOperationError("");
+    setProcessingTab(activeTab);
     setProcessingLabel(label);
     setIsProcessing(true);
   };
   const finishOperation = () => {
+    if (operationTimerRef.current) clearTimeout(operationTimerRef.current);
+    operationTimerRef.current = null;
+    conversionAbortRef.current = null;
     setIsProcessing(false);
+    setProcessingTab("");
     setProcessingLabel("");
   };
+  const waitForOperation = <T,>(promise: Promise<T>) => {
+    const signal = conversionAbortRef.current?.signal;
+    return signal ? abortable(promise, signal) : promise;
+  };
+  const cancelOperation = () => conversionAbortRef.current?.abort(new Error("Task cancelled. Your original files and previous results are unchanged."));
   const showError = (error: unknown) => {
-    const message = error instanceof Error ? error.message : "The file could not be processed. Try another file.";
+    const message = error instanceof Error && error.name === "TimeoutError"
+      ? "The server did not finish this task in time. Your original files are unchanged. Try fewer pages or a smaller file."
+      : error instanceof Error ? error.message : "The file could not be processed. Try another file.";
     setOperationError(message);
     toast({ title: "Could not complete this file task", description: message, variant: "destructive" });
   };
@@ -230,38 +253,28 @@ export default function FileToolsPage() {
     } catch (error) { showError(error); }
   };
 
-  const responseError = async (response: Response, fallback: string) => {
-    try {
-      const body = await response.json();
-      return new Error(typeof body.error === "string" ? body.error.slice(0, 500) : fallback);
-    } catch { return new Error(fallback); }
-  };
-
   const handleConvert = async () => {
     if (!convertFile) return;
     const [from, , to] = conversionType.split("-");
     startOperation("Converting…");
+    const controller = conversionAbortRef.current!;
     try {
       const ext = convertFile.name.split(".").pop()?.toLowerCase();
       if ((ext === "jpeg" ? "jpg" : ext) !== from) throw new Error("The selected conversion does not match this file. Choose the matching source format.");
-      if (from === "docx") {
-        replaceResults([await convertWord(convertFile, to, marked)]);
+      if (from === "pdf" && to === "pptx") {
+        replaceResults([await pdfToPowerPoint(convertFile, {
+          mode: pdfPowerPointMode, marked, signal: controller.signal, onProgress: setProcessingLabel,
+        })]);
+      } else if (from === "docx") {
+        replaceResults([await waitForOperation(convertWord(convertFile, to, marked, { signal: controller.signal, onProgress: setProcessingLabel }))]);
       } else if (from === "pdf" && (to === "png" || to === "jpeg")) {
-        replaceResults(await pdfToImages(convertFile, to, marked));
+        replaceResults(await waitForOperation(pdfToImages(convertFile, to, marked, { signal: controller.signal, onProgress: setProcessingLabel })));
       } else if (from === "pdf" && to === "docx") {
-        replaceResults([await pdfToWord(convertFile, marked)]);
+        replaceResults([await waitForOperation(pdfToWord(convertFile, marked, { signal: controller.signal, onProgress: setProcessingLabel }))]);
       } else {
-        const base64 = await readFileAsDataURL(convertFile);
-        const response = await fetch("/api/file-tools/convert", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          signal: AbortSignal.timeout(90000),
-          body: JSON.stringify({ file: base64, fileName: convertFile.name, fromFormat: from, toFormat: to }),
-        });
-        if (!response.ok) throw await responseError(response, "Conversion failed.");
-        const blob = await response.blob();
-        replaceResults([{ blob, name: `converted-${convertFile.name.replace(/\.[^.]+$/, "")}.${to}` }]);
+        replaceResults([await waitForOperation(convertImageLocally(convertFile, to, {
+          marked, signal: controller.signal, onProgress: setProcessingLabel,
+        }))]);
       }
       toast({ title: "Conversion ready", description: "Your download is ready below." });
     } catch (error) { showError(error); }
@@ -272,16 +285,9 @@ export default function FileToolsPage() {
     if (selectedFiles.length < 2) return;
     startOperation("Merging files…");
     try {
-      const files = await Promise.all(selectedFiles.map(async file => ({ name: file.name, data: await readFileAsDataURL(file) })));
-      const response = await fetch("/api/file-tools/merge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        signal: AbortSignal.timeout(90000),
-        body: JSON.stringify({ files }),
-      });
-      if (!response.ok) throw await responseError(response, "Merge failed.");
-      replaceResults([{ blob: await response.blob(), name: "merged-document.pdf" }]);
+      replaceResults([await waitForOperation(mergeFilesLocally(selectedFiles, {
+        marked, signal: conversionAbortRef.current!.signal, onProgress: setProcessingLabel,
+      }))]);
       toast({ title: "Merge ready", description: "Your merged PDF is ready below." });
     } catch (error) { showError(error); }
     finally { finishOperation(); }
@@ -291,18 +297,11 @@ export default function FileToolsPage() {
     if (!compressFile) return;
     startOperation("Compressing…");
     try {
-      const base64 = await readFileAsDataURL(compressFile);
-      const response = await fetch("/api/file-tools/compress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        signal: AbortSignal.timeout(90000),
-        body: JSON.stringify({ file: base64, fileName: compressFile.name, level: compressionLevel }),
-      });
-      if (!response.ok) throw await responseError(response, "Compression failed.");
-      const blob = await response.blob();
-      const name = `compressed-${compressFile.name}`;
-      replaceResults([{ blob, name }]);
+      const result = await waitForOperation(compressFileLocally(compressFile, compressionLevel, {
+        marked, signal: conversionAbortRef.current!.signal, onProgress: setProcessingLabel,
+      }));
+      const blob = result.blob;
+      replaceResults([result]);
       const change = blob.size < compressFile.size
         ? `Reduced by ${Math.round((1 - blob.size / compressFile.size) * 100)}% (${formatSize(compressFile.size)} to ${formatSize(blob.size)}).`
         : `No reduction this time (${formatSize(compressFile.size)} to ${formatSize(blob.size)}).`;
@@ -315,7 +314,7 @@ export default function FileToolsPage() {
     if (!splitFile) return;
     startOperation("Splitting PDF…");
     try {
-      replaceResults(await splitPdf(splitFile, splitRanges, separatePages, marked));
+      replaceResults(await waitForOperation(splitPdf(splitFile, splitRanges, separatePages, marked, { signal: conversionAbortRef.current!.signal, onProgress: setProcessingLabel })));
       toast({ title: "Pages extracted", description: "Your PDF pages are ready below." });
     } catch (error) { showError(error); }
     finally { finishOperation(); }
@@ -325,7 +324,7 @@ export default function FileToolsPage() {
     startOperation(format === "docx" ? "Building Word document…" : "Building PowerPoint…");
     try {
       const operation = format === "docx" ? textToWord : textToPresentation;
-      replaceResults([await operation(presentationText, presentationName.trim() || "Lesson slides", marked)]);
+      replaceResults([await waitForOperation(operation(presentationText, presentationName.trim() || "Lesson slides", marked))]);
       toast({ title: "Document ready", description: "Your download is ready below." });
     } catch (error) { showError(error); }
     finally { finishOperation(); }
@@ -335,7 +334,7 @@ export default function FileToolsPage() {
     if (results.length < 2) return;
     startOperation("Preparing ZIP…");
     try {
-      const output = await bundleOutputs(results);
+      const output = await waitForOperation(bundleOutputs(results));
       const url = URL.createObjectURL(output.blob);
       objectUrlsRef.current.push(url);
       setBundleUrl(url);
@@ -377,10 +376,15 @@ export default function FileToolsPage() {
           <p className="mb-2 text-xs font-semibold uppercase tracking-[.16em] text-primary">Teacher file desk</p>
           <h1 className="mb-2 text-3xl font-bold">File Tools for Teachers</h1>
           <p className="text-muted-foreground">Prepare classroom files, combine handouts, and make lesson slides.</p>
+          <p className="mt-2 text-sm text-muted-foreground">File processing runs on your device. Uploads happen only when you explicitly publish a shared copy.</p>
           {!isPremium && <Badge variant="outline" className="mt-3">Free users: generated files include a BrightBoard watermark</Badge>}
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mx-auto max-w-4xl">
+          {isProcessing && <div role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-primary/5 p-4">
+            <div><p className="font-semibold">One task is running: {processingTab === "text-pptx" ? "Text to documents" : processingTab}</p><p className="text-sm text-muted-foreground">{processingLabel}</p><p className="text-xs text-muted-foreground">Other tools are paused until this task finishes or you cancel it. Your files have not been replaced.</p></div>
+            <Button variant="outline" onClick={cancelOperation}>Cancel current task</Button>
+          </div>}
           <TabsList className="mb-8 grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-5">
             <TabsTrigger value="convert" className="gap-2"><ArrowRight className="h-4 w-4" />Convert</TabsTrigger>
             <TabsTrigger value="merge" className="gap-2"><Merge className="h-4 w-4" />Merge</TabsTrigger>
@@ -395,7 +399,7 @@ export default function FileToolsPage() {
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label>Conversion type</Label>
-                  <Select value={conversionType} onValueChange={setConversionType}>
+                  <Select value={conversionType} onValueChange={setConversionType} disabled={isProcessing}>
                     <SelectTrigger data-testid="select-conversion-type"><SelectValue placeholder="Select conversion type" /></SelectTrigger>
                     <SelectContent>{conversionOptions.map(opt => <SelectItem key={`${opt.from}-to-${opt.to}`} value={`${opt.from}-to-${opt.to}`}><span className="flex items-center gap-2"><opt.fromIcon className="h-4 w-4 text-muted-foreground" /><ArrowRight className="h-3 w-3" /><opt.toIcon className="h-4 w-4 text-primary" />{opt.label}</span></SelectItem>)}</SelectContent>
                   </Select>
@@ -409,9 +413,21 @@ export default function FileToolsPage() {
                   </div> : <div className="space-y-4"><Upload className="mx-auto h-10 w-10 text-muted-foreground" /><p className="text-muted-foreground">Select a PDF, JPG, PNG, or DOCX file</p><Button onClick={() => fileInputRef.current?.click()} data-testid="button-upload-convert">Select file</Button></div>}
                 </div>
                 {conversionType === "docx-to-pdf" && <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">PDF output is raster text, so the text will not be searchable or selectable.</p>}
+                {conversionType === "pdf-to-pptx" && <div className="space-y-2 rounded-lg border p-3">
+                  <Label htmlFor="pdf-powerpoint-mode">PowerPoint conversion mode</Label>
+                  <select id="pdf-powerpoint-mode" className="w-full rounded-md border bg-background p-2 text-sm" value={pdfPowerPointMode} disabled={isProcessing} onChange={e => setPdfPowerPointMode(e.target.value as "pages" | "text")}>
+                    <option value="pages">Keep page appearance — image slides</option>
+                    <option value="text">Editable text — reflowed, no images</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">Runs on this device; the PDF is not uploaded for conversion. Image slides keep illustrations and scanned pages, but their text is not individually editable. Editable text mode changes layout and cannot read scans. Up to 100 pages; larger PDFs can be split first.</p>
+                </div>}
                 {conversionType === "pdf-to-docx" && <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">Extracts readable PDF text into an editable Word document. Layout, images and tables are not preserved. Scanned pages need OCR and are not silently skipped.</p>}
                 {conversionType === "pdf-to-png" || conversionType === "pdf-to-jpeg" ? <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">Each PDF page becomes a separate image. The images are raster exports.</p> : null}
                 <Button onClick={handleConvert} disabled={!convertFile || isProcessing} className="w-full" size="lg" data-testid="button-convert">{isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{processingLabel}</> : <><Download className="mr-2 h-4 w-4" />Convert file</>}</Button>
+                {isProcessing && processingTab === "convert" && conversionType === "pdf-to-pptx" && <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{processingLabel}</p>
+                  <Button variant="outline" onClick={cancelOperation}>Cancel conversion</Button>
+                </div>}
               </CardContent>
             </Card>
           </TabsContent>
@@ -441,7 +457,7 @@ export default function FileToolsPage() {
 
           <TabsContent value="compress">
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><Minimize2 className="h-5 w-5 text-primary" />Compress files</CardTitle><CardDescription>Reduce the size of a PDF or image; results show the actual size change.</CardDescription></CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Minimize2 className="h-5 w-5 text-primary" />Compress files</CardTitle><CardDescription>Optimize PDF or PNG files losslessly, or adjust JPEG quality. Already compressed scans and PNGs may not shrink; results show the actual size change. Quality level affects JPEG only.</CardDescription></CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2"><Label>Compression level</Label><Select value={compressionLevel} onValueChange={setCompressionLevel}><SelectTrigger data-testid="select-compression"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low (best quality)</SelectItem><SelectItem value="medium">Medium (balanced)</SelectItem><SelectItem value="high">High (smallest size)</SelectItem></SelectContent></Select></div>
                 <div className="rounded-xl border-2 border-dashed p-6 text-center sm:p-8">

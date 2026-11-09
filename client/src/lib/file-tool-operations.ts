@@ -2,6 +2,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import JSZip from "jszip";
 
 export type ToolOutput = { blob: Blob; name: string };
+export type FileOperationControl = { signal?: AbortSignal; onProgress?: (message: string) => void };
 const MAX_INPUT = 20 * 1024 * 1024;
 const MAX_OUTPUT = 40 * 1024 * 1024;
 export const WORD_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -40,14 +41,17 @@ async function watermark(pdf: PDFDocument, enabled: boolean) {
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   for (const page of pdf.getPages()) page.drawText("brightboardapp.com", { x: 16, y: 12, size: 9, font, color: rgb(.5, .5, .5) });
 }
-export async function splitPdf(file: File, ranges: string, separate: boolean, marked = true): Promise<ToolOutput[]> {
+export async function splitPdf(file: File, ranges: string, separate: boolean, marked = true, control: FileOperationControl = {}): Promise<ToolOutput[]> {
   validateInput(file);
+  control.signal?.throwIfAborted();
   const source = await loadPdf(await file.arrayBuffer());
   const pages = parsePageRanges(ranges, source.getPageCount());
   const groups = separate ? pages.map(p => [p]) : [pages];
   const results: ToolOutput[] = [];
   let size = 0;
   for (const group of groups) {
+    control.signal?.throwIfAborted();
+    control.onProgress?.(`Extracting ${separate ? `page ${group[0] + 1}` : `${group.length} selected pages`}…`);
     const pdf = await PDFDocument.create();
     for (const page of await pdf.copyPages(source, group)) pdf.addPage(page);
     await watermark(pdf, marked);
@@ -110,16 +114,21 @@ export async function textToWord(text: string, name: string, marked = true): Pro
   const bytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
   return { blob: bounded(new Blob([new Uint8Array(bytes)], { type: WORD_MIME })), name: `${stem(name)}.docx` };
 }
-export async function pdfToWord(file: File, marked = true): Promise<ToolOutput> {
+export async function pdfToWord(file: File, marked = true, control: FileOperationControl = {}): Promise<ToolOutput> {
   validateInput(file);
+  control.signal?.throwIfAborted();
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
   const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const stop = () => { void task.destroy().catch(() => {}); };
+  control.signal?.addEventListener("abort", stop, { once: true });
   try {
     const pdf = await task.promise;
     if (pdf.numPages > 100) throw new Error("Use a PDF with at most 100 pages, or split it first.");
     let text = "";
     for (let p = 1; p <= pdf.numPages; p++) {
+      control.signal?.throwIfAborted();
+      control.onProgress?.(`Reading text on page ${p} of ${pdf.numPages}…`);
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       const pageText = content.items.map(item => "str" in item ? item.str + (item.hasEOL ? "\n" : " ") : "").join("").trim();
@@ -129,7 +138,7 @@ export async function pdfToWord(file: File, marked = true): Promise<ToolOutput> 
       page.cleanup();
     }
     return textToWord(text, file.name, marked);
-  } finally { await task.destroy(); }
+  } finally { control.signal?.removeEventListener("abort", stop); await task.destroy(); }
 }
 async function wordTextPdf(text: string, name: string, marked: boolean): Promise<ToolOutput> {
   // Browser fonts render Unicode; raster pages avoid silently dropping non-Latin text.
@@ -164,24 +173,33 @@ async function wordTextPdf(text: string, name: string, marked: boolean): Promise
   canvas.width = canvas.height = 0;
   return { blob: bounded(pdf.output("blob")), name: `${stem(name)}.pdf` };
 }
-export async function convertWord(file: File, target: string, marked = true): Promise<ToolOutput> {
+export async function convertWord(file: File, target: string, marked = true, control: FileOperationControl = {}): Promise<ToolOutput> {
   validateInput(file);
+  control.signal?.throwIfAborted();
+  control.onProgress?.("Reading Word text on this device…");
   const text = await extractWordText(await file.arrayBuffer());
+  control.signal?.throwIfAborted();
+  control.onProgress?.("Building Word conversion…");
   if (target === "pdf") return wordTextPdf(text, file.name, marked);
   if (target === "pptx") return textToPresentation(text, file.name, marked);
   throw new Error("Choose PDF or PowerPoint for a Word document.");
 }
-export async function pdfToImages(file: File, format: "png" | "jpeg", marked = true): Promise<ToolOutput[]> {
+export async function pdfToImages(file: File, format: "png" | "jpeg", marked = true, control: FileOperationControl = {}): Promise<ToolOutput[]> {
   validateInput(file);
+  control.signal?.throwIfAborted();
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
   const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const stop = () => { void task.destroy().catch(() => {}); };
+  control.signal?.addEventListener("abort", stop, { once: true });
   try {
     const pdf = await task.promise;
     if (pdf.numPages > 100) throw new Error("Use a PDF with at most 100 pages, or split it first.");
     const outputs: ToolOutput[] = [];
     let total = 0;
     for (let p = 1; p <= pdf.numPages; p++) {
+      control.signal?.throwIfAborted();
+      control.onProgress?.(`Rendering image ${p} of ${pdf.numPages}…`);
       const page = await pdf.getPage(p);
       const original = page.getViewport({ scale: 1 });
       const viewport = page.getViewport({ scale: Math.min(2, 2400 / Math.max(original.width, original.height)) });
@@ -198,7 +216,7 @@ export async function pdfToImages(file: File, format: "png" | "jpeg", marked = t
       page.cleanup(); canvas.width = canvas.height = 0;
     }
     return outputs;
-  } finally { await task.destroy(); }
+  } finally { control.signal?.removeEventListener("abort", stop); await task.destroy(); }
 }
 export async function bundleOutputs(outputs: ToolOutput[]): Promise<ToolOutput> {
   const zip = new JSZip();
