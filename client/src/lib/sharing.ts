@@ -1,5 +1,9 @@
 export type ShareKind = "editor" | "tv" | "image" | "text" | "presentation" | "worksheet" | "activity" | "storyboard" | "mindmap" | "studio" | "file";
 export type ShareOptions = { audience: "invited" | "link"; allowRequests: boolean; allowDownload: boolean; includePrivate: boolean; expiresAt: string | null };
+export function withShareRequests(options: ShareOptions, allowRequests: boolean): ShareOptions {
+  // Asking to edit must never change who can view the document.
+  return { ...options, allowRequests };
+}
 export type SharedDocument = { id: string; title: string; kind: ShareKind; revision: string; updatedAt: string; role: "owner" | "editor" | "viewer"; pendingRequests: number };
 export type SharedDetail = SharedDocument & ShareOptions & {
   content: any; latestRevision: string; enabled: boolean;

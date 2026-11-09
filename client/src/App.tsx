@@ -19,9 +19,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSelector } from "@/components/language-selector";
 import { LogoSettings } from "@/components/logo-settings";
 import AccountSettings from "@/pages/account-settings";
-import { FileConverter } from "@/components/file-converter";
 import { GamesLauncher } from "@/components/games-launcher";
-import { Sparkles, GraduationCap, LogOut, Crown, User, BarChart3, Receipt } from "lucide-react";
+import { Sparkles, GraduationCap, LogOut, Crown, User, BarChart3, Receipt, Files } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -277,7 +276,9 @@ function HeaderWithLogo() {
             data-testid="img-header-logo"
           />
         )}
-        <FileConverter />
+        <Button asChild size="sm" variant="outline" className="gap-2" data-testid="button-files-converter">
+          <Link href="/file-tools"><Files className="h-4 w-4" /><span>Files Converter</span></Link>
+        </Button>
         <GamesLauncher />
         <LogoSettings />
         <SharingInboxLink />

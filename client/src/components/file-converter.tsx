@@ -21,6 +21,9 @@ import { FileType, Upload, Download, Loader2, ArrowRight, File, Image, FileText 
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ShareDocumentButton } from "@/components/document-sharing";
+import { Link } from "wouter";
+import { bundleOutputs, pdfToImages } from "@/lib/file-tool-operations";
+import { useSubscription } from "@/hooks/use-subscription";
 
 const formatOptions = [
   { value: "pdf", label: "PDF" },
@@ -36,9 +39,22 @@ export function FileConverter() {
   const [shareError, setShareError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { isPremium } = useSubscription();
 
   const convertMutation = useMutation({
     mutationFn: async (data: { file: string; fileName: string; fromFormat: string; toFormat: string }) => {
+      if (data.fromFormat.toLowerCase() === "pdf" && ["png", "jpeg"].includes(data.toFormat)) {
+        const bytes = Uint8Array.from(atob(data.file.split(",")[1]), c => c.charCodeAt(0));
+        const outputs = await pdfToImages(new globalThis.File([bytes], data.fileName, { type: "application/pdf" }), data.toFormat as "png" | "jpeg", !isPremium);
+        const output = outputs.length === 1 ? outputs[0] : await bundleOutputs(outputs);
+        const file = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("Unable to prepare the converted file."));
+          reader.readAsDataURL(output.blob);
+        });
+        return { file, fileName: output.name };
+      }
       const res = await apiRequest("POST", "/api/convert", data);
       return res.json();
     },
@@ -51,10 +67,12 @@ export function FileConverter() {
       document.body.removeChild(link);
 
       const match = typeof data.file === "string" ? data.file.match(/^data:([^;,]+);base64,/i) : null;
-      if (match) { setConvertedFile({ data: data.file, name: data.fileName || "brightboard-converted-file", mime: match[1] }); setShareError(""); }
+      if (match && !/\.zip$/i.test(data.fileName)) { setConvertedFile({ data: data.file, name: data.fileName || "brightboard-converted-file", mime: match[1] }); setShareError(""); }
       else {
         setConvertedFile(null);
-        setShareError("The download started, but the converter did not return a self-contained file. No temporary link will be shared.");
+        setShareError(/\.zip$/i.test(data.fileName)
+          ? "Your page images were downloaded in a ZIP. Open Full File Tools to download and share individual pages."
+          : "The download started, but the converter did not return a self-contained file. No temporary link will be shared.");
       }
       
       toast({
@@ -138,6 +156,9 @@ export function FileConverter() {
         </DialogHeader>
 
         <div className="space-y-4">
+          <Button asChild variant="outline" className="w-full" onClick={() => setOpen(false)}>
+            <Link href="/file-tools">Full tools: Word, merge, split and compress</Link>
+          </Button>
           <div className="space-y-2">
             <Label>Select File</Label>
             <input
@@ -236,6 +257,7 @@ export function FileConverter() {
           {convertedFile && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#d8dfd4] bg-[#edf2eb] p-3">
             <div className="min-w-0"><p className="text-sm font-semibold">Converted snapshot</p><p className="truncate text-xs text-muted-foreground">{convertedFile.name}</p></div>
             <ShareDocumentButton kind="file" title={convertedFile.name} content={{ name: convertedFile.name, mime: convertedFile.mime, data: convertedFile.data }} label="Share file" />
+            <a href={convertedFile.data} download={convertedFile.name} className="text-sm underline">Download again</a>
           </div>}
           {shareError && <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">{shareError}</p>}
         </div>

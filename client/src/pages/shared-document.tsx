@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Footer } from "@/components/footer";
 import { useAuth } from "@/hooks/use-auth";
 import { WordSearchPreview } from "@/components/word-search-preview";
+import { SharedWordPreview } from "@/components/shared-word-preview";
 import { isPrivateShareKey, prepareShareSnapshot, sharingRequest, SharingError, stableShareUrl, type SharedDetail, type ShareOptions } from "@/lib/sharing";
 import { SharedEditorAdapter, SharedTVAdapter } from "@/components/shared-project-adapters";
 
@@ -97,6 +98,7 @@ function SafeFilePreview({ content, title }: { content: any; title: string }) {
         ? <div role="status" className="grid h-64 place-items-center rounded-xl border border-dashed border-[#cbd8cf] text-center text-sm text-[#617574]">This browser could not prepare a preview. Use Download original if the owner allows it.</div>
         : <div className="grid h-64 place-items-center rounded-xl border border-dashed border-[#cbd8cf] text-sm text-[#617574]">Preparing secure PDF preview…</div>;
   }
+  if (mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" && data.startsWith(`data:${mime};base64,`)) return <SharedWordPreview data={data} name={content?.name || title} />;
   if (mime.startsWith("audio/") && data.startsWith("data:audio/")) return <audio controls preload="metadata" src={data} className="w-full" />;
   if (mime.startsWith("video/") && data.startsWith("data:video/")) return <video controls preload="metadata" src={data} className="max-h-[70vh] max-w-full rounded-xl bg-[#183c40]" />;
   if (data.startsWith("data:image/")) return <img src={data} alt={content?.name || title} className="mx-auto max-h-[70vh] max-w-full rounded-xl object-contain" />;

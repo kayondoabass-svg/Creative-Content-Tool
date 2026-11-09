@@ -2257,15 +2257,24 @@ This should look like it was designed by a world-class branding agency. Make it 
       const mimeType = base64Match[1];
       const base64Data = base64Match[2];
       const buffer = Buffer.from(base64Data, "base64");
+      if (buffer.length > 20 * 1024 * 1024) return res.status(400).json({ error: "File too large. Use a file under 20 MB." });
+      if (mimeType === "application/pdf" && toFormat === "pdf") {
+        try { await PDFDocument.load(buffer); }
+        catch { return res.status(400).json({ error: "This PDF could not be opened. It may be damaged or password-protected." }); }
+        return res.json({ file: `data:application/pdf;base64,${buffer.toString("base64")}`, fileName: fileName.replace(/\.[^.]+$/, ".pdf"), mimeType: "application/pdf" });
+      }
       
       let convertedData: string;
       let outputMimeType: string;
       
       // Handle conversions
       if (toFormat === "pdf") {
+        if (!mimeType.startsWith("image/") && !mimeType.startsWith("text/")) {
+          return res.status(400).json({ error: "Use Full File Tools for Word conversion. This quick converter accepts images, text and PDFs." });
+        }
         // Convert to PDF
         const pdfDoc = await PDFDocument.create();
-        const page = pdfDoc.addPage([595, 842]); // A4 size
+        let page = pdfDoc.addPage([595, 842]); // A4 size
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         
         if (mimeType.startsWith("image/")) {
@@ -2295,15 +2304,15 @@ This should look like it was designed by a world-class branding agency. Make it 
         } else if (mimeType === "text/plain" || mimeType.includes("text")) {
           // Text to PDF
           const text = buffer.toString("utf-8");
-          const lines = text.split("\n");
+          const lines = text.split("\n").flatMap(line => line.match(/.{1,80}/gu) || [""]);
           let y = page.getHeight() - 50;
           
           for (const line of lines) {
             if (y < 50) {
-              const newPage = pdfDoc.addPage([595, 842]);
-              y = newPage.getHeight() - 50;
+              page = pdfDoc.addPage([595, 842]);
+              y = page.getHeight() - 50;
             }
-            page.drawText(line.substring(0, 80), {
+            page.drawText(line, {
               x: 50,
               y,
               size: 12,
@@ -2389,6 +2398,7 @@ This should look like it was designed by a world-class branding agency. Make it 
       const mimeType = base64Match[1];
       const base64Data = base64Match[2];
       let buffer = Buffer.from(base64Data, "base64");
+      if (buffer.length > 20 * 1024 * 1024) return res.status(400).json({ error: "Use a file under 20 MB." });
       
       let outputBuffer: Buffer;
       let outputMimeType: string;
@@ -2611,8 +2621,16 @@ This should look like it was designed by a world-class branding agency. Make it 
     try {
       const { files } = req.body;
       
-      if (!files || files.length < 2) {
-        return res.status(400).json({ error: "At least 2 files are required" });
+      if (!Array.isArray(files) || files.length < 2 || files.length > 10) {
+        return res.status(400).json({ error: "Select between 2 and 10 files." });
+      }
+      let totalBytes = 0;
+      for (const entry of files) {
+        const match = typeof entry?.data === "string" && entry.data.match(/^data:(application\/pdf|image\/(?:png|jpeg));base64,([A-Za-z0-9+/=\r\n]+)$/);
+        if (!match) return res.status(400).json({ error: "Merge accepts valid PDF, PNG and JPEG files only." });
+        const size = Buffer.byteLength(match[2], "base64");
+        totalBytes += size;
+        if (!size || size > 20 * 1024 * 1024 || totalBytes > 30 * 1024 * 1024) return res.status(400).json({ error: "Use files under 20 MB each and 30 MB combined." });
       }
       
       // Server-side subscription check for watermark
@@ -2630,11 +2648,13 @@ This should look like it was designed by a world-class branding agency. Make it 
         
         try {
           const sourcePdf = await PDFDocument.load(buffer);
+          if (mergedPdf.getPageCount() + sourcePdf.getPageCount() > 200) return res.status(400).json({ error: "Merged output must not exceed 200 pages." });
           const pages = await mergedPdf.copyPages(sourcePdf, sourcePdf.getPageIndices());
           pages.forEach(page => mergedPdf.addPage(page));
         } catch (e) {
           // If it's an image, convert to PDF page
           try {
+            if (mergedPdf.getPageCount() >= 200) return res.status(400).json({ error: "Merged output must not exceed 200 pages." });
             const page = mergedPdf.addPage([595, 842]);
             const pngBuffer = await sharp(buffer).png().toBuffer();
             const image = await mergedPdf.embedPng(pngBuffer);
@@ -2647,7 +2667,7 @@ This should look like it was designed by a world-class branding agency. Make it 
               height: height * scale,
             });
           } catch (imageError) {
-            console.error("Could not process file:", fileData.name);
+            return res.status(400).json({ error: "One selected file is damaged, encrypted, or unsupported. No partial merged file was returned." });
           }
         }
       }

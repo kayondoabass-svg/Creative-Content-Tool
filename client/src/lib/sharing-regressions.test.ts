@@ -1,6 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { prepareShareSnapshot, sharingRequest, stableShareUrl } from "./sharing";
+import { prepareShareSnapshot, sharingRequest, stableShareUrl, withShareRequests, type ShareOptions } from "./sharing";
+
+test("edit requests preserve public viewing and all other sharing options", () => {
+  const original: ShareOptions = { audience: "link", allowRequests: false, allowDownload: true, includePrivate: false, expiresAt: "2027-01-01T00:00:00Z" };
+  const enabled = withShareRequests(original, true);
+  assert.deepEqual(enabled, { ...original, allowRequests: true });
+  assert.deepEqual(withShareRequests(enabled, false), original);
+  assert.equal(original.allowRequests, false);
+});
+
+test("access requests never publish an invited-only document", () => {
+  const original: ShareOptions = { audience: "invited", allowRequests: false, allowDownload: false, includePrivate: false, expiresAt: null };
+  assert.equal(withShareRequests(original, true).audience, "invited");
+});
 
 test("revision links stay distinct while latest links remain stable", () => {
   const previous = globalThis.window;
