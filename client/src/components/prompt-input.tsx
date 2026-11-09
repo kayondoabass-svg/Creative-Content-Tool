@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { readReferenceUpload } from "@/lib/reference-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -19,7 +20,7 @@ import type { ContentType, ImageOptions } from "@shared/schema";
 
 interface PromptInputProps {
   selectedType: ContentType;
-  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; keyPoints?: string[]; documentContext?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string; includeImages?: boolean }, imageOptions?: ImageOptions, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }) => void;
+  onGenerate: (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; keyPoints?: string[]; documentContext?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string; includeImages?: boolean }, imageOptions?: ImageOptions, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }, referencePurpose?: "content" | "style" | "edit" | "exact-logo") => void;
   isGenerating: boolean;
   defaultGameType?: string | null;
   externalPrompt?: string | null;
@@ -226,6 +227,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const { data: organization, isLoading: isLoadingLogo, isError: logoLoadFailed, refetch: reloadLogo } = useOrganizationSettings(selectedType === "image");
   const [usingSavedLogo, setUsingSavedLogo] = useState(false);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referencePurpose, setReferencePurpose] = useState<"content" | "style" | "edit">("content");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [logoMode, setLogoMode] = useState<"creative" | "exact">("creative");
   const [logoPosition, setLogoPosition] = useState<NonNullable<ImageOptions["logoPosition"]>>("auto");
@@ -385,23 +387,23 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     }
   }, [mindmapCentralTopic, mindmapBranches, mindmapKeyPoints, selectedType, form]);
 
-  const handleMindmapImageUpload = (slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMindmapImageUpload = async (slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
       alert("Image too large. Please use an image under 10MB.");
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
+    const uploadType = selectedType;
+    try {
+      const base64 = await readReferenceUpload(file);
+      if (prevSelectedType.current !== uploadType) return;
       setMindmapImages(prev => {
         const updated = [...prev];
         updated[slotIndex] = base64;
         return updated;
       });
-    };
-    reader.readAsDataURL(file);
+    } catch (error) { alert(error instanceof Error ? error.message : "Unable to read this reference."); }
   };
 
   const removeMindmapImage = (slotIndex: number) => {
@@ -421,15 +423,9 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     mindmapImageRefs.current.forEach(ref => { if (ref) ref.value = ""; });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const formats = selectedType === "image" ? ["image/png", "image/jpeg", "image/webp"] : ["image/png", "image/jpeg", "image/webp", "image/gif"];
-      if (!formats.includes(file.type)) {
-        alert("Please attach a PNG, JPG, or WebP image.");
-        e.target.value = "";
-        return;
-      }
       if (file.size > 10 * 1024 * 1024) {
         alert("Image too large. Please use an image under 10MB.");
         e.target.value = "";
@@ -437,20 +433,15 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       }
       const uploadType = selectedType;
       setIsReadingImage(true);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setIsReadingImage(false);
+      try {
+        const base64 = await readReferenceUpload(file);
         if (prevSelectedType.current !== uploadType) return;
-        const base64 = reader.result as string;
         setReferenceImage(base64);
         setImagePreview(base64);
         setUsingSavedLogo(false);
-      };
-      reader.onerror = () => {
-        setIsReadingImage(false);
-        alert("Unable to read this image. Please try another file.");
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "Unable to read this image.");
+      } finally { setIsReadingImage(false); }
     }
   };
 
@@ -587,13 +578,14 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       slideCount,
       videoOptions,
       presentationOptions,
-      (selectedType === "presentation" || selectedType === "image") ? referenceImage || undefined : undefined,
+      referenceImage || undefined,
       worksheetOptions,
       imageOptions,
       textOptions,
       activityOptions,
       values.includeLogo || false,
       mindmapOptions,
+      selectedType === "image" && logoMode === "exact" ? "exact-logo" : selectedType !== "image" && referencePurpose === "edit" ? "content" : referencePurpose,
     );
   };
 
@@ -749,8 +741,25 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
           </div>
 
           {/* Image options */}
+          {selectedType !== "image" && selectedType !== "mindmap" && (
+            <div className="rounded-lg border border-dashed p-4 space-y-3">
+              <p className="text-sm font-medium">Reference image</p>
+              <p className="text-xs text-muted-foreground">Use a photo as lesson content or style inspiration. Unclear text will be flagged, not silently copied.</p>
+              <input aria-label="Upload lesson reference" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageUpload} disabled={isGenerating || isReadingImage} />
+              {imagePreview && <div className="flex gap-3 items-center"><img src={imagePreview} alt="Lesson reference" className="h-20 w-20 object-contain" /><Button type="button" variant="outline" onClick={clearImage}>Remove reference</Button></div>}
+            </div>
+          )}
+          {(referenceImage || mindmapImages.some(Boolean)) && !(selectedType === "image" && logoMode === "exact") && <div className="space-y-2">
+            <label htmlFor="reference-purpose" className="text-sm font-medium">How should the reference be used?</label>
+            <select id="reference-purpose" className="w-full rounded-md border bg-background p-2 text-sm" value={selectedType !== "image" && referencePurpose === "edit" ? "content" : referencePurpose} onChange={e => setReferencePurpose(e.target.value as typeof referencePurpose)} disabled={isGenerating}>
+              <option value="content">Use its content · create new material</option>
+              <option value="style">Use its style · not its wording or answers</option>
+              {selectedType === "image" && <option value="edit">Edit this image · follow my changes</option>}
+            </select>
+          </div>}
           {selectedType === "image" && (
             <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <p className="w-full text-xs text-muted-foreground">Educational Images creates illustrations. For checked puzzle grids, exercises and answer keys, choose Worksheet → Word Search; those puzzles can be downloaded and shared.</p>
               <FormField
                 control={form.control}
                 name="imageStyle"

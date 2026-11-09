@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GamePlayerModal } from "@/components/game-player-modal";
+import { PuzzleWorkshop } from "@/components/puzzle-workshop";
+import { Puzzle } from "lucide-react";
 import { 
   ArrowLeft, 
   CircleDot, 
@@ -205,6 +207,7 @@ const gameCards: { id: GameType; name: string; Icon: LucideIcon; color: string }
 ];
 
 export default function GamesPage() {
+  const [puzzlesOpen, setPuzzlesOpen] = useState(false);
   const [, setLocation] = useLocation();
   const [activeGame, setActiveGame] = useState<GameType | null>(null);
 
@@ -234,6 +237,10 @@ export default function GamesPage() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <button type="button" onClick={() => setPuzzlesOpen(true)} className="group overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm hover:shadow-lg transition-all text-center" aria-label="Open Puzzles">
+            <div className="h-24 bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center"><Puzzle className="h-10 w-10 text-white" /></div>
+            <div className="p-4"><h3 className="font-bold text-lg">Puzzles</h3><p className="text-sm text-muted-foreground mt-1">Build, play and share word searches</p></div>
+          </button>
           {gameCards.map((game) => (
             <Card
               key={game.id}
@@ -262,6 +269,7 @@ export default function GamesPage() {
           title={activeGameData.title}
         />
       )}
+      <PuzzleWorkshop open={puzzlesOpen} onOpenChange={setPuzzlesOpen} />
     </div>
   );
 }

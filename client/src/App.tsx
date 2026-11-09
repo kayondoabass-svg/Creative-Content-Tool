@@ -110,7 +110,7 @@ function Router() {
         <Route path="/media-studio" component={MediaStudioPage} />
       <Route path="/developers" component={DevelopersPage} />
       <Route path="/shared">{() => <SharedAuthGate><SharedDocumentsPage /></SharedAuthGate>}</Route>
-      <Route path="/share/:id">{() => <SharedAuthGate><SharedDocumentPage /></SharedAuthGate>}</Route>
+      <Route path="/share/:id" component={SharedDocumentPage} />
       <Route path="/contact" component={Contact} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/checkout" component={CheckoutPage} />

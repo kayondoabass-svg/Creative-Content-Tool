@@ -47,6 +47,8 @@ export async function authenticated(request: Request, env: Env) {
   }
   if(!valid) throw new Failure(401,"Storage authentication failed.");
   const payload=JSON.parse(raw);
+  // Anonymous reads are still signed by BrightBoard. No public R2/SQL API.
+  if(payload.op === "publicGet" && payload.actor === null) return payload;
   if(!payload.actor || typeof payload.actor.id!=="string" || !payload.actor.id || payload.actor.id.length>200 ||
     typeof payload.actor.email!=="string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.actor.email) || payload.actor.email.length>320) throw new Failure(400,"Invalid signed account identity.");
   payload.actor.email=payload.actor.email.toLowerCase();
@@ -66,7 +68,11 @@ export class SharingService {
     const doc=await this.q("SELECT * FROM documents WHERE id=?",id).first();
     if(!doc) throw new Failure(404,"Shared document not found."); return doc;
   }
-  async role(doc: any, actor: Actor) {
+  async role(doc: any, actor: Actor | null) {
+    if (!actor) {
+      if(!doc.enabled || (doc.expires_at && (!Number.isFinite(Date.parse(doc.expires_at)) || Date.parse(doc.expires_at)<=Date.now()))) throw new Failure(410,"This share has been disabled or has expired.");
+      return doc.audience === "link" ? "viewer" : null;
+    }
     if(doc.owner_id===actor.id) return "owner";
     if(!doc.enabled || (doc.expires_at && Date.parse(doc.expires_at)<=Date.now())) throw new Failure(410,"This share has been disabled or has expired.");
     const member=await this.q("SELECT role FROM members WHERE document_id=? AND email=?",doc.id,actor.email).first();
@@ -93,7 +99,7 @@ export class SharingService {
     return {documents:results.map((r:any)=>({id:r.id,title:r.title,kind:r.kind,revision:r.revision,updatedAt:r.updated_at,role:r.role,pendingRequests:r.pending})),
       limits:{documentBytes:16777216,accountBytes:134217728,documents:100,revisions:50}};
   }
-  async get(actor: Actor,id: string,revision?: string) {
+  async get(actor: Actor | null,id: string,revision?: string) {
     const doc=await this.document(id), role=await this.role(doc,actor);
     if(!role) throw new Failure(403,"You need permission to open this shared document.",!!doc.allow_requests);
     if(revision && !uuid(revision)) throw new Failure(400,"Invalid revision.");
@@ -247,9 +253,10 @@ export default {
       const p=await authenticated(request,env), service=new SharingService(env);
       let result:any;
       switch(p.op) {
-        case "health": await service.q("SELECT 1").first();await env.FILES.list({limit:1});result={ok:true,storage:"cloudflare-d1-r2",version:1};break;
+        case "health": await service.q("SELECT 1").first();await env.FILES.list({limit:1});result={ok:true,storage:"cloudflare-d1-r2",version:2,anonymousLinkViewing:true};break;
         case "list":result=await service.list(p.actor);break;
         case "get":result=await service.get(p.actor,p.id,p.revision);break;
+        case "publicGet":result=await service.get(null,p.id,p.revision);break;
         case "create":result=await service.create(p.actor,p.body);break;
         case "save":result=await service.save(p.actor,p.id,p.body,p.expected);break;
         case "configure":result=await service.configure(p.actor,p.id,p.body);break;

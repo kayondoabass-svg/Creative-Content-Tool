@@ -5,6 +5,9 @@ import { generateContentSchema, fileConversionSchema, videoExportSchema, type Co
 import { pool } from "./db";
 import { PrivateOrganizationSettings, registerOrganizationSettingsRoutes } from "./organizationSettings";
 import { generateGeminiImage } from "./geminiImageService";
+import { analyseReferences, validateReferenceImage } from "./reference-input";
+import { referenceInstructions } from "../shared/reference-policy";
+import { runGeneration, generationDeadline, assertGenerationActive } from "./generation-budget";
 import { reviewWorksheet } from "./worksheet-review";
 import { generateEducationalImage } from "./educationalImageService";
 import { registerLogoAdjustmentRoutes } from "./logoAdjustmentRoutes";
@@ -168,14 +171,17 @@ async function geminiCreate(opts: {
     : TEXT_MODELS_PRIORITY;
 
   let lastErr: any;
+  const deadline = Math.min(generationDeadline(), Date.now() + 90_000);
   for (const model of candidates) {
     for (let attempt = 0; attempt <= 2; attempt++) {
+      if (Date.now() >= deadline) throw new Error("Content generation timed out. Please try again.");
       try {
         const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
         const resp = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(Math.min(25_000, Math.max(1, deadline - Date.now()))),
         });
         const json = await resp.json() as any;
         if (!resp.ok) {
@@ -3301,11 +3307,12 @@ This should look like it was designed by a world-class branding agency. Make it 
       const isCEO = !!(userEmail && CEO_EMAILS.includes(userEmail.toLowerCase()));
 
       // Enqueue background processing
-      jobQueue.enqueue(jobId, async () => {
+      jobQueue.enqueue(jobId, () => runGeneration(async () => {
         const onProgress = (step: string, percent: number) =>
           jobQueue.updateJob(jobId, { step, percent });
 
         let { type, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, mindmapOptions, includeLogo } = validatedData;
+        const originalPrompt = prompt;
 
         onProgress("Checking your account...", 5);
 
@@ -3360,6 +3367,23 @@ This should look like it was designed by a world-class branding agency. Make it 
           const dataUrlPattern = /^data:image\/(png|jpeg|jpg|gif|webp);base64,/;
           if (!dataUrlPattern.test(referenceImage)) throw new Error("Invalid image format.");
           if (referenceImage.length > 15 * 1024 * 1024) throw new Error("Image too large. Please use an image under 10MB.");
+          await validateReferenceImage(referenceImage);
+        }
+        const purpose = type === "image" && imageOptions?.logoMode === "exact"
+          ? "exact-logo" : validatedData.referencePurpose || (type === "image" ? "edit" : "content");
+        const references = [...new Set([...(referenceImage ? [referenceImage] : []), ...(type === "mindmap" ? mindmapOptions?.referenceImages || [] : [])])];
+        if (references.length && purpose !== "exact-logo") {
+          onProgress("Reading your reference and instructions...", 22);
+          if (type !== "image" || purpose === "content" || purpose === "style") {
+            const notes = await analyseReferences(references, purpose, originalPrompt);
+            prompt = `${originalPrompt}\n\n${notes}\n\nORIGINAL USER REQUEST (takes priority): ${originalPrompt}`;
+            // Analysis is used by every text/document tool, not just slides.
+            // Content references are not sent back as a bitmap to imitate.
+            referenceImage = undefined;
+            if (type === "mindmap") mindmapOptions = { ...mindmapOptions, referenceImages: [] };
+          } else {
+            prompt = `${originalPrompt}\n${referenceInstructions(purpose)}`;
+          }
         }
 
         let generatedContent: string;
@@ -3368,8 +3392,8 @@ This should look like it was designed by a world-class branding agency. Make it 
 
         // Check generation cache (text/presentation/worksheet cacheable; images/storyboards skip)
         const cacheableTypes = ["text", "presentation", "worksheet", "mindmap", "activity"];
-        const cacheKey = cacheableTypes.includes(type)
-          ? getCacheKey(type, prompt, { gradeLevel, subject, slideCount, worksheetOptions, activityOptions, ...(type === "worksheet" ? { qualityVersion: 2 } : {}) })
+        const cacheKey = cacheableTypes.includes(type) && !references.length
+          ? getCacheKey(type, prompt, { gradeLevel, subject, slideCount, worksheetOptions, activityOptions, ...(type === "worksheet" ? { qualityVersion: 3 } : {}) })
           : null;
         if (cacheKey) {
           const cached = getFromCache(cacheKey);
@@ -3469,7 +3493,7 @@ This should look like it was designed by a world-class branding agency. Make it 
               includeImages: isPremium ? (worksheetOptions?.includeImages ?? false) : false,
             };
             if (safeWorksheetOptions.includeImages) onProgress("Building worksheet structure...", 45);
-            const worksheetResult = await generateWorksheet(prompt, gradeLevel, subject, safeWorksheetOptions, onProgress);
+            const worksheetResult = await generateWorksheet(prompt, gradeLevel, subject, safeWorksheetOptions, onProgress, originalPrompt);
             generatedContent = JSON.stringify(worksheetResult);
             title = worksheetResult.title;
             break;
@@ -3487,6 +3511,10 @@ This should look like it was designed by a world-class branding agency. Make it 
           default:
             throw new Error("Invalid content type");
         }
+        // Source notes are generation context, not a replacement for the user's
+        // saved request or a reason to expose extracted text in history.
+        prompt = originalPrompt;
+        assertGenerationActive();
 
         onProgress("Finalising your content...", 88);
 
@@ -3530,7 +3558,7 @@ This should look like it was designed by a world-class branding agency. Make it 
         }
 
         return { data: saved };
-      });
+      }));
 
     } catch (error: any) {
       console.error("Error starting generation:", error);
@@ -4697,11 +4725,11 @@ async function generateStoryboard(prompt: string, gradeLevel?: string, subject?:
 }
 
 // Worksheet generation
-async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: string, options?: WorksheetOptions, onProgress?: (step: string, percent: number) => void) {
+async function generateWorksheet(prompt: string, gradeLevel?: string, subject?: string, options?: WorksheetOptions, onProgress?: (step: string, percent: number) => void, originalRequest = prompt) {
   const context = buildContext(gradeLevel, subject);
   const colorMode = options?.colorMode || "colored";
   const includeImages = options?.includeImages === true;
-  const worksheetType = options?.worksheetType === "wordSearch" || /\bword[\s-]*search\b/i.test(prompt) ? "wordSearch" : options?.worksheetType || "mixed";
+  const worksheetType = options?.worksheetType === "wordSearch" || /\bword[\s-]*search\b/i.test(originalRequest) ? "wordSearch" : options?.worksheetType || "mixed";
 
   const colorInstructions = colorMode === "blackWhite"
     ? "Design for black and white printing. Use clear borders, no background colors, high contrast elements."

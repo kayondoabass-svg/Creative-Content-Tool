@@ -8,11 +8,12 @@ export function GamesLauncher() {
   return (
     <Button 
       variant="ghost" 
-      size="icon" 
+      size="sm"
+      aria-label="Games"
       onClick={() => setLocation("/games")}
       data-testid="button-games-launcher"
     >
-      <Gamepad2 className="h-5 w-5" />
+      <Gamepad2 className="h-4 w-4 mr-2" />Games
     </Button>
   );
 }

@@ -26,7 +26,7 @@ export async function sharingRequest<T = any>(path: string, init: RequestInit = 
     throw new SharingError("The sharing server did not respond. Your work is unchanged. Reopen Share and check existing shares before publishing again.", 503);
   }
   if (response.status === 401) {
-    const returnTo = window.location.pathname + window.location.search;
+    const returnTo = window.location.pathname + window.location.search + window.location.hash;
     window.location.assign(`/login?redirect=${encodeURIComponent(returnTo)}`);
     throw new SharingError("Sign in to continue.", 401);
   }
@@ -55,12 +55,8 @@ function shareImageKey(key: string) {
 function shareImagePayloadKey(key: string, parentIsImage: boolean) {
   return shareImageKey(key) || (parentIsImage && /^(?:url|href|data|base64)$/i.test(key));
 }
-export function isPrivateShareKey(key: string) {
-  const normalized = key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/[^a-zA-Z0-9_]/g, "_").toLowerCase();
-  return /^(?:answer|answers|answer_key|answer_keys|answerkey|answerkeys|correct_answer|correct_answers|correctanswer|correctanswers|answer_explanation|answer_explanations|solution|solutions|key|keys|note|notes|private|private_note|private_notes|privatenote|privatenotes|teacher_answer|teacher_answers|teacher_note|teacher_notes)$/.test(normalized) ||
-    /^(?:answer|private|teacher)_(?:answer|answers|key|keys|note|notes|solution|solutions|explanation|explanations)$/.test(normalized) ||
-    /(?:^|_)(?:answer_key|answer_keys|correct_answer|teacher_answer|private_note|teacher_note)$/.test(normalized);
-}
+import { isPrivateShareKey } from "@shared/share-privacy";
+export { isPrivateShareKey };
 
 export async function prepareShareSnapshot(value: any, kind?: string, includePrivate = true): Promise<any> {
   const preparationSignal = AbortSignal.timeout(30_000);

@@ -124,8 +124,9 @@ export function FileConverter() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" data-testid="button-file-converter">
+        <Button variant="ghost" size="sm" aria-label="Files Converter" data-testid="button-file-converter">
           <FileType className="h-4 w-4" />
+          <span className="ml-2">Files Converter</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">

@@ -2,8 +2,9 @@ import { gunzipSync } from "node:zlib";
 import { prepareSharedContent, SHARE_LIMITS, ShareError, type DocumentSharingStore } from "./document-sharing-store";
 import { sharingSignature } from "./sharing-signature";
 import { readFileSync } from "node:fs";
+import { withoutPrivateShareFields } from "../shared/share-privacy";
 
-export type SharingStore = Pick<DocumentSharingStore, "list"|"create"|"get"|"save"|"configure"|"invite"|"removeMember"|"request"|"decide"|"remove"|"fork">;
+export type SharingStore = Pick<DocumentSharingStore, "list"|"create"|"get"|"save"|"configure"|"invite"|"removeMember"|"request"|"decide"|"remove"|"fork"> & { publicGet?: (id: string, revision?: string) => Promise<any> };
 type Viewer = {id:string;email:string;firstName?:string;emailVerified?:boolean};
 export function sharingStorageURL() {
   if(process.env.SHARING_STORAGE_URL) {
@@ -27,7 +28,7 @@ export function sharingStorageURL() {
 // Cloudflare setup credentials are never needed for normal document requests.
 export class CloudflareSharingStore implements SharingStore {
   constructor(private url?: string, private secret?: string) {}
-  async rpc(op:string,viewer:Viewer,args:Record<string,unknown>={}) {
+  async rpc(op:string,viewer:Viewer | null,args:Record<string,unknown>={}) {
     // Resolve lazily: a storage/configuration fault must not stop the main app
     // or BrightboardTV's independent relay from starting.
     const url=this.url ?? sharingStorageURL();
@@ -35,7 +36,8 @@ export class CloudflareSharingStore implements SharingStore {
     let endpoint:URL;
     try {endpoint=new URL("/rpc",url);if(endpoint.protocol!=="https:" || endpoint.username || endpoint.password) throw new Error();}
     catch {throw new ShareError(503,"Invalid private sharing storage configuration.");}
-    const body=JSON.stringify({op,actor:{id:viewer.id,email:viewer.email,name:viewer.firstName||"BrightBoard user"},...args});
+    if (!viewer && op !== "publicGet") throw new ShareError(401,"Sign in to change shared documents.");
+    const body=JSON.stringify({op,actor:viewer ? {id:viewer.id,email:viewer.email,name:viewer.firstName||"BrightBoard user"} : null,...args});
     let response:Response;
     try {response=await fetch(endpoint,{method:"POST",headers:sharingSignature(body,this.secret),body,signal:AbortSignal.timeout(45000),redirect:"error"});}
     catch {throw new ShareError(503,"Cloudflare sharing storage could not be reached. Your local work is unchanged; keep a backup.");}
@@ -48,6 +50,7 @@ export class CloudflareSharingStore implements SharingStore {
     if(typeof result.packed==="string") {
       try {
         result.content=JSON.parse(gunzipSync(Buffer.from(result.packed,"base64"),{maxOutputLength:SHARE_LIMITS.documentBytes}).toString());
+        if (!result.includePrivate) result.content = withoutPrivateShareFields(result.content);
         delete result.packed;
       } catch {throw new ShareError(503,"The stored snapshot failed validation. Your local work is unchanged.");}
     }
@@ -61,6 +64,7 @@ export class CloudflareSharingStore implements SharingStore {
   }
   list(v:Viewer){return this.rpc("list",v);}
   get(v:Viewer,id:string,revision?:string){return this.rpc("get",v,{id,revision});}
+  publicGet(id:string,revision?:string){return this.rpc("publicGet",null,{id,revision});}
   create(v:Viewer,body:any){return this.rpc("create",v,{body:this.pack(body?.kind,body,body?.includePrivate===true)});}
   async save(v:Viewer,id:string,body:any,expected?:string){
     const doc=await this.get(v,id);

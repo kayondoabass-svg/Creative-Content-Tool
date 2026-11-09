@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { validateProject } from "../packages/brightboard-media/src/engine";
 import { validLesson } from "../packages/brightboard-tv/src/helpers";
+import { validateWordSearchPuzzle } from "../shared/puzzle-validation";
+import { isPrivateShareKey } from "../shared/share-privacy";
 
 export const SHARE_LIMITS = { documentBytes: 16 * 1024 * 1024, accountBytes: 128 * 1024 * 1024, documents: 100, revisions: 50 };
 export const SHARE_KINDS = ["editor", "tv", "image", "text", "presentation", "worksheet", "activity", "storyboard", "mindmap", "studio", "file"] as const;
@@ -73,6 +75,18 @@ export function prepareSharedContent(kind: string, input: unknown, includePrivat
   try { raw = JSON.stringify(input); } catch { throw new ShareError(400, "Invalid document content."); }
   if (!raw || Buffer.byteLength(raw) > SHARE_LIMITS.documentBytes) throw new ShareError(413, "Shared documents are limited to 16 MB, including embedded assets.");
   let value = JSON.parse(raw);
+  // Validate new puzzle snapshots before privacy filtering removes the key.
+  // Existing stored documents are never rewritten.
+  if (kind === "worksheet") {
+    let puzzle = value;
+    if (typeof value?.body === "string") {
+      try { puzzle = JSON.parse(value.body); } catch { /* legacy plain text */ }
+    }
+    if (puzzle?.layout === "wordSearch") {
+      try { validateWordSearchPuzzle(puzzle, false); }
+      catch (error) { throw new ShareError(400, error instanceof Error ? error.message : "Invalid puzzle."); }
+    }
+  }
   let nodes = 0;
   function clean(item: any, depth = 0, field = ""): any {
     if (++nodes > 250000 || depth > 40) throw new ShareError(400, "Document structure is too complex.");
@@ -90,7 +104,7 @@ export function prepareSharedContent(kind: string, input: unknown, includePrivat
       const out: Record<string, unknown> = {};
       for (const [key, val] of Object.entries(item)) {
         if (["__proto__", "constructor", "prototype"].includes(key)) continue;
-        if (!includePrivate && /^(notes|privateNotes|presenterNotes|teacherNotes|answerKey|answerKeys|answer_key)$/i.test(key)) {
+        if (!includePrivate && isPrivateShareKey(key)) {
           if (key === "notes") out[key] = "";
           continue;
         }

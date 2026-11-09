@@ -156,12 +156,19 @@ export const generateContentSchema = z.object({
   presentationOptions: presentationOptionsSchema.optional(),
   worksheetOptions: worksheetOptionsSchema.optional(),
   referenceImage: z.string().optional(), // Base64 image for reference
+  referencePurpose: z.enum(["content", "style", "edit", "exact-logo"]).optional(),
   imageOptions: imageOptionsSchema.optional(),
   textOptions: textOptionsSchema.optional(),
   activityOptions: activityOptionsSchema.optional(),
   mindmapOptions: mindmapOptionsSchema.optional(),
   includeLogo: z.boolean().optional(),
 }).superRefine((data, ctx) => {
+  if ((data.referencePurpose === "edit" || data.referencePurpose === "exact-logo") && data.type !== "image") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["referencePurpose"], message: "Image editing and exact logos are supported in Educational Images. Use content or style references for this tool." });
+  }
+  if (data.referencePurpose === "exact-logo" && data.imageOptions?.logoMode !== "exact") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["referencePurpose"], message: "Select exact-logo mode to place an original logo." });
+  }
   if (data.type === "image" && data.imageOptions?.logoMode === "exact" && !data.referenceImage) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["referenceImage"], message: "Please attach a logo for exact-logo mode." });
   }

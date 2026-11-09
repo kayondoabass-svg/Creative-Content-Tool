@@ -2,18 +2,17 @@
 
 Hosted sharing is separate from the free independent software and from 24-hour
 recent generation history. Publishing uploads an intentional complete snapshot
-to the existing PostgreSQL database. Copies remain until their owner deletes them
+to private Cloudflare R2, with ownership and permissions in D1. Copies remain until their owner deletes them
 or their account is removed. Disabling or expiring a link restricts access but
 does not delete the owner's stored copies.
 
 ## Access and revisions
 
-- All recipients must sign in and verify their email.
+- Invited-only viewing and all editing require a verified account. Link-access viewing and puzzle play do not require sign-in.
 - Invitations match the verified account email, including accounts registered
   after an invitation was created. The owner sends the copied BrightBoard link;
   invitations do not automatically send email.
-- Invited-only is the default audience. Link access allows any verified,
-  signed-in holder to view, not edit.
+- Invited-only is the default audience. Link access allows any holder to view, not edit.
 - Requests are reviewed in Shared documents. Pending counts appear in the
   signed-in header. Approval grants editing; collaborators cannot administer the
   owner's invitations, sharing settings or deletion.
@@ -22,7 +21,7 @@ does not delete the owner's stored copies.
 - Updates require `If-Match` with the last observed revision. Conflicts return
   409 without changing either snapshot. Publishing is explicit, not per keypress.
 - Removing an invitation removes its special privileges. If link access remains
-  enabled, the account can still view like any other signed-in link holder.
+  enabled, the recipient can still view like any other link holder.
 - Revocation cannot erase previously downloaded copies, screenshots, browser
   caches outside application control or a request already in progress.
 

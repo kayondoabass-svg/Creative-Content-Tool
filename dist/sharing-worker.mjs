@@ -51,6 +51,7 @@ ${raw}`))) {
   }
   if (!valid) throw new Failure(401, "Storage authentication failed.");
   const payload = JSON.parse(raw);
+  if (payload.op === "publicGet" && payload.actor === null) return payload;
   if (!payload.actor || typeof payload.actor.id !== "string" || !payload.actor.id || payload.actor.id.length > 200 || typeof payload.actor.email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.actor.email) || payload.actor.email.length > 320) throw new Failure(400, "Invalid signed account identity.");
   payload.actor.email = payload.actor.email.toLowerCase();
   payload.actor.name = typeof payload.actor.name === "string" ? payload.actor.name.slice(0, 120) : "BrightBoard user";
@@ -77,6 +78,10 @@ var SharingService = class {
     return doc;
   }
   async role(doc, actor) {
+    if (!actor) {
+      if (!doc.enabled || doc.expires_at && (!Number.isFinite(Date.parse(doc.expires_at)) || Date.parse(doc.expires_at) <= Date.now())) throw new Failure(410, "This share has been disabled or has expired.");
+      return doc.audience === "link" ? "viewer" : null;
+    }
     if (doc.owner_id === actor.id) return "owner";
     if (!doc.enabled || doc.expires_at && Date.parse(doc.expires_at) <= Date.now()) throw new Failure(410, "This share has been disabled or has expired.");
     const member = await this.q("SELECT role FROM members WHERE document_id=? AND email=?", doc.id, actor.email).first();
@@ -326,13 +331,16 @@ var worker_default = {
         case "health":
           await service.q("SELECT 1").first();
           await env.FILES.list({ limit: 1 });
-          result = { ok: true, storage: "cloudflare-d1-r2", version: 1 };
+          result = { ok: true, storage: "cloudflare-d1-r2", version: 2, anonymousLinkViewing: true };
           break;
         case "list":
           result = await service.list(p.actor);
           break;
         case "get":
           result = await service.get(p.actor, p.id, p.revision);
+          break;
+        case "publicGet":
+          result = await service.get(null, p.id, p.revision);
           break;
         case "create":
           result = await service.create(p.actor, p.body);

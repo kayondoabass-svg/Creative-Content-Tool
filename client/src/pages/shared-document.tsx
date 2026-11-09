@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Footer } from "@/components/footer";
 import { useAuth } from "@/hooks/use-auth";
+import { WordSearchPreview } from "@/components/word-search-preview";
 import { isPrivateShareKey, prepareShareSnapshot, sharingRequest, SharingError, stableShareUrl, type SharedDetail, type ShareOptions } from "@/lib/sharing";
 import { SharedEditorAdapter, SharedTVAdapter } from "@/components/shared-project-adapters";
 
@@ -239,6 +240,7 @@ function StructuredPreview({ kind, type, data, includePrivate }: { kind: string;
     const frames = Array.isArray(data?.frames) ? data.frames : [];
     return <div className="space-y-5"><h2 className="bb-display text-2xl font-bold">{data.title || "Storyboard"}</h2>{frames.map((frame: any, index: number) => <section key={index} className="space-y-3 rounded-2xl border border-[#d8dfd4] bg-[#f8f7f1] p-4"><p className="text-xs font-bold uppercase tracking-wider text-[#bf6d45]">Frame {index + 1}</p>{frame.title && <h3 className="text-xl font-bold">{frame.title}</h3>}<SafeStructured data={frame} includePrivate={includePrivate} /></section>)}</div>;
   }
+  if ((previewType === "worksheet" || kind === "worksheet") && data?.layout === "wordSearch") return <WordSearchPreview key={`${data.title}:${JSON.stringify(data.grid)}`} puzzle={data} />;
   if (previewType === "worksheet" || kind === "worksheet") return <div className="rounded-2xl bg-[#f8f7f1] p-4"><h2 className="bb-display mb-4 text-2xl font-bold">{data?.title || "Worksheet"}</h2><SafeStructured data={data} includePrivate={includePrivate} /></div>;
   return <SafeStructured data={data} includePrivate={includePrivate} />;
 }
@@ -424,7 +426,8 @@ export default function SharedDocumentPage() {
           </div>
           {error && <p role="alert" className="mb-4 rounded-xl border border-[#d89a80] bg-[#fff0e9] p-3 text-sm text-[#9c452e]">{error}</p>}{notice && <p role="status" className="mb-4 rounded-xl bg-[#e4efe7] p-3 text-sm text-[#2f6459]"><Check className="mr-2 inline h-4 w-4" />{notice}</p>}
           {editable && recovery && <section className="mb-5 rounded-xl border p-4"><h2 className="font-semibold">An unpublished recovery draft is available</h2><p className="my-2 text-sm">Restore your draft without publishing it. If the shared document changed meanwhile, publishing will require resolving the version conflict.</p><Button variant="outline" onClick={() => { setDraft(recovery.content); setTitle(recovery.title); setDraftBase(recovery.revision); setRecovery(null); }}>Restore draft</Button><Button variant="ghost" onClick={() => { setRecovery(null); try { sessionStorage.removeItem(recoveryKey); } catch {} }}>Discard recovery draft</Button></section>}
-          {doc.role === "viewer" && doc.allowRequests && <section className="mb-5 rounded-2xl border border-[#d8dfd4] bg-[#fbfaf5] p-5">
+          {doc.role === "viewer" && !isAuthenticated && <section className="mb-5 rounded-2xl border border-[#d8dfd4] bg-[#fbfaf5] p-5"><h2 className="font-semibold">View freely. Sign in to edit.</h2><p className="mt-2 text-sm">Editing requires the owner's approval. Your document and version will be preserved when you sign in.</p><Link href={`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`} className="mt-3 inline-flex rounded-xl bg-[#2f7472] px-5 py-3 font-semibold text-white">Edit · Sign in or sign up</Link></section>}
+          {doc.role === "viewer" && doc.allowRequests && isAuthenticated && <section className="mb-5 rounded-2xl border border-[#d8dfd4] bg-[#fbfaf5] p-5">
             <h2 className="font-semibold">Ask the owner for editing access</h2><p className="mt-1 text-sm text-[#617574]">You can view this document. Editing requires approval for your signed-in account.</p>
             <Label htmlFor="viewer-access-message" className="mt-3 block">Message (optional)</Label><Textarea id="viewer-access-message" maxLength={1000} value={requestMessage} onChange={e => setRequestMessage(e.target.value)} />
             <Button className="mt-3" disabled={busy} onClick={requestAccess}>Request editing access</Button>

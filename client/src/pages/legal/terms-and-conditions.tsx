@@ -73,12 +73,14 @@ const sections: LegalSection[] = [
     content: <>
       <p>Before publishing a snapshot, check all pages, notes, attachments and personal information.
         A complete shared project may contain more than its visible preview. Choose the narrowest
-        appropriate access setting. Depending on your setting, authenticated link-holders or only invited
-        accounts may read it. Editing requires appropriate permission; a request is not approval.</p>
+        appropriate access setting. Depending on your setting, anyone with the link may read it without
+        signing in, or access may be limited to invited, verified accounts. Editing requires a verified
+        signed-in account and appropriate permission; a request is not approval.</p>
       <p>Stable project links and revision links/QR codes have different purposes. A published revision
         identifies a snapshot rather than every future edit, but it does not override current permissions
-        or deletion. Existing signed-in recipients may continue to the destination automatically;
-        others must complete the necessary authentication and verification steps.</p>
+        or deletion. Public link viewing does not require an account. Private access and editing require
+        the necessary authentication, verification and permissions, with the destination preserved
+        through sign-in.</p>
       <p>Recipients must respect granted permissions and applicable rights. Revocation cannot retrieve
         exports, screenshots or independently saved copies. Do not treat a link or QR code as confidential
         merely because it looks random. BrightboardTV room codes/links are for the intended audience;

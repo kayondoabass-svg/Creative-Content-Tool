@@ -12,6 +12,7 @@
  * blocks the job queue indefinitely.
  */
 
+import { generationDeadline } from "./generation-budget";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const FETCH_TIMEOUT_MS = 10_000; // 10s per model — fail fast, move on
 
@@ -26,7 +27,9 @@ function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = FETCH_TIME
 export async function generateGeminiImage(
   prompt: string,
   referenceImage?: string,
+  deadline = Date.now() + 90_000,
 ): Promise<{ data: Array<{ b64_json?: string }> }> {
+  deadline = Math.min(deadline, generationDeadline());
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "missing-key") {
     console.warn("[ImageGen] GEMINI_API_KEY not set");
@@ -47,6 +50,7 @@ export async function generateGeminiImage(
   ];
 
   for (const model of geminiImageModels) {
+    if (Date.now() >= deadline) break;
     try {
       const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
       const resp = await fetchWithTimeout(url, {
@@ -56,7 +60,7 @@ export async function generateGeminiImage(
           contents: [{ role: "user", parts }],
           generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
         }),
-      }, referenceImage ? 45_000 : FETCH_TIMEOUT_MS);
+      }, Math.max(1, Math.min(referenceImage ? 45_000 : FETCH_TIMEOUT_MS, deadline - Date.now())));
 
       if (!resp.ok) {
         const err = await resp.text();
@@ -89,6 +93,7 @@ export async function generateGeminiImage(
   ];
 
   for (const model of imagenModels) {
+    if (Date.now() >= deadline) break;
     try {
       const url = `${GEMINI_BASE}/${model}:predict?key=${apiKey}`;
       const resp = await fetchWithTimeout(url, {
@@ -98,7 +103,7 @@ export async function generateGeminiImage(
           instances: [{ prompt }],
           parameters: { sampleCount: 1, outputMimeType: "image/png" },
         }),
-      });
+      }, Math.max(1, Math.min(FETCH_TIMEOUT_MS, deadline - Date.now())));
 
       if (!resp.ok) {
         const err = await resp.text();

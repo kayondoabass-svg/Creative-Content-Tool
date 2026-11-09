@@ -6,4 +6,5 @@ export async function buildSharing() {
   // pg's CJS loader works inside standalone ESM; no npm install is needed on VPS.
   await build({entryPoints:["scripts/deploy-sharing-storage.ts"],bundle:true,format:"esm",platform:"node",target:"node20",external:["pg-native"],banner:{js:"import { createRequire as bbCreateRequire } from 'node:module'; const require = bbCreateRequire(import.meta.url);"},outfile:"dist/sharing-deploy.mjs"});
   await writeFile("dist/sharing-schema.json",JSON.stringify({sql:await readFile("cloudflare/sharing/schema.sql","utf8")}));
+  await build({entryPoints:["scripts/update-sharing-worker.ts"],bundle:true,format:"esm",platform:"node",target:"node22",outfile:"dist/sharing-update.mjs"});
 }

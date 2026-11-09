@@ -22,6 +22,12 @@ export function registerDocumentSharing(app: Express, _pool: Pool, getUser: (id:
   router.use((_req, res, next) => { res.setHeader("Cache-Control", "private, no-store"); res.setHeader("X-Content-Type-Options", "nosniff"); next(); });
   router.use(async (req: any, res, next) => {
     try {
+      const publicRead = req.method === "GET" && /^\/[^/]+(?:\/export)?\/?$/.test(req.path);
+      if (publicRead) {
+        const user = req.session?.userId ? await getUser(req.session.userId) : null;
+        res.locals.viewer = user?.emailVerified ? user : null;
+        return next();
+      }
       if (!req.session?.userId) return res.status(401).json({ error: "Sign in to share or open BrightBoard documents." });
       const user = await getUser(req.session.userId);
       if (!user) return res.status(401).json({ error: "Please sign in again." });
@@ -39,7 +45,13 @@ export function registerDocumentSharing(app: Express, _pool: Pool, getUser: (id:
   const handle = (fn: (req: any, res: any) => Promise<any>): RequestHandler => (req, res, next) => { void fn(req, res).catch(next); };
   router.get("/", handle(async (_req, res) => res.json(await store.list(res.locals.viewer))));
   router.post("/", handle(async (req, res) => res.status(201).json(await store.create(res.locals.viewer, req.body))));
-  router.get("/:id", handle(async (req, res) => res.json(await store.get(res.locals.viewer, req.params.id, typeof req.query.revision === "string" ? req.query.revision : undefined))));
+  const read = (req: any, res: any) => {
+    const revision = typeof req.query.revision === "string" ? req.query.revision : undefined;
+    if (res.locals.viewer) return store.get(res.locals.viewer, req.params.id, revision);
+    if (!store.publicGet) throw new ShareError(403, "Sign in to open this private document.");
+    return store.publicGet(req.params.id, revision);
+  };
+  router.get("/:id", handle(async (req, res) => res.json(await read(req, res))));
   router.put("/:id", handle(async (req, res) => res.json(await store.save(res.locals.viewer, req.params.id, req.body, req.get("If-Match")))));
   router.patch("/:id", handle(async (req, res) => res.json(await store.configure(res.locals.viewer, req.params.id, req.body))));
   router.post("/:id/requests", handle(async (req, res) => res.json(await store.request(res.locals.viewer, req.params.id, req.body))));
@@ -49,7 +61,7 @@ export function registerDocumentSharing(app: Express, _pool: Pool, getUser: (id:
   router.post("/:id/fork", handle(async (req, res) => res.status(201).json(await store.fork(res.locals.viewer, req.params.id))));
   router.delete("/:id", handle(async (req, res) => { await store.remove(res.locals.viewer, req.params.id); res.status(204).end(); }));
   router.get("/:id/export", handle(async (req, res) => {
-    const document = await store.get(res.locals.viewer, req.params.id, typeof req.query.revision === "string" ? req.query.revision : undefined);
+    const document = await read(req, res);
     if (document.role !== "owner" && !document.allowDownload) throw new ShareError(403, "The owner has not allowed downloads.");
     res.attachment(`BrightBoard-${document.id}-${document.revision}.json`).json({ format: "brightboard-shared-document", version: 1, title: document.title, kind: document.kind, content: document.content });
   }));

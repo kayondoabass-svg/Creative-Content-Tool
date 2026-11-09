@@ -142,9 +142,10 @@ const sections: LegalSection[] = [
         and revision-specific links/QR codes are different: an explicitly published revision records a
         particular snapshot, while viewing it still depends on current access permissions. Publishing
         does not mean every keystroke is automatically published.</p>
-      <p>Recipients must sign in and satisfy verification/access checks. Depending on the owner’s
-        settings, access may be limited to invited accounts or available to authenticated people with
-        the link. Editing requires the relevant permission, including owner approval of an edit request.
+      <p>Depending on the owner’s settings, access may be limited to invited, verified accounts or
+        available to anyone with the link without signing in. Link-access URLs and QR codes may be
+        forwarded, so do not use them for confidential information. Editing requires sign-in,
+        verification and the relevant permission, including owner approval of an edit request.
         Owners and collaborators may see identity information needed to manage access. Forwarding a
         link or QR code does not grant edit permission, but can expand who discovers a document.</p>
       <p>Revoking access prevents future authorised access through the service; it cannot recall
