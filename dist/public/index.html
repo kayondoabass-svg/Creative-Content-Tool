@@ -34,28 +34,21 @@
     </style>
 
     <!-- DNS prefetch for external resources -->
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
     <link rel="dns-prefetch" href="https://www.google.com" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- Primary UI fonts only (Poppins + Inter) — loaded first, small request -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- All font files are served from this website, never a third-party font CDN. -->
+    <link href="/fonts/interface.css" rel="stylesheet" />
 
     <!-- All other presentation-editor fonts — loaded non-blocking after page renders -->
     <link
       rel="preload"
       as="style"
-      href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fira+Code:wght@400;700&family=Geist+Mono:wght@400;700&family=Geist:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Libre+Baskerville:wght@400;700&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:wght@400;700&family=Montserrat:wght@400;700&family=Open+Sans:wght@400;700&family=Outfit:wght@400;700&family=Oxanium:wght@400;700&family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@400;700&family=Roboto+Mono:wght@400;700&family=Roboto:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Source+Serif+4:wght@400;700&family=Space+Grotesk:wght@400;700&family=Space+Mono:wght@400;700&display=swap"
+      href="/fonts/editor.css"
       onload="this.onload=null;this.rel='stylesheet'"
     />
     <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=DM+Sans:wght@400;700&family=Montserrat:wght@400;700&display=swap" />
+      <link rel="stylesheet" href="/fonts/editor.css" />
     </noscript>
-
-    <!-- AdSense — async so it never blocks rendering -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8935590092792147" crossorigin="anonymous"></script>
 
     <!-- reCAPTCHA Enterprise — async+defer so it never blocks rendering -->
     <script async defer src="https://www.google.com/recaptcha/enterprise.js?render=6LfKupcsAAAAAFjtAAYI191p9gV13VpHkenZ-KJe"></script>
@@ -65,8 +58,8 @@
 
     <!-- Afro AI Chat Widget -->
     <script src="/api/chatbot-widget.js" defer></script>
-    <script type="module" crossorigin src="/assets/index-CzyDg4Fr.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-SzUScR_B.css">
+    <script type="module" crossorigin src="/assets/index-BbEN5PFK.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Dxb6fuOv.css">
   </head>
   <body>
     <div id="root"></div>

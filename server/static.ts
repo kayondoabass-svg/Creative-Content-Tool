@@ -19,7 +19,6 @@ export function serveStatic(app: Express) {
 
     const extraInjections = [
       `<meta name="google-site-verification" content="BeOsue0qwqud1SS6hHpRKnVPIcV0IfvHDuUXjLHLi_s" />`,
-      `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8935590092792147" crossorigin="anonymous"></script>`,
     ]
       .filter((tag) => !html.includes(tag))
       .join("\n    ");

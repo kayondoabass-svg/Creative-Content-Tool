@@ -258,8 +258,7 @@ export async function registerRoutes(
   });
 
   app.get("/ads.txt", (_req, res) => {
-    res.setHeader("Content-Type", "text/plain");
-    res.send("google.com, pub-8935590092792147, DIRECT, f08c47fec0942fa0");
+    res.status(410).type("text/plain").send("Advertising is not enabled on BrightBoard.\n");
   });
 
   app.get("/robots.txt", (_req, res) => {

@@ -128,7 +128,8 @@ its broad ML training, content licence, restrictions and non-refundable clauses 
    privacy/legal contact are confirmed above. Verify operational monitoring of that mailbox,
    assess any required EU representative/DPO and set effective dates.
    No personal address should be inferred from a founder profile or internal records.
-2. **Consent:** AdSense, reCAPTCHA and Ahrefs are embedded in `client/index.html`.
+2. **Consent:** reCAPTCHA and Ahrefs are embedded in `client/index.html`. Fonts are now self-hosted,
+   and the advertising integration has been removed at the owner's request.
    No consent-management/script-gating mechanism was found. Determine categories/necessity,
    prevent non-essential loading before required consent, implement reject/withdraw controls,
    and retain appropriate evidence. Text alone cannot legalise an unlawful deployment.

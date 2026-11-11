@@ -115,8 +115,9 @@ const sections: LegalSection[] = [
           diagnostic log archives.</li>
         <li><strong>AfroAI / Afro AI Group:</strong> authentication, verification/recovery, session services,
           transactional and marketing email delivery, and the optional support assistant.</li>
-        <li><strong>Google:</strong> Gemini generation and enabled reCAPTCHA security services; AdSense
-          advertising and any enabled Google sign-in have separate data flows and applicable notices.</li>
+        <li><strong>Google:</strong> Gemini generation and enabled
+          reCAPTCHA security services. Any enabled Google sign-in has a separate data flow and
+          applicable notices.</li>
         <li><strong>PesaPal:</strong> checkout, payment processing, status verification, refunds where
           supported, and related payment compliance. Staying inside an embedded BrightBoard checkout
           does not prevent payment information being processed by PesaPal and its payment partners.</li>
@@ -199,9 +200,10 @@ const sections: LegalSection[] = [
     content: <>
       <p>Session/security cookies support sign-in and abuse prevention. Browser storage also holds local
         projects and preferences; referral attribution may use a signed attribution cookie. Third-party
-        scripts in the website include Google AdSense, reCAPTCHA, Ahrefs analytics, and Cloudflare
-        Web Analytics (which Cloudflare may inject at its delivery edge), and may
-        disclose network/browser data when loaded.</p>
+        requests include reCAPTCHA and Ahrefs analytics. Font files are hosted by BrightBoard,
+        not requested from Google's font servers by visitors. Cloudflare Web Analytics may also be
+        injected at Cloudflare's delivery edge. These services may receive network/browser data when
+        loaded.</p>
       <p>Where EU/ePrivacy rules require consent, non-essential storage/access and related processing
         must wait for a valid choice; reject and withdrawal mechanisms must be available. Security
         services require their own necessity and proportionality assessment, not automatic classification

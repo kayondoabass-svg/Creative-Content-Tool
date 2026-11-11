@@ -110,7 +110,7 @@ All six countries require separate review, including applicable exceptions and s
   correction, deletion, opt-out, sensitive-information and non-discrimination where applicable.
   [California Attorney General](https://www.oag.ca.gov/privacy/ccpa);
   [GPC](https://oag.ca.gov/privacy/ccpa/gpc).
-  Assess AdSense disclosures even if private projects are not sold. Required opt-out/GPC recognition
+  Reassess disclosures before enabling any advertising integration, even if private projects are not sold. Required opt-out/GPC recognition
   and state-specific appeal procedures have not been implemented or certified by the document change.
 - [FTC COPPA FAQ](https://www.ftc.gov/business-guidance/resources/complying-coppa-frequently-asked-questions):
   distinguish adult uploads about children from collection from children; assess actual audience,
