@@ -46,10 +46,11 @@ const defaultJsonParser = express.json({
 const defaultFormParser = express.urlencoded({ extended: false, limit: "50mb" });
 const mediaJsonParser = express.json({ limit: "256kb" });
 const isLibraryRequest = (req: Request) => /^\/api\/(?:tv\/library|sharing\/documents)(?:\/|$)/.test(req.path);
+const isPdfReferenceRequest = (req: Request) => req.method === "POST" && /^\/api\/extract-pdf-text\/?$/.test(req.path);
 // Library uploads are authenticated and entitlement-checked before parsing,
 // with their own bounded 64 MB lesson limit.
-app.use((req, res, next) => req.path.startsWith("/api/media/") ? mediaJsonParser(req, res, next) : isLibraryRequest(req) ? next() : defaultJsonParser(req, res, next));
-app.use((req, res, next) => isLibraryRequest(req) || req.path.startsWith("/api/media/") ? next() : defaultFormParser(req, res, next));
+app.use((req, res, next) => req.path.startsWith("/api/media/") ? mediaJsonParser(req, res, next) : isLibraryRequest(req) || isPdfReferenceRequest(req) ? next() : defaultJsonParser(req, res, next));
+app.use((req, res, next) => isLibraryRequest(req) || isPdfReferenceRequest(req) || req.path.startsWith("/api/media/") ? next() : defaultFormParser(req, res, next));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

@@ -26,6 +26,10 @@ git reset --hard "$RELEASE"
 # Preserve the VPS's repaired download addresses; no dependency install needed.
 cp -p "$BACKUP/package-lock.json" package-lock.json
 node --check dist/index.cjs
+if test -f dist/pdfExtractWorker.cjs; then
+  node --check dist/pdfExtractWorker.cjs
+  node scripts/check-pdf-worker.cjs
+fi
 node scripts/release-manifest.cjs "$RELEASE"
 pm2 restart brightboard --interpreter /opt/brightboard-node22/bin/node
 node --env-file=.env --input-type=module <<'NODE'

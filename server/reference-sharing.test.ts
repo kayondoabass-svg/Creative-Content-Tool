@@ -49,6 +49,12 @@ test("reference analysis transmits the actual image and user's request, not a te
     }) as typeof fetch);
     assert.equal(calls, 1);
     assert.match(result, /Transport illustration/);
+    let warnings: string[] = [];
+    const minor = await analyseReferences([dataUrl(await image())], "content", "Teach jobs and places", (async () =>
+      Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ summary: "Factory worker works at a factory.", uncertain: [], minorAmbiguities: ["Factory is interpreted as Factory Worker for the job label."] }) }] } }] })
+    ) as typeof fetch, notes => { warnings = notes; });
+    assert.match(minor, /Factory worker/);
+    assert.equal(warnings.length, 1);
     let retries = 0;
     await assert.rejects(analyseReferences([dataUrl(await image())], "content", "Read this", (async () => {
       retries++; return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ summary: "Unclear", uncertain: ["unreadable question"] }) }] } }] });

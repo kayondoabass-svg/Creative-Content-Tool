@@ -23,7 +23,7 @@ export class JobQueue {
   private running = 0;
   private maxConcurrent: number;
 
-  constructor(maxConcurrent = 20) {
+  constructor(maxConcurrent = 20, private readonly jobTimeoutMs = 5 * 60 * 1000) {
     this.maxConcurrent = maxConcurrent;
     setInterval(() => this.cleanup(), 10 * 60 * 1000).unref();
   }
@@ -92,7 +92,7 @@ export class JobQueue {
     });
 
     // 5-minute timeout failsafe — marks the job as failed if AI hangs
-    const JOB_TIMEOUT_MS = 5 * 60 * 1000;
+    const JOB_TIMEOUT_MS = this.jobTimeoutMs;
     const timeoutHandle = setTimeout(() => {
       const job = this.jobs.get(item.jobId);
       if (job && job.status === "processing") {
@@ -108,6 +108,15 @@ export class JobQueue {
     try {
       const result = await item.fn();
       clearTimeout(timeoutHandle);
+      // A timed-out request must not later become a successful request.
+      if (this.jobs.get(item.jobId)?.status !== "processing") return;
+      if (!result?.error && !result?.limitReached) {
+        const saved = result?.data;
+        if (!saved || typeof saved.content !== "string" || !saved.content.trim() ||
+            !Number.isInteger(saved.id) || saved.userId !== this.owners.get(item.jobId)) {
+          throw new Error("Generation did not return a saved result for your account. Please try again.");
+        }
+      }
       this.updateJob(item.jobId, {
         status: "complete",
         step: "Content ready!",
@@ -119,6 +128,7 @@ export class JobQueue {
       });
     } catch (err: any) {
       clearTimeout(timeoutHandle);
+      if (this.jobs.get(item.jobId)?.status !== "processing") return;
       this.updateJob(item.jobId, {
         status: "error",
         step: "Generation failed",
@@ -135,7 +145,7 @@ export class JobQueue {
     const now = Date.now();
     const maxAge = 30 * 60 * 1000;
     for (const [id, job] of this.jobs.entries()) {
-      if (now - job.createdAt > maxAge) {
+      if ((job.status === "complete" || job.status === "error") && now - job.updatedAt > maxAge) {
         this.jobs.delete(id);
         this.owners.delete(id);
       }

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -452,7 +452,18 @@ function downloadCertAsPDF(containerId: string, fileName: string) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function StudioPage() {
+  const { user } = useAuth();
+  return <StudioForAccount key={user?.id ?? "signed-out"} />;
+}
+
+function StudioForAccount() {
   const { isAuthenticated } = useAuth();
+  const templateVersion = useRef(0);
+  const templateMounted = useRef(true);
+  useEffect(() => {
+    templateMounted.current = true;
+    return () => { templateMounted.current = false; templateVersion.current++; };
+  }, []);
   const { isPremium } = useSubscription();
   const { toast } = useToast();
 
@@ -537,13 +548,19 @@ export default function StudioPage() {
   const handleRcTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
+    const version = ++templateVersion.current;
+    setRcTemplateUploaded(false);
     setRcTemplateLoading(true);
     const reader = new FileReader();
     reader.onload = async (ev) => {
+      if (!templateMounted.current || version !== templateVersion.current) return;
       try {
         const b64 = (ev.target?.result as string).split(",")[1];
         const res = await apiRequest("POST", "/api/studio/parse-report-template", { fileData: b64, mimeType: file.type });
         const data = await res.json();
+        if (!templateMounted.current || version !== templateVersion.current) return;
+        if (!Array.isArray(data.categories) || !data.categories.length) throw new Error("The template could not be read.");
         if (data.categories?.length) setRcCategories(data.categories.slice(0, 15));
         setRcSchoolInfo(prev => ({
           schoolName: data.schoolName || prev.schoolName,
@@ -555,8 +572,14 @@ export default function StudioPage() {
         const filled = [data.schoolName, data.className, data.teacherName, data.period].filter(Boolean).length;
         toast({ title: "Template read!", description: `Found ${data.categories?.length || 0} categories${filled ? ` and ${filled} school details` : ""} — check and confirm below.` });
       } catch {
-        toast({ title: "Couldn't read template", description: "Using default categories.", variant: "destructive" });
-      } finally { setRcTemplateLoading(false); }
+        if (templateMounted.current && version === templateVersion.current) toast({ title: "Couldn't read template", description: "No template was accepted. Enter details manually or try a clearer file.", variant: "destructive" });
+      } finally { if (templateMounted.current && version === templateVersion.current) setRcTemplateLoading(false); }
+    };
+    reader.onerror = () => {
+      if (templateMounted.current && version === templateVersion.current) {
+        setRcTemplateLoading(false);
+        toast({ title: "Could not open template", description: "Please select the file again.", variant: "destructive" });
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -603,17 +626,41 @@ export default function StudioPage() {
   const handleRcUploadTemplateFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
+    const version = ++templateVersion.current;
+    setRcExtracted(null); setRcTemplatePdfBase64("");
     setRcTemplateLoading(true);
     const reader = new FileReader();
     reader.onload = async (ev) => {
+      if (!templateMounted.current || version !== templateVersion.current) return;
       try {
         const dataUrl = ev.target?.result as string;
         const b64 = dataUrl.split(",")[1];
-        setRcTemplatePdfBase64(b64);
         const res = await apiRequest("POST", "/api/studio/detect-template-fields", { fileData: b64, mimeType: file.type });
         const data = await res.json();
-        const cats = data.categories?.length ? data.categories.slice(0, 15) : ["Behavior & Conduct", "Listening Skills", "Speaking & Communication", "Reading", "Writing", "Class Participation"];
-        const scale = data.ratingScale?.length ? data.ratingScale : ["Excellent", "Above Average", "Average", "Below Average", "Needs Improvement"];
+        if (!templateMounted.current || version !== templateVersion.current) return;
+        if (!Array.isArray(data.categories) || !data.categories.length || !Array.isArray(data.ratingScale) || !data.ratingScale.length) throw new Error("Incomplete template.");
+        let templatePdf = b64;
+        if (file.type.startsWith("image/")) {
+          const image = new window.Image();
+          image.src = dataUrl;
+          await image.decode();
+          const canvas = document.createElement("canvas");
+          canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("Image conversion is unavailable.");
+          context.drawImage(image, 0, 0);
+          const { PDFDocument } = await import("pdf-lib");
+          const pdfDoc = await PDFDocument.create();
+          const background = await pdfDoc.embedPng(canvas.toDataURL("image/png"));
+          const page = pdfDoc.addPage([background.width, background.height]);
+          page.drawImage(background, { x: 0, y: 0, width: background.width, height: background.height });
+          templatePdf = await pdfDoc.saveAsBase64();
+        }
+        if (!templateMounted.current || version !== templateVersion.current) return;
+        setRcTemplatePdfBase64(templatePdf);
+        const cats = data.categories;
+        const scale = data.ratingScale;
         setRcCategories(cats);
         setRcRatingScale(scale);
         setRcExtracted({
@@ -624,8 +671,14 @@ export default function StudioPage() {
         });
         toast({ title: "Template read!", description: `${cats.length} categories and rating scale detected.` });
       } catch {
-        toast({ title: "Couldn't read template", description: "Please try again.", variant: "destructive" });
-      } finally { setRcTemplateLoading(false); }
+        if (templateMounted.current && version === templateVersion.current) toast({ title: "Couldn't read template", description: "No template was accepted. Please try a clearer file.", variant: "destructive" });
+      } finally { if (templateMounted.current && version === templateVersion.current) setRcTemplateLoading(false); }
+    };
+    reader.onerror = () => {
+      if (templateMounted.current && version === templateVersion.current) {
+        setRcTemplateLoading(false);
+        toast({ title: "Could not open template", description: "Please select the file again.", variant: "destructive" });
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -1274,14 +1327,14 @@ export default function StudioPage() {
                   <p className="text-muted-foreground">Choose how you want to create your report cards</p>
                 </div>
                 <div className="grid md:grid-cols-2 gap-5">
-                  <button onClick={() => setRcMode("scratch")} data-testid="button-rc-mode-scratch"
+                  <button onClick={() => { templateVersion.current++; setRcTemplateLoading(false); setRcMode("scratch"); }} data-testid="button-rc-mode-scratch"
                     className="rounded-2xl border-2 border-border hover:border-purple-400 bg-card p-7 text-left transition-all hover:shadow-lg group">
                     <FileText className="w-9 h-9 text-purple-500 mb-4" />
                     <h3 className="font-bold text-xl mb-2">Build from scratch</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">Design your own categories, rating scale and school details. BrightBoard generates a polished branded PDF.</p>
                     <div className="mt-4 flex items-center gap-1.5 text-purple-600 text-sm font-medium">Get started <ChevronRight className="w-4 h-4" /></div>
                   </button>
-                  <button onClick={() => { setRcMode("upload"); setRcUploadStep("upload"); setRcExtracted(null); setRcTemplatePdfBase64(""); setRcStudents([{ id: "s0", name: "", photo: undefined, ratings: {} }]); setRcComments({}); }} data-testid="button-rc-mode-upload"
+                  <button onClick={() => { templateVersion.current++; setRcTemplateLoading(false); setRcMode("upload"); setRcUploadStep("upload"); setRcExtracted(null); setRcTemplatePdfBase64(""); setRcStudents([{ id: "s0", name: "", photo: undefined, ratings: {} }]); setRcComments({}); }} data-testid="button-rc-mode-upload"
                     className="rounded-2xl border-2 border-teal-400 bg-teal-50/40 dark:bg-teal-950/20 hover:shadow-xl p-7 text-left transition-all group relative overflow-hidden">
                     <div className="absolute top-3 right-3 bg-teal-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">NEW</div>
                     <Upload className="w-9 h-9 text-teal-500 mb-4" />
@@ -1295,7 +1348,7 @@ export default function StudioPage() {
 
             {/* ── Scratch path ── */}
             {rcMode === "scratch" && (<>
-              <button onClick={() => setRcMode(null)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-5 transition-colors" data-testid="button-rc-back-to-picker">
+              <button onClick={() => { templateVersion.current++; setRcTemplateLoading(false); setRcMode(null); }} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-5 transition-colors" data-testid="button-rc-back-to-picker">
                 <ChevronLeft className="w-4 h-4" /> Back to options
               </button>
               {/* Step indicator */}
@@ -1366,7 +1419,7 @@ export default function StudioPage() {
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <Button onClick={() => setRcStep("students")} disabled={rcCategories.length === 0} className="gap-2" data-testid="button-rc-to-students">
+                  <Button onClick={() => setRcStep("students")} disabled={rcTemplateLoading || rcCategories.length === 0} className="gap-2" data-testid="button-rc-to-students">
                     Continue to Students <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
@@ -1597,7 +1650,7 @@ export default function StudioPage() {
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                           <CheckCircle className="w-5 h-5" /><span className="font-semibold">Template read successfully</span>
-                          <button onClick={() => { setRcExtracted(null); setRcTemplatePdfBase64(""); }} className="ml-auto text-xs text-muted-foreground underline hover:text-foreground" data-testid="button-rc-upload-different">Upload different file</button>
+                          <button onClick={() => { templateVersion.current++; setRcTemplateLoading(false); setRcExtracted(null); setRcTemplatePdfBase64(""); }} className="ml-auto text-xs text-muted-foreground underline hover:text-foreground" data-testid="button-rc-upload-different">Upload different file</button>
                         </div>
                         <Card><CardContent className="pt-4 grid sm:grid-cols-2 gap-3">
                           {([["schoolName","School Name"],["className","Class / Grade"],["teacherName","Teacher Name"],["period","Academic Period"]] as const).map(([k, label]) => (

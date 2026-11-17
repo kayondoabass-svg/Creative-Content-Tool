@@ -63,6 +63,11 @@ async function buildAll() {
     logLevel: "info",
   });
   await buildSharing();
+  await esbuild({
+    entryPoints: ["server/workers/pdfExtractWorker.ts"],
+    platform: "node", bundle: true, format: "cjs",
+    outfile: "dist/pdfExtractWorker.cjs", external: ["pdf.js-extract"],
+  });
   // Build the independently distributable public app, then include its static
   // files in the existing VPS release. Its source never exposes private services.
   await import("../packages/brightboard-tv/scripts/build.mjs");

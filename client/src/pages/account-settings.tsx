@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Monitor, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { deviceResponse } from "@/lib/device-response";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -24,13 +25,14 @@ interface Sessions {
 }
 
 async function deviceRequest<T>(method: string, path: string, body?: object): Promise<T> {
-  const response = await fetch(path, {
-    method, credentials: "include", cache: "no-store",
-    ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Unable to manage devices. Please try again.");
-  return data;
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method, credentials: "include", cache: "no-store",
+      ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+    });
+  } catch { throw new Error("Connection lost. Refresh your devices before retrying."); }
+  return deviceResponse(response, method === "GET" ? "list" : "revoke");
 }
 
 function displayDate(value: string | null) {
@@ -40,12 +42,17 @@ function displayDate(value: string | null) {
 }
 
 export default function AccountSettings() {
+  const { user } = useAuth();
+  return <AccountSettingsForUser key={user?.id ?? "signed-out"} />;
+}
+
+function AccountSettingsForUser() {
   const { user, isLoading } = useAuth();
   const queryClient = useQueryClient();
   const [confirmation, setConfirmation] = useState<"all" | DeviceSession | null>(null);
   const [notice, setNotice] = useState("");
   const devices = useQuery<Sessions>({
-    queryKey: ["/api/auth/sessions"],
+    queryKey: ["/api/auth/sessions", user?.id],
     queryFn: () => deviceRequest("GET", "/api/auth/sessions"),
     enabled: !!user,
     retry: false,

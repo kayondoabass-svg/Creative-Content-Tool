@@ -11,7 +11,10 @@ const release = (() => {
     const serverSha256 = createHash("sha256").update(readFileSync(__filename)).digest("hex");
     if (manifest.schema !== 1 || !/^[a-f0-9]{40}$/.test(manifest.revision) ||
         manifest.files?.["dist/index.cjs"] !== serverSha256) return null;
-    return Object.freeze({ schema: 1, revision: manifest.revision, serverSha256 });
+    const expectedWorker = manifest.files?.["dist/pdfExtractWorker.cjs"];
+    const pdfWorkerSha256 = expectedWorker ? createHash("sha256").update(readFileSync("dist/pdfExtractWorker.cjs")).digest("hex") : undefined;
+    if (expectedWorker && pdfWorkerSha256 !== expectedWorker) return null;
+    return Object.freeze({ schema: 1, revision: manifest.revision, serverSha256, ...(pdfWorkerSha256 ? { pdfWorkerSha256 } : {}) });
   } catch {
     return null;
   }

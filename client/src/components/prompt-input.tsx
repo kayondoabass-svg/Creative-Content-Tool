@@ -1,5 +1,6 @@
 import { useForm } from "react-hook-form";
 import { readReferenceUpload } from "@/lib/reference-upload";
+import { usePdfReference } from "@/hooks/use-pdf-reference";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -24,6 +25,7 @@ interface PromptInputProps {
   isGenerating: boolean;
   defaultGameType?: string | null;
   externalPrompt?: string | null;
+  onReferencesChange?: () => void;
 }
 
 const worksheetColorModes = [
@@ -220,7 +222,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGameType, externalPrompt }: PromptInputProps) {
+export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGameType, externalPrompt, onReferencesChange }: PromptInputProps) {
   const { t } = useTranslation();
   const { isPremium } = useSubscription();
   const { user } = useAuth();
@@ -234,9 +236,19 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const [logoWidthPercent, setLogoWidthPercent] = useState(20);
   const [logoMarginPercent, setLogoMarginPercent] = useState(4);
   const [isReadingImage, setIsReadingImage] = useState(false);
+  const [referenceError, setReferenceError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const prevSelectedType = useRef(selectedType);
   const previousUserId = useRef(user?.id);
+  const uploadVersion = useRef(0);
+  const keyPointVersion = useRef(0);
+  const slotVersions = useRef<number[]>([0, 0, 0, 0]);
+  const mounted = useRef(true);
+  const [pendingSlots, setPendingSlots] = useState<string[]>([]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; uploadVersion.current++; keyPointVersion.current++; slotVersions.current = slotVersions.current.map(v => v + 1); };
+  }, []);
 
   useEffect(() => {
     if (previousUserId.current !== user?.id) {
@@ -264,9 +276,10 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const [gameTemplate, setGameTemplate] = useState<string>("");
 
   // PDF upload state for presentations
-  const [pdfContext, setPdfContext] = useState<string | null>(null);
-  const [pdfFileName, setPdfFileName] = useState<string | null>(null);
-  const [isExtractingPdf, setIsExtractingPdf] = useState(false);
+  const pdf = usePdfReference(JSON.stringify([user?.id ?? null, selectedType]), onReferencesChange);
+  const pdfFileName = pdf.state.name;
+  const isExtractingPdf = pdf.state.status === "reading";
+  const pdfContext = pdf.state.status === "ready" ? pdf.state.text : null;
   const pdfInputRef = useRef<HTMLInputElement>(null);
   
   const {
@@ -283,6 +296,16 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   // Attachments belong to the selected tool; do not carry them into another tool.
   if (prevSelectedType.current !== selectedType) {
     prevSelectedType.current = selectedType;
+    uploadVersion.current++;
+    keyPointVersion.current++;
+    slotVersions.current = slotVersions.current.map(v => v + 1);
+    setPendingSlots([]);
+    setIsReadingImage(false);
+    setReferenceError("");
+    setMindmapImages(Array(mindmapImageSlots).fill(null));
+    setSelectedKeyPoints(new Set());
+    setKeyPointSuggestions([]);
+    setIsSuggestingKeyPoints(false);
     if (referenceImage || imagePreview) {
       setReferenceImage(null);
       setImagePreview(null);
@@ -395,18 +418,35 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       return;
     }
     const uploadType = selectedType;
+    setReferenceError("");
+    const version = ++slotVersions.current[slotIndex];
+    const pending = `${slotIndex}:${version}`;
+    setPendingSlots(old => [...old, pending]);
+    setMindmapImages(old => old.map((value, index) => index === slotIndex ? null : value));
+    onReferencesChange?.();
     try {
       const base64 = await readReferenceUpload(file);
-      if (prevSelectedType.current !== uploadType) return;
+      if (!mounted.current || prevSelectedType.current !== uploadType || slotVersions.current[slotIndex] !== version) return;
       setMindmapImages(prev => {
+        if (prev.some((value, index) => index !== slotIndex && value === base64)) {
+          alert("This reference is already attached in another slot.");
+          return prev;
+        }
         const updated = [...prev];
         updated[slotIndex] = base64;
         return updated;
       });
-    } catch (error) { alert(error instanceof Error ? error.message : "Unable to read this reference."); }
+    } catch (error) {
+      if (mounted.current && slotVersions.current[slotIndex] === version) setReferenceError(error instanceof Error ? error.message : "Unable to read this reference.");
+    } finally {
+      if (mounted.current) setPendingSlots(old => old.filter(value => value !== pending));
+    }
   };
 
   const removeMindmapImage = (slotIndex: number) => {
+    slotVersions.current[slotIndex]++;
+    setPendingSlots(old => old.filter(value => !value.startsWith(`${slotIndex}:`)));
+    onReferencesChange?.();
     setMindmapImages(prev => {
       const updated = [...prev];
       updated[slotIndex] = null;
@@ -418,6 +458,9 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   };
 
   const handleMindmapSlotChange = (slots: 1 | 4) => {
+    slotVersions.current = slotVersions.current.map(v => v + 1);
+    setPendingSlots([]);
+    onReferencesChange?.();
     setMindmapImageSlots(slots);
     setMindmapImages(Array(slots).fill(null));
     mindmapImageRefs.current.forEach(ref => { if (ref) ref.value = ""; });
@@ -432,20 +475,29 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
         return;
       }
       const uploadType = selectedType;
+      setReferenceError("");
+      const version = ++uploadVersion.current;
+      onReferencesChange?.();
+      setReferenceImage(null);
+      setImagePreview(null);
       setIsReadingImage(true);
       try {
         const base64 = await readReferenceUpload(file);
-        if (prevSelectedType.current !== uploadType) return;
+        if (!mounted.current || prevSelectedType.current !== uploadType || uploadVersion.current !== version) return;
         setReferenceImage(base64);
         setImagePreview(base64);
         setUsingSavedLogo(false);
       } catch (error) {
-        alert(error instanceof Error ? error.message : "Unable to read this image.");
-      } finally { setIsReadingImage(false); }
+        if (mounted.current && uploadVersion.current === version) setReferenceError(error instanceof Error ? error.message : "Unable to read this image.");
+      } finally { if (mounted.current && uploadVersion.current === version) setIsReadingImage(false); }
     }
   };
 
   const clearImage = () => {
+    uploadVersion.current++;
+    setIsReadingImage(false);
+    setReferenceError("");
+    onReferencesChange?.();
     setReferenceImage(null);
     setImagePreview(null);
     setLogoMode("creative");
@@ -458,10 +510,18 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const handleSuggestKeyPoints = async () => {
     const topic = form.getValues("prompt");
     if (!topic.trim()) return;
+    const version = ++keyPointVersion.current;
+    const current = () => mounted.current && keyPointVersion.current === version && form.getValues("prompt") === topic;
+    setKeyPointSuggestions([]);
+    setSelectedKeyPoints(new Set());
+    onReferencesChange?.();
     setIsSuggestingKeyPoints(true);
     try {
       const res = await fetch("/api/suggest-key-points", {
         method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        signal: AbortSignal.timeout(25000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           topic,
@@ -470,13 +530,15 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
         }),
       });
       const data = await res.json();
-      const points: string[] = data.points || [];
+      if (!current()) return;
+      if (!res.ok || !Array.isArray(data.points) || data.points.length > 30 || !data.points.every((p: unknown) => typeof p === "string" && p.trim() && p.length <= 600)) throw new Error("Invalid key point suggestions");
+      const points: string[] = data.points.map((p: string) => p.trim());
       setKeyPointSuggestions(points);
       setSelectedKeyPoints(new Set(points));
     } catch {
-      setKeyPointSuggestions([]);
+      if (current()) setKeyPointSuggestions([]);
     } finally {
-      setIsSuggestingKeyPoints(false);
+      if (mounted.current && keyPointVersion.current === version) setIsSuggestingKeyPoints(false);
     }
   };
 
@@ -492,35 +554,19 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsExtractingPdf(true);
-    setPdfFileName(file.name);
-    try {
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const base64 = ev.target?.result as string;
-        const res = await fetch("/api/extract-pdf-text", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pdfBase64: base64 }),
-        });
-        const data = await res.json();
-        setPdfContext(data.text || null);
-        setIsExtractingPdf(false);
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      setIsExtractingPdf(false);
-    }
+    pdf.select(file);
+    e.target.value = "";
   };
 
   const clearPdf = () => {
-    setPdfContext(null);
-    setPdfFileName(null);
+    pdf.clear();
     if (pdfInputRef.current) pdfInputRef.current.value = "";
   };
 
   const onSubmit = (values: FormValues) => {
-    if (isReadingImage) return;
+    if (isGenerating || isReadingImage || pendingSlots.length || pdf.blocked || referenceError) return;
+    const boundPdf = pdf.resolve();
+    if (!boundPdf.ok) return;
     const slideCount = values.slideCount ? parseInt(values.slideCount) : undefined;
     const videoOptions = selectedType === "storyboard" ? {
       length: values.videoLength,
@@ -534,7 +580,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
       imageStyle: values.presentationImageStyle,
       imageQuality: values.presentationImageQuality,
       keyPoints: selectedKeyPoints.size > 0 ? Array.from(selectedKeyPoints) : undefined,
-      documentContext: pdfContext || undefined,
+      documentContext: boundPdf.text,
       transition: values.presentationTransition,
       transitionDelay: values.presentationTransitionDelay ? parseFloat(values.presentationTransitionDelay) : undefined,
       tapToReveal: values.presentationTapToReveal,
@@ -599,6 +645,10 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
     <Card className="p-4 sm:p-5">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {referenceError && <div role="alert" className="rounded-md border border-destructive p-3 text-sm">
+            <p>{referenceError} This reference has not been used.</p>
+            <Button type="button" variant="outline" onClick={() => { setReferenceError(""); onReferencesChange?.(); }}>Remove failed reference</Button>
+          </div>}
           <div className="flex flex-wrap items-center gap-3">
             <FormField
               control={form.control}
@@ -751,7 +801,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
           )}
           {(referenceImage || mindmapImages.some(Boolean)) && !(selectedType === "image" && logoMode === "exact") && <div className="space-y-2">
             <label htmlFor="reference-purpose" className="text-sm font-medium">How should the reference be used?</label>
-            <select id="reference-purpose" className="w-full rounded-md border bg-background p-2 text-sm" value={selectedType !== "image" && referencePurpose === "edit" ? "content" : referencePurpose} onChange={e => setReferencePurpose(e.target.value as typeof referencePurpose)} disabled={isGenerating}>
+            <select id="reference-purpose" className="w-full rounded-md border bg-background p-2 text-sm" value={selectedType !== "image" && referencePurpose === "edit" ? "content" : referencePurpose} onChange={e => { setReferencePurpose(e.target.value as typeof referencePurpose); onReferencesChange?.(); }} disabled={isGenerating}>
               <option value="content">Use its content · create new material</option>
               <option value="style">Use its style · not its wording or answers</option>
               {selectedType === "image" && <option value="edit">Edit this image · follow my changes</option>}
@@ -863,6 +913,8 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                   <div className="flex flex-wrap items-center gap-3">
                     <img src={organization.logo} alt={`${organization.name || "Your organisation"} saved logo`} className="h-16 w-24 rounded border bg-muted object-contain" data-testid="img-saved-organisation-logo" />
                     <Button type="button" variant="outline" disabled={isGenerating || isReadingImage} data-testid="button-use-saved-logo" onClick={() => {
+                      uploadVersion.current++;
+                      onReferencesChange?.();
                       setReferenceImage(organization.logo!);
                       setImagePreview(organization.logo!);
                       setUsingSavedLogo(true);
@@ -1400,6 +1452,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                 accept=".pdf"
                 className="hidden"
                 onChange={handlePdfUpload}
+                disabled={isGenerating}
                 data-testid="input-pdf-upload"
               />
               {pdfFileName ? (
@@ -1425,6 +1478,12 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
                   Upload PDF
                 </Button>
               )}
+              {pdfFileName && <Button type="button" variant="outline" size="sm" disabled={isGenerating} onClick={() => pdfInputRef.current?.click()}>Replace PDF</Button>}
+              {pdf.state.warnings.length > 0 && <div role="status" className="basis-full rounded-md border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">
+                {pdf.state.warnings.map((warning, i) => <p key={i}>{warning}</p>)}
+                {pdf.state.status === "confirm" && <Button type="button" variant="outline" onClick={pdf.confirm} className="mt-2">Use readable portion anyway</Button>}
+              </div>}
+              {pdf.state.error && <p role="alert" className="basis-full text-sm text-destructive">{pdf.state.error} Remove or replace this PDF to continue.</p>}
 
               {/* Key Points Suggester */}
               <Button
@@ -1984,7 +2043,7 @@ export function PromptInput({ selectedType, onGenerate, isGenerating, defaultGam
             </p>
             <Button
               type="submit"
-              disabled={isGenerating || isReadingImage || (selectedType === "mindmap" ? !mindmapCentralTopic.trim() : !form.watch("prompt").trim())}
+              disabled={isGenerating || isReadingImage || pendingSlots.length > 0 || pdf.blocked || !!referenceError || (selectedType === "mindmap" ? !mindmapCentralTopic.trim() : !form.watch("prompt").trim())}
               className="gap-2 ml-auto"
               data-testid="button-generate"
             >

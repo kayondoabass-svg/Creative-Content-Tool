@@ -27,6 +27,10 @@ async function verify(base, manifest, fetcher = fetch) {
       release.serverSha256 !== manifest.files["dist/index.cjs"]) {
     throw new Error("Running process is not the expected revision/build");
   }
+  if (manifest.files["dist/pdfExtractWorker.cjs"] &&
+      release.pdfWorkerSha256 !== manifest.files["dist/pdfExtractWorker.cjs"]) {
+    throw new Error("Running PDF worker does not match the expected release");
+  }
   const relay = JSON.parse(await get("/api/tv/health", "application/json"));
   if (relay.ok !== true || relay.transport !== "https-long-poll" ||
       relay.offlinePairing !== false || relay.hostedLibrary !== true) {

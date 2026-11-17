@@ -1,4 +1,4 @@
-const { readFileSync, writeFileSync } = require("node:fs");
+const { readFileSync, writeFileSync, existsSync } = require("node:fs");
 const { createHash } = require("node:crypto");
 const { execFileSync } = require("node:child_process");
 const path = require("node:path");
@@ -23,6 +23,7 @@ function createManifest(root, revision) {
       files.push(file);
     }
   }
+  if (existsSync(path.join(root, "dist/pdfExtractWorker.cjs"))) files.push("dist/pdfExtractWorker.cjs");
   const hashes = Object.fromEntries([...new Set(files)].map(file => [
     file, digest(readFileSync(path.join(root, file))),
   ]));

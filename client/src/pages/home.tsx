@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { acceptGenerationResult } from "@/lib/generation-result";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch, useLocation, Link } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -63,6 +64,11 @@ const getContentTypes = (t: (key: string) => string) => [
 ];
 
 export default function Home() {
+  const { user } = useAuth();
+  return <HomeWorkspace key={user?.id ?? "signed-out"} />;
+}
+
+function HomeWorkspace() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -81,6 +87,7 @@ export default function Home() {
   const [selectedGameType, setSelectedGameType] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [generatedContentId, setGeneratedContentId] = useState<number | null>(null);
+  const [generatedType, setGeneratedType] = useState<ContentType | null>(null);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<GeneratedContent | null>(null);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const selectedHistoryRef = useRef(selectedHistoryItem);
@@ -120,6 +127,18 @@ export default function Home() {
   const [generationStep, setGenerationStep] = useState("");
   const [generationPercent, setGenerationPercent] = useState(0);
   const [queuePosition, setQueuePosition] = useState(0);
+  const [generationError, setGenerationError] = useState("");
+  const requestEpoch = useRef(0);
+  const activeJob = useRef<{ id: string; type: string; epoch: number } | null>(null);
+  const pendingRequest = useRef<AbortController | null>(null);
+  const generating = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; requestEpoch.current++; pendingRequest.current?.abort(); activeJob.current = null; };
+  }, []);
+  const referencesChanged = useCallback(() => setLastPrompt(null), []);
+  useEffect(() => { setLastPrompt(null); }, [selectedType]);
 
   const { data: history = [] } = useQuery<GeneratedContent[]>({
     queryKey: ["/api/content", user?.id],
@@ -131,18 +150,22 @@ export default function Home() {
   });
 
   const { data: usageData } = useQuery<{ isPremium: boolean; remaining?: Record<string, number>; totalGenerations?: number }>({
-    queryKey: ["/api/user/usage"],
+    queryKey: ["/api/user/usage", user?.id],
+    queryFn: async () => (await apiRequest("GET", "/api/user/usage")).json(),
+    enabled: !!user?.id,
     staleTime: 30_000,
   });
 
   // Poll job status while generating
-  const { data: jobStatus } = useQuery<any>({
-    queryKey: ["/api/generate/job", jobId],
-    queryFn: async () => {
+  const { data: jobStatus, error: jobError } = useQuery<any>({
+    queryKey: ["/api/generate/job", user?.id, jobId],
+    queryFn: async ({ signal }) => {
       if (!jobId) return null;
-      const res = await fetch(`/api/generate/job/${jobId}`);
-      if (!res.ok) throw new Error("Job not found");
-      return res.json();
+      const res = await fetch(`/api/generate/job/${jobId}`, { signal, cache: "no-store", credentials: "include" });
+      if (!res.ok) throw new Error(res.status === 401 ? "Your session expired. Please sign in again." : res.status === 404 ? "This generation is no longer available. Check Recent creations before retrying." : "Could not check generation progress. Check your connection and Recent creations before retrying.");
+      const data = await res.json().catch(() => null);
+      if (!data || data.id !== jobId || !["queued", "processing", "complete", "error"].includes(data.status)) throw new Error("The generation status was invalid. Check Recent creations before retrying.");
+      return data;
     },
     enabled: !!jobId,
     refetchInterval: (query) => {
@@ -151,16 +174,27 @@ export default function Home() {
       return 1500;
     },
     staleTime: 0,
+    gcTime: 0,
+    retry: 2,
   });
+  useEffect(() => {
+    if (!jobError || !jobId || activeJob.current?.id !== jobId) return;
+    setGenerationError(jobError.message);
+    setIsGenerating(false); generating.current = false;
+    activeJob.current = null; setJobId(null);
+  }, [jobError, jobId]);
 
   // Handle job status changes
   useEffect(() => {
-    if (!jobStatus) return;
+    const job = activeJob.current;
+    if (!jobStatus || !job || jobStatus.id !== job.id || job.epoch !== requestEpoch.current) return;
     setGenerationStep(jobStatus.step || "");
     setGenerationPercent(jobStatus.percent || 0);
     setQueuePosition(jobStatus.queuePosition || 0);
 
     if (jobStatus.status === "complete") {
+      activeJob.current = null;
+      generating.current = false;
       setIsGenerating(false);
       setJobId(null);
       if (jobStatus.limitReached || (jobStatus.error && !jobStatus.result)) {
@@ -170,7 +204,10 @@ export default function Home() {
           variant: "destructive",
         });
       } else if (jobStatus.result) {
+        try { acceptGenerationResult(jobStatus.result, user!.id, job.type); }
+        catch (error) { setGenerationError((error as Error).message); return; }
         setGeneratedContent(jobStatus.result.content);
+        setGeneratedType(jobStatus.result.type);
         setGeneratedContentId(typeof jobStatus.result.id === "number" ? jobStatus.result.id : null);
         setSelectedHistoryItem(null);
         queryClient.invalidateQueries({ queryKey: ["/api/content"] });
@@ -183,6 +220,7 @@ export default function Home() {
             const usageRes = await fetch("/api/user/usage");
             if (usageRes.ok) {
               const freshUsage = await usageRes.json();
+              if (!alive.current || requestEpoch.current !== job.epoch) return;
               if (!freshUsage.isPremium && freshUsage.remaining) {
                 const rem = freshUsage.remaining[jobStatus.result.type] ?? 0;
                 if (rem <= 1) {
@@ -193,9 +231,13 @@ export default function Home() {
             }
           } catch {}
         })();
+      } else {
+        setGenerationError("Generation ended without a saved result. Check Recent creations before retrying. No previous document was substituted.");
       }
     }
     if (jobStatus.status === "error") {
+      activeJob.current = null; generating.current = false;
+      setGenerationError(jobStatus.error || "Generation could not complete.");
       setIsGenerating(false);
       setJobId(null);
       toast({
@@ -213,16 +255,37 @@ export default function Home() {
   };
 
   const startGeneration = async (payload: Record<string, any>) => {
+    if (!user?.id || generating.current) return;
+    const epoch = ++requestEpoch.current;
+    const controller = new AbortController();
+    pendingRequest.current?.abort(); pendingRequest.current = controller;
+    generating.current = true;
+    activeJob.current = null; setJobId(null);
+    setGeneratedContent(""); setGeneratedContentId(null); setSelectedHistoryItem(null);
+    setGenerationError("");
     setIsGenerating(true);
     setGenerationStep("Starting up...");
     setGenerationPercent(0);
     setQueuePosition(0);
     try {
-      const res = await apiRequest("POST", "/api/generate", payload);
+      const res = await fetch("/api/generate", {
+        method: "POST", credentials: "include", cache: "no-store", signal: controller.signal,
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const failure = await res.json().catch(() => null);
+        throw new Error(res.status === 401 ? "Please sign in again to generate." : failure?.error || "Generation could not start. Please retry.");
+      }
       const { jobId: newJobId, error } = await res.json();
+      if (!alive.current || epoch !== requestEpoch.current) return;
       if (error) throw new Error(error);
+      if (typeof newJobId !== "string" || !newJobId) throw new Error("The server did not return a generation reference.");
+      activeJob.current = { id: newJobId, type: payload.type, epoch };
       setJobId(newJobId);
     } catch (err: any) {
+      if (!alive.current || epoch !== requestEpoch.current || controller.signal.aborted) return;
+      generating.current = false;
+      setGenerationError(err.message || "Generation could not start.");
       setIsGenerating(false);
       toast({ title: t("home.generationFailed"), description: err.message || t("home.tryAgain"), variant: "destructive" });
     }
@@ -230,7 +293,7 @@ export default function Home() {
 
   const handleGenerate = (prompt: string, gradeLevel?: string, subject?: string, slideCount?: number, videoOptions?: { length?: string; style?: string; quality?: string }, presentationOptions?: { style?: string; layout?: string; imageStyle?: string; imageQuality?: string; keyPoints?: string[]; documentContext?: string; transition?: string; transitionDelay?: number; tapToReveal?: boolean }, referenceImage?: string, worksheetOptions?: { colorMode?: string; includeImages?: boolean }, imageOptions?: ImageOptions, textOptions?: { style?: string }, activityOptions?: { gameType?: string }, includeLogo?: boolean, mindmapOptions?: { branchCount?: number; layoutStyle?: string; imageStyle?: string; imageQuality?: string; contentStyle?: string; referenceImages?: string[] }, referencePurpose?: "content" | "style" | "edit" | "exact-logo") => {
     const payload = { type: selectedType, prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, includeLogo, mindmapOptions, referencePurpose };
-    setLastPrompt({ prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, includeLogo, mindmapOptions, ...{ referencePurpose } });
+    setLastPrompt({ prompt, gradeLevel, subject, slideCount, videoOptions, presentationOptions, worksheetOptions, referenceImage, imageOptions, textOptions, activityOptions, includeLogo, mindmapOptions, ...{ referencePurpose, type: selectedType } });
     startGeneration(payload);
   };
 
@@ -239,6 +302,8 @@ export default function Home() {
   };
 
   const handleSelectHistory = (item: GeneratedContent) => {
+    if (generating.current || item.userId !== user?.id) return;
+    setLastPrompt(null); setGenerationError("");
     setSelectedHistoryItem(item);
     setGeneratedContent(item.content);
     setGeneratedContentId(null);
@@ -252,6 +317,10 @@ export default function Home() {
   };
 
   const displayContent = selectedHistoryItem?.content || generatedContent;
+  const referenceWarnings = (() => {
+    try { const value = JSON.parse(displayContent || "{}").referenceWarnings; return Array.isArray(value) ? value.filter(v => typeof v === "string") : []; }
+    catch { return []; }
+  })();
   const displayedContentId = selectedHistoryItem?.id ?? generatedContentId;
 
   const handleLogoSaved = (record: GeneratedContent) => {
@@ -343,9 +412,11 @@ export default function Home() {
                   color={ct.color}
                   isSelected={selectedType === ct.type}
                   onClick={() => {
+                    if (generating.current) return;
                     setSelectedType(ct.type);
                     setSelectedHistoryItem(null);
                     setGeneratedContentId(null);
+                    setGeneratedContent(""); setGeneratedType(null); setLastPrompt(null); setGenerationError("");
                   }}
                   testId={`card-type-${ct.type}`}
                   remaining={usageData && !usageData.isPremium && usageData.remaining
@@ -431,6 +502,7 @@ export default function Home() {
             isGenerating={isGenerating}
             defaultGameType={selectedGameType}
             externalPrompt={quickStartPrompt}
+            onReferencesChange={referencesChanged}
           />
 
           {/* Live Generation Progress */}
@@ -444,9 +516,11 @@ export default function Home() {
           )}
 
           {/* Generated Content */}
+          {!isGenerating && referenceWarnings.length > 0 && <div role="status" className="rounded-lg border border-amber-400 p-4 text-sm"><strong>Reference notes</strong>{referenceWarnings.map((warning, i) => <p key={i}>{warning}</p>)}</div>}
+          {generationError && <div role="alert" className="rounded-lg border border-destructive p-4 text-sm text-destructive">{generationError}</div>}
           {!isGenerating && (
             <GeneratedContentDisplay
-              type={selectedHistoryItem?.type as ContentType || selectedType}
+              type={selectedHistoryItem?.type as ContentType || generatedType || selectedType}
               content={displayContent}
               isLoading={false}
               onRegenerate={lastPrompt ? handleRegenerate : undefined}

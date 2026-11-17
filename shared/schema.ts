@@ -52,8 +52,8 @@ export const presentationOptionsSchema = z.object({
   layout: z.enum(["single", "grid", "infographic"]).optional(),
   imageStyle: z.enum(["animation", "reallife"]).optional(),
   imageQuality: z.enum(["2d", "3d", "hd", "4k"]).optional(),
-  keyPoints: z.array(z.string()).optional(),
-  documentContext: z.string().optional(),
+  keyPoints: z.array(z.string().trim().max(600)).max(30).optional(),
+  documentContext: z.string().trim().min(1).max(15_000).optional(),
   // Premium animation features
   transition: z.enum(["none", "fade", "slide", "zoom", "flip"]).optional(),
   transitionDelay: z.number().min(0).max(5).optional(),
